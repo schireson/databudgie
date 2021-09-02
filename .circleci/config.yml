@@ -1,0 +1,121 @@
+version: 2.1
+
+executors:
+  main:
+    docker:
+      - image: schireson/cicd-python39
+        auth:
+          username: $DOCKER_USER
+          password: $DOCKER_PASSWORD
+      - image: postgres:9.6.10-alpine
+        environment:
+          POSTGRES_DB: dev
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+
+commands:
+  setup:
+    steps:
+      - checkout
+      - run:
+          name: Execute prerequisite setup
+          command: |
+            curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_VERSION=1.1.6 python
+            echo 'export PATH="$HOME/.poetry/bin:$PATH"' >> $BASH_ENV
+            $HOME/.poetry/bin/poetry config virtualenvs.create false
+
+  aws-create-credentials:
+    steps:
+      - run:
+          name: Create credentials file for AWS
+          command: |
+            aws configure set default.region "${AWS_DEFAULT_REGION:-us-east-1}"
+            printf "${AWS_CREDENTIALS}" > ~/.aws/credentials
+
+  run-make:
+    parameters:
+      command:
+        type: string
+    steps:
+      - run:
+          name: Run a make command
+          command: |
+            . .venv/bin/activate
+
+            make << parameters.command >>
+
+  setup-python:
+    description: Install python dependencies
+    steps:
+      - setup
+      - aws-create-credentials
+      - restore_cache:
+          key: v1-{{ checksum "pyproject.toml" }}-{{ checksum "poetry.lock" }}
+      - run:
+          name: Install Dependencies
+          command: |
+            pip install virtualenv
+            virtualenv .venv
+            . .venv/bin/activate
+
+            lucha aws whitelist --profile artifactory -- make install
+      - save_cache:
+          paths:
+            - .venv
+          key: v1-{{ checksum "pyproject.toml" }}-{{ checksum "poetry.lock" }}
+
+  push-docker-image:
+    description: Push a Docker image to ECR
+    steps:
+      - run:
+          command: |
+            export AWS_ACCESS_KEY_ID=$ECR_AWS_ACCESS_KEY_ID
+            export AWS_SECRET_ACCESS_KEY=$ECR_AWS_SECRET_ACCESS_KEY
+            $(aws ecr get-login --no-include-email --region us-east-1 --registry-ids 831655002651)
+
+            lucha aws whitelist --use-docker-ip --profile artifactory -- make build
+            make push
+
+
+
+jobs:
+  lint:
+    executor: main
+    steps:
+      - setup-python
+      - run-make:
+          command: lint
+
+  test:
+    executor: main
+    steps:
+      - setup-python
+      - run-make:
+          command: test
+
+  push-docker-image:
+    executor: main
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - setup
+      - aws-create-credentials
+      - push-docker-image
+
+
+
+workflows:
+  build_all:
+    jobs:
+      - lint
+      - test
+      - push-docker-image:
+          requires:
+            - lint
+            - test
+          filters:
+            branches:
+              only:
+                - /^main$/
+
+

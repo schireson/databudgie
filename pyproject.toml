@@ -1,0 +1,84 @@
+[tool.poetry]
+name = "databudgie"
+version = "0.1.0"
+description = ""
+authors = []
+packages = [
+    { include = "databudgie", from = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+configly = "^0.2.0"
+
+[tool.poetry.dev-dependencies]
+bandit = "^1.6.2"
+black = "^19.10b0"
+coverage = ">=5"
+flake8 = "^3.7.9"
+freezegun = "*"
+isort = ">=5"
+lucha = "^0.1.3"
+mypy = "^0.902"
+ptpython = "^2.0.6"
+pydocstyle = "^6.1.1"
+pylint = "^2.4.4"
+pytest = ">=6.2.4"
+pytest-mock-resources = "*"
+responses = "^0.10.9"
+types-freezegun = "^0.1.3"
+types-requests = "^0.1.11"
+psycopg2 = { version = ">=2.7", optional = true }
+psycopg2-binary = { version = ">=2.7", optional = true }
+
+[tool.poetry.extras]
+psycopg2 = ["psycopg2"]
+psycopg2-binary = ["psycopg2-binary"]
+
+[[tool.poetry.source]]
+name = 'schireson'
+url = "https://artifactory.schireson.com/artifactory/api/pypi/pypi/simple"
+
+[tool.black]
+line_length = 120
+
+[tool.isort]
+profile = 'black'
+known_first_party = 'databudgie,tests'
+line_length = 120
+float_to_top = true
+order_by_type = false
+use_parentheses = true
+
+[tool.mypy]
+strict_optional = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+incremental = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+
+[tool.pydocstyle]
+ignore = 'D1,D200,D202,D203,D204,D213,D406,D407,D413'
+match_dir = '^[^\.{]((?!igrations).)*'
+
+[tool.pytest.ini_options]
+doctest_optionflags = "NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL ELLIPSIS"
+addopts = "--doctest-modules -vv --ff --strict-markers"
+pytest_alembic_exclude = 'up_down_consistency'
+norecursedirs = ".* build dist *.egg migrations bin"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
