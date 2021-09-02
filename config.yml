@@ -1,5 +1,9 @@
 environment: <% ENV[ENVIRONMENT, null] %>
 
+sentry:
+  sentry_dsn: <% ENV[SENTRY_DSN, null] %>
+  version: <% ENV[VERSION, null] %>
+
 logging:
   enabled: <% ENV[LOGGING_ENABLED, true] %>
   level: <% ENV[LOGGING_LEVEL, INFO] %>
