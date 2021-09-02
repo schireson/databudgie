@@ -20,7 +20,7 @@ commands:
       - run:
           name: Execute prerequisite setup
           command: |
-            curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_VERSION=1.1.6 python
+            curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_VERSION=1.1.8 python
             echo 'export PATH="$HOME/.poetry/bin:$PATH"' >> $BASH_ENV
             $HOME/.poetry/bin/poetry config virtualenvs.create false
 
@@ -50,7 +50,7 @@ commands:
       - setup
       - aws-create-credentials
       - restore_cache:
-          key: v1-{{ checksum "pyproject.toml" }}-{{ checksum "poetry.lock" }}
+          key: v2-{{ checksum "pyproject.toml" }}-{{ checksum "poetry.lock" }}
       - run:
           name: Install Dependencies
           command: |
@@ -62,7 +62,7 @@ commands:
       - save_cache:
           paths:
             - .venv
-          key: v1-{{ checksum "pyproject.toml" }}-{{ checksum "poetry.lock" }}
+          key: v2-{{ checksum "pyproject.toml" }}-{{ checksum "poetry.lock" }}
 
   push-docker-image:
     description: Push a Docker image to ECR
