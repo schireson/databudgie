@@ -7,7 +7,7 @@ ENV PATH="/root/.poetry/bin:${PATH}"
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install curl build-essential python3-dev libpq-dev -y \
-    && curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_VERSION=1.1.6 python \
+    && curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_VERSION=1.1.8 python \
     && poetry config virtualenvs.create false
 
 COPY poetry.lock pyproject.toml ./
