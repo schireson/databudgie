@@ -1,16 +1,15 @@
-.PHONY: init install update-platform-actions format lint test docker-login-cmd build push pull enter
+.PHONY: init install format lint test docker-login-cmd build push pull enter
 
 AWS_PROFILE ?= media-activation-prod
+VERSION=$(shell git rev-parse --short HEAD)
 
 init:
-	pyenv install -s 3.9.6
-	pyenv virtualenv 3.9.6 ma-databudgie-py39
+	pyenv install -s 3.7.10
+	pyenv virtualenv 3.7.10 ma-databudgie-py37
 
 install:
 	poetry install -E psycopg2-binary
 
-update-platform-actions:
-	poetry update media-activation-platform-actions
 
 format:
 	isort --recursive --quiet src tests
@@ -33,7 +32,10 @@ docker-login-cmd:
 	eval $$(aws --profile=$(AWS_PROFILE) ecr get-login --no-include-email --region us-east-1)
 
 build:
-	docker build . -t databudgie -t 233478501758.dkr.ecr.us-east-1.amazonaws.com/databudgie
+	docker build . \
+		-t databudgie \
+		-t 233478501758.dkr.ecr.us-east-1.amazonaws.com/databudgie \
+		--build-arg VERSION=$(VERSION)
 
 push:
 	docker push 233478501758.dkr.ecr.us-east-1.amazonaws.com/databudgie

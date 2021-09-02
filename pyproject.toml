@@ -1,15 +1,24 @@
 [tool.poetry]
 name = "databudgie"
-version = "0.1.0"
+version = "1.1.1"
 description = ""
-authors = []
+authors = ["Andrew Sosa <andrewso@known.is>"]
 packages = [
     { include = "databudgie", from = "src" },
 ]
 
+[tool.poetry.scripts]
+databudgie = "databudgie.__main__:run"
+
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.7"
 configly = "^0.2.0"
+
+strapp = {version = ">=0.2.7", extras = ["click", "sqlalchemy", "sentry"] }
+click = "^7.0.0"
+setuplog = "^0.2.2"
+boto3-stubs = {extras = ["s3"], version = "^1.18.38"}
+typing-extensions = "^3.10.0"
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.6.2"
@@ -24,12 +33,16 @@ ptpython = "^2.0.6"
 pydocstyle = "^6.1.1"
 pylint = "^2.4.4"
 pytest = ">=6.2.4"
-pytest-mock-resources = "*"
+pytest-mock-resources = {extras = ["postgres"], version = "^2.1.2"}
 responses = "^0.10.9"
 types-freezegun = "^0.1.3"
 types-requests = "^0.1.11"
 psycopg2 = { version = ">=2.7", optional = true }
 psycopg2-binary = { version = ">=2.7", optional = true }
+faker = "^8.12.1"
+moto = {extras = ["s3"], version = "^2.2.6"}
+sqlalchemy-model-factory = "^0.3.1"
+types-click = "^7.1.5"
 
 [tool.poetry.extras]
 psycopg2 = ["psycopg2"]
@@ -63,6 +76,7 @@ exclude_lines = [
   "pragma: no cover",
   "if TYPE_CHECKING:",
   "if __name__ == .__main__.:",
+  "log.info",
 ]
 
 [tool.coverage.run]
@@ -76,8 +90,10 @@ match_dir = '^[^\.{]((?!igrations).)*'
 [tool.pytest.ini_options]
 doctest_optionflags = "NORMALIZE_WHITESPACE IGNORE_EXCEPTION_DETAIL ELLIPSIS"
 addopts = "--doctest-modules -vv --ff --strict-markers"
-pytest_alembic_exclude = 'up_down_consistency'
 norecursedirs = ".* build dist *.egg migrations bin"
+filterwarnings = [
+    "ignore::sqlalchemy.exc.SAWarning",
+]
 
 [build-system]
 requires = ["poetry>=0.12"]
