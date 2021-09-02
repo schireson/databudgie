@@ -13,16 +13,16 @@ update-platform-actions:
 	poetry update media-activation-platform-actions
 
 format:
-	isort --recursive --quiet bin src tests
-	black bin src tests
+	isort --recursive --quiet src tests
+	black src tests
 
 lint:
-	isort --recursive --quiet --check --diff bin src tests || exit 1
-	flake8 --max-line-length=200 bin src tests || exit 1
-	pydocstyle bin src tests || exit 1
-	mypy --namespace-packages bin src tests || exit 1
+	isort --recursive --quiet --check --diff src tests || exit 1
+	flake8 --max-line-length=200 src tests || exit 1
+	pydocstyle src tests || exit 1
+	mypy --namespace-packages src tests || exit 1
 	bandit -r src || exit 1
-	black --check --diff bin src tests || exit 1
+	black --check --diff src tests || exit 1
 
 test:
 	coverage run -a -m py.test src tests

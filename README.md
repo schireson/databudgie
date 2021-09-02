@@ -2,7 +2,25 @@
 
 standalone library/cli tool for database backup/restore
 
+## Installation
 
+```bash
+$ poetry add databudgie
+ OR
+$ pip install databudgie --index-url "https://artifactory.schireson.com/artifactory/api/pypi/pypi/simple"
+```
+
+## Development Flow
+
+1. Create a new branch off of latest `main` branch.
+1. Make your changes.
+1. Bump up the library version in the [pyproject.toml](./pyproject.toml) according to [SemVer](https://semver.org/#summary)
+1. Auto-fix most linting errors via `make format`
+1. Make sure linting is passing by running `make lint`.
+1. Make sure tests are passing by running `make test`
+1. Commit and push your changes to a remote branch.
+1. Open a PR and confirm build is passing.
+1. Once your PR is merged and CICD is complete, your new version will be ready to install on our Artifactory.
 
 ## Setup
 

@@ -76,7 +76,15 @@ commands:
             lucha aws whitelist --use-docker-ip --profile artifactory -- make build
             make push
 
+  publish:
+    description: Authenticate with a particular ECR instance on AWS
+    steps:
+      - run:
+          command: |
+            . .venv/bin/activate
 
+            pip install twine
+            lucha aws whitelist --profile artifactory -- lucha cicd publish pypi
 
 jobs:
   lint:
@@ -102,7 +110,11 @@ jobs:
       - aws-create-credentials
       - push-docker-image
 
-
+  publish:
+    executor: main
+    steps:
+      - setup-python
+      - publish
 
 workflows:
   build_all:
@@ -117,5 +129,11 @@ workflows:
             branches:
               only:
                 - /^main$/
-
-
+      - publish:
+          requires:
+            - lint
+            - test
+          filters:
+            branches:
+              only:
+                - /^main$/
