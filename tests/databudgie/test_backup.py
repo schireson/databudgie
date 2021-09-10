@@ -15,13 +15,13 @@ def sample_config():
         {
             "backup": {
                 "tables": {
-                    "public.ad_facebook": {
-                        "location": "s3://sample-bucket/databudgie/test/",
-                        "query": "select * from public.ad_facebook",
+                    "public.advertiser": {
+                        "location": "s3://sample-bucket/databudgie/test/public.advertiser.csv",
+                        "query": "select * from public.advertiser",
                     },
-                    "public.ad_twitter": {
-                        "location": "s3://sample-bucket/databudgie/test/",
-                        "query": "select * from public.ad_twitter",
+                    "public.ad_facebook": {
+                        "location": "s3://sample-bucket/databudgie/test/public.ad_facebook.csv",
+                        "query": "select * from public.ad_facebook",
                     },
                 }
             },
@@ -32,7 +32,6 @@ def sample_config():
 @mock_s3
 def test_backup_all(pg, mf, s3_resource, sample_config):
     """Validate the backup_all performs backup for all tables in the backup config."""
-    mf.ad.facebook(id="ad_123")
     s3_resource.create_bucket(Bucket="sample-bucket")
 
     backup_all(pg, s3_resource, tables=sample_config.backup.tables, strict=True)
@@ -40,14 +39,14 @@ def test_backup_all(pg, mf, s3_resource, sample_config):
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
         "databudgie/test/public.ad_facebook.csv",
-        "databudgie/test/public.ad_twitter.csv",
+        "databudgie/test/public.advertiser.csv",
     ]
 
 
 @mock_s3
 def test_backup_one(pg, mf, s3_resource, sample_config):
     """Validate the upload for a single table contains the correct contents."""
-    mf.ad.facebook(id="ad_123")
+    mf.facebook_ad.new(external_id="ad_123")
 
     s3_resource.create_bucket(Bucket="sample-bucket")
 
@@ -55,7 +54,7 @@ def test_backup_one(pg, mf, s3_resource, sample_config):
         pg,
         query="select * from public.ad_facebook",
         s3_resource=s3_resource,
-        location="s3://sample-bucket/databudgie/test/",
+        location="s3://sample-bucket/databudgie/test/public.ad_facebook.csv",
         table_name="public.ad_facebook",
     )
 

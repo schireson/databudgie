@@ -1,4 +1,4 @@
-.PHONY: init install update-platform-actions format lint test docker-login-cmd build push pull enter
+.PHONY: init install format lint test docker-login-cmd build push pull enter
 
 AWS_PROFILE ?= media-activation-prod
 
@@ -9,8 +9,6 @@ init:
 install:
 	poetry install -E psycopg2-binary
 
-update-platform-actions:
-	poetry update media-activation-platform-actions
 
 format:
 	isort --recursive --quiet src tests

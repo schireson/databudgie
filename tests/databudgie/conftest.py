@@ -1,9 +1,9 @@
 import boto3
 import pytest
-from ma.models import Base
-from ma.models.factories.platform import platform_map, platform_subtype_map
 from moto import mock_s3
-from pytest_mock_resources import create_postgres_fixture, PostgresConfig, Rows
+from pytest_mock_resources import create_postgres_fixture, PostgresConfig
+
+from tests.mockmodels.models import Base
 
 
 @pytest.fixture(scope="session")
@@ -11,9 +11,7 @@ def pmr_postgres_config():
     return PostgresConfig(image="postgres:11-alpine")
 
 
-pg = create_postgres_fixture(
-    Base, Rows(*[fn() for fn in platform_map.values()], *[fn() for fn in platform_subtype_map.values()],), session=True,
-)
+pg = create_postgres_fixture(Base, session=True)
 
 
 @pytest.fixture
