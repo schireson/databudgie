@@ -25,9 +25,9 @@ databudgie has two primary functions:
 $ databudgie [--strict] backup
 ```
 
-The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the query against the database, and save the results to a CSV in the S3 bucket and path defined by the `.location` option. For `public.ad_facebook` below, the file `s3://my-s3-bucket/databudgie/dev/public.ad_facebook.csv` will be created.
+The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs in the S3 bucket and path defined by the `.location` options. For `public.ad_facebook` below, the file `s3://my-s3-bucket/databudgie/dev/public.ad_facebook.csv` will be created.
 
-The filename will match the `<NAME>` value per `backup.tables.<NAME>`. This name value does not need to match the actual table name, or contain the table schema.
+The name under `backup.tables.<NAME>` does not need to match the database in any manner. This value is only used for the `${ref:...}` annotations.
 
 The `--strict` option will cause databudgie to exit if it encounters an error backing up a specific table, otherwise it will attempt to proceed to other tables.
 
@@ -89,7 +89,7 @@ restore: # configuration for CSV restore targets
     facebook.ad:
       strategy: use_latest
       location: ${ref:backup.tables."public.ad_facebook".location}
-      # ^ WIP feature, will use referenced value from elsewhere in the config
+      # Use referenced value from elsewhere in the config ^
 ```
 
 
