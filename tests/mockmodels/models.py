@@ -24,8 +24,8 @@ class LineItem(Base):  # type: ignore
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
 
 
-class FacebookAd(Base):  # type: ignore
-    __tablename__ = "ad_facebook"
+class GenericAd(Base):  # type: ignore
+    __tablename__ = "ad_generic"
 
     id = Column(types.Integer(), autoincrement=True, primary_key=True)
 

@@ -19,9 +19,9 @@ def sample_config():
                         "location": "s3://sample-bucket/databudgie/test/public.advertiser.csv",
                         "query": "select * from public.advertiser",
                     },
-                    "public.ad_facebook": {
-                        "location": "s3://sample-bucket/databudgie/test/public.ad_facebook.csv",
-                        "query": "select * from public.ad_facebook",
+                    "public.ad_generic": {
+                        "location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv",
+                        "query": "select * from public.ad_generic",
                     },
                 }
             },
@@ -38,7 +38,7 @@ def test_backup_all(pg, mf, s3_resource, sample_config):
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
-        "databudgie/test/public.ad_facebook.csv",
+        "databudgie/test/public.ad_generic.csv",
         "databudgie/test/public.advertiser.csv",
     ]
 
@@ -52,14 +52,14 @@ def test_backup_one(pg, mf, s3_resource, sample_config):
 
     backup(
         pg,
-        query="select * from public.ad_facebook",
+        query="select * from public.ad_generic",
         s3_resource=s3_resource,
-        location="s3://sample-bucket/databudgie/test/public.ad_facebook.csv",
-        table_name="public.ad_facebook",
+        location="s3://sample-bucket/databudgie/test/public.ad_generic.csv",
+        table_name="public.ad_generic",
     )
 
     buffer = io.BytesIO()
-    uploaded_object = s3_resource.Object("sample-bucket", "databudgie/test/public.ad_facebook.csv")
+    uploaded_object = s3_resource.Object("sample-bucket", "databudgie/test/public.ad_generic.csv")
     uploaded_object.download_fileobj(buffer)
     buffer.seek(0)
 

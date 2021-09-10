@@ -3,7 +3,7 @@ import logging
 from faker import Faker
 from sqlalchemy_model_factory import register_at
 
-from tests.mockmodels.models import Advertiser, FacebookAd, LineItem
+from tests.mockmodels.models import Advertiser, GenericAd, LineItem
 
 logging.getLogger("faker").setLevel(logging.INFO)
 fake = Faker()
@@ -58,7 +58,7 @@ def create_facebook_ad(
         line_item = create_line_item(advertiser_id=advertiser_id)
         line_item_id = line_item.id
 
-    return FacebookAd(
+    return GenericAd(
         id=id,
         external_id=external_id,
         advertiser_id=advertiser_id,
