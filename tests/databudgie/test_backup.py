@@ -15,13 +15,13 @@ def sample_config():
         {
             "backup": {
                 "tables": {
-                    "public.ad_facebook": {
-                        "location": "s3://sample-bucket/databudgie/test/",
-                        "query": "select * from public.ad_facebook",
+                    "public.advertiser": {
+                        "location": "s3://sample-bucket/databudgie/test/public.advertiser.csv",
+                        "query": "select * from public.advertiser",
                     },
-                    "public.ad_twitter": {
-                        "location": "s3://sample-bucket/databudgie/test/",
-                        "query": "select * from public.ad_twitter",
+                    "public.ad_generic": {
+                        "location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv",
+                        "query": "select * from public.ad_generic",
                     },
                 }
             },
@@ -32,35 +32,34 @@ def sample_config():
 @mock_s3
 def test_backup_all(pg, mf, s3_resource, sample_config):
     """Validate the backup_all performs backup for all tables in the backup config."""
-    mf.ad.facebook(id="ad_123")
     s3_resource.create_bucket(Bucket="sample-bucket")
 
     backup_all(pg, s3_resource, tables=sample_config.backup.tables, strict=True)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
-        "databudgie/test/public.ad_facebook.csv",
-        "databudgie/test/public.ad_twitter.csv",
+        "databudgie/test/public.ad_generic.csv",
+        "databudgie/test/public.advertiser.csv",
     ]
 
 
 @mock_s3
 def test_backup_one(pg, mf, s3_resource, sample_config):
     """Validate the upload for a single table contains the correct contents."""
-    mf.ad.facebook(id="ad_123")
+    mf.facebook_ad.new(external_id="ad_123")
 
     s3_resource.create_bucket(Bucket="sample-bucket")
 
     backup(
         pg,
-        query="select * from public.ad_facebook",
+        query="select * from public.ad_generic",
         s3_resource=s3_resource,
-        location="s3://sample-bucket/databudgie/test/",
-        table_name="public.ad_facebook",
+        location="s3://sample-bucket/databudgie/test/public.ad_generic.csv",
+        table_name="public.ad_generic",
     )
 
     buffer = io.BytesIO()
-    uploaded_object = s3_resource.Object("sample-bucket", "databudgie/test/public.ad_facebook.csv")
+    uploaded_object = s3_resource.Object("sample-bucket", "databudgie/test/public.ad_generic.csv")
     uploaded_object.download_fileobj(buffer)
     buffer.seek(0)
 

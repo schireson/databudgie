@@ -19,7 +19,7 @@ backup:
   tables:
     public.ad_facebook:
       query: "select * from public.ad_facebook where advertiser_id = 4"
-      location: s3://media-activation-db-dump/databudgie/dev/
+      location: s3://my-s3-bucket/databudgie/dev/public.ad_facebook.csv
 
 restore:
   url: <% ENV[RESTORE_URL] %>

@@ -1,6 +1,5 @@
 import contextlib
 import urllib.parse
-from os import path
 
 from setuplog import log
 
@@ -21,9 +20,9 @@ class S3Location:
     """Easily parse an S3 URL into Bucket and Key.
 
     Example:
-        >>> loc = S3Location("s3://media-science-platform-automation/raw_upload/sample.csv")
+        >>> loc = S3Location("s3://my-s3-bucket/raw_upload/sample.csv")
         >>> loc.bucket
-        'media-science-platform-automation'
+        'my-s3-bucket'
         >>> loc.key
         'raw_upload/sample.csv'
     """
@@ -38,7 +37,3 @@ class S3Location:
     @property
     def key(self):
         return self._parsed.path.lstrip("/")
-
-
-def csv_path(path_prefix: str, table_name: str) -> str:
-    return path.join(path_prefix, f"{table_name}.csv")
