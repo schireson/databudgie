@@ -9,7 +9,10 @@ from sqlalchemy.orm import Session
 
 
 def config():
-    return Config.from_yaml("config.yml")
+    from databudgie.config import populate_refs
+
+    base_config = Config.from_yaml("config.yml")
+    return populate_refs(base_config)
 
 
 def _create_postgres_session(url):

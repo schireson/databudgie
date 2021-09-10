@@ -71,4 +71,4 @@ def _upload_to_s3(s3_resource: S3ServiceResource, location: str, table_name: str
     s3_bucket: Bucket = s3_resource.Bucket(s3_location.bucket)
 
     s3_bucket.put_object(Key=s3_location.key, Body=buffer)
-    log.debug(f"Uploaded {table_name} to s3://{s3_location.bucket}/{location}")
+    log.info(f"Uploaded {table_name} to s3://{s3_location.bucket}/{s3_location.key}")
