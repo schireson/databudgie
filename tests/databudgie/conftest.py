@@ -1,5 +1,6 @@
 import boto3
 import pytest
+from configly import Config
 from moto import mock_s3
 from pytest_mock_resources import create_postgres_fixture, PostgresConfig
 
@@ -30,3 +31,35 @@ def s3_resource():
         s3 = boto3.resource("s3", region_name="us-east-1")
         s3.create_bucket(Bucket="sample-bucket")
         yield s3
+
+
+@pytest.fixture()
+def sample_config():
+    yield Config(
+        {
+            "backup": {
+                "tables": {
+                    "public.advertiser": {
+                        "location": "s3://sample-bucket/databudgie/test/public.advertiser.csv",
+                        "query": "select * from public.advertiser",
+                    },
+                    "public.ad_generic": {
+                        "location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv",
+                        "query": "select * from public.ad_generic",
+                    },
+                }
+            },
+            "restore": {
+                "tables": {
+                    "public.advertiser": {
+                        "location": "s3://sample-bucket/public.advertiser.csv",
+                        "strategy": "use_latest",
+                    },
+                    "public.line_item": {
+                        "location": "s3://sample-bucket/public.line_item.csv",
+                        "strategy": "use_latest",
+                    },
+                }
+            },
+        }
+    )

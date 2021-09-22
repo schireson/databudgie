@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 def config():
     from databudgie.config import populate_refs
 
-    base_config = Config.from_yaml("config.yml")
+    base_config = Config.from_yaml("config.databudgie.yml")
     return populate_refs(base_config)
 
 
@@ -47,7 +47,7 @@ resolver = strapp.click.Resolver(config=config, backup_db=backup_db, restore_db=
 
 @resolver.group()
 @click.option("-v", "--verbose", count=True, default=0)
-@click.option("--strict/--no-strict", is_flag=True, default=None)
+@click.option("--strict/--no-strict", is_flag=True, default=None)  # TODO: consider pre-check functionality
 def cli(config: Config, verbose: int, strict: bool):
     from databudgie.cli.setup import setup
 
@@ -66,7 +66,9 @@ def backup(config: Config, backup_db: Session, s3_resource: S3ServiceResource, s
 
 
 @resolver.command(cli, "restore")
-def restore(config: Config):
+def restore(config: Config, restore_db: Session, s3_resource: S3ServiceResource, strict: bool):
     """Perform restore."""
+    from databudgie.restore import restore_all
 
     log.info("Performing restore! (environment: %s)", config.environment)
+    restore_all(restore_db, s3_resource, config.restore.tables, strict=strict)

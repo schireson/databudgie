@@ -1,15 +1,12 @@
-import contextlib
-import csv
 import io
-from typing import Generator, List, Mapping, TypedDict
+from typing import Mapping, TypedDict
 
 from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
 from setuplog import log
-from sqlalchemy import text
-from sqlalchemy.engine.cursor import CursorResult
 from sqlalchemy.orm import Session
 
-from databudgie.utils import capture_failures, S3Location
+from databudgie.adapter.base import BaseAdapter, get_adapter
+from databudgie.utils import capture_failures, S3Location, wrap_buffer
 
 
 class BackupConfig(TypedDict):
@@ -45,40 +42,18 @@ def backup(session: Session, query: str, s3_resource: S3ServiceResource, locatio
         table_name: identifer for the table, used in the CSV filename.
         kwargs: additional keyword arguments.
     """
-    chunk_size = kwargs.get("chunk_size", 1000)
+    adapter: BaseAdapter = get_adapter(session)
 
     buffer = io.BytesIO()
+    with wrap_buffer(buffer) as wrapper:
+        adapter.export_query(session, query, wrapper)
 
-    with _manage_buffer(buffer) as writer:
-        for row in _query_database(session, query, chunk_size):
-            writer.writerow(row)
-
-    _upload_to_s3(s3_resource, location, table_name, buffer)
-
-
-def _query_database(session: Session, query: str, chunk_size: int = 1000) -> Generator[list, None, None]:
-    cursor: CursorResult = session.execute(text(query))
-
-    columns: List[str] = list(cursor.keys())
-    yield columns
-
-    row: list
-    for row in cursor.yield_per(chunk_size):
-        yield row
+    _upload_to_s3(s3_resource, location, buffer)
+    log.info(f"Uploaded {table_name} to {location}")
+    buffer.close()
 
 
-@contextlib.contextmanager
-def _manage_buffer(buffer: io.BytesIO):
-    wrapper = io.TextIOWrapper(buffer)
-    writer = csv.writer(wrapper)
-    yield writer
-    wrapper.detach()
-    buffer.seek(0)
-
-
-def _upload_to_s3(s3_resource: S3ServiceResource, location: str, table_name: str, buffer: io.BytesIO):
+def _upload_to_s3(s3_resource: S3ServiceResource, location: str, buffer: io.BytesIO):
     s3_location = S3Location(location)
     s3_bucket: Bucket = s3_resource.Bucket(s3_location.bucket)
-
     s3_bucket.put_object(Key=s3_location.key, Body=buffer)
-    log.info(f"Uploaded {table_name} to s3://{s3_location.bucket}/{s3_location.key}")

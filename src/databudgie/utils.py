@@ -1,4 +1,5 @@
 import contextlib
+import io
 import urllib.parse
 
 from setuplog import log
@@ -14,6 +15,14 @@ def capture_failures(ignore=(), strict=False):
         if strict:
             raise
         log.info(err, exc_info=True)
+
+
+@contextlib.contextmanager
+def wrap_buffer(buffer: io.BytesIO):
+    wrapper = io.TextIOWrapper(buffer)
+    yield wrapper
+    wrapper.detach()
+    buffer.seek(0)
 
 
 class S3Location:
