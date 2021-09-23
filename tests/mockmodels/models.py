@@ -37,3 +37,17 @@ class GenericAd(Base):  # type: ignore
     type = Column(types.Unicode(255), nullable=False)
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
     external_status = Column(types.Unicode(255), nullable=True)
+
+
+class Sale(Base):  # type: ignore
+    """Contains a variety of fields for testing type conversion."""
+
+    __tablename__ = "sales"
+
+    id = Column(types.Integer(), autoincrement=True, primary_key=True)
+    external_id = Column(types.Unicode(255), nullable=False)
+    advertiser_id = Column(types.Integer(), nullable=False)
+    product_id = Column(types.Integer(), nullable=False)
+    sale_value = Column(types.Float(), nullable=False)
+    sale_date = Column(types.Date(), nullable=False)
+    active = Column(types.Boolean(), default=True, nullable=False, server_default="true")

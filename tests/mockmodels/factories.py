@@ -1,9 +1,10 @@
+import datetime
 import logging
 
 from faker import Faker
-from sqlalchemy_model_factory import register_at
+from sqlalchemy_model_factory import autoincrement, register_at
 
-from tests.mockmodels.models import Advertiser, GenericAd, Product
+from tests.mockmodels.models import Advertiser, GenericAd, Product, Sale
 
 logging.getLogger("faker").setLevel(logging.INFO)
 fake = Faker()
@@ -76,4 +77,26 @@ def create_facebook_ad(
         type=type,
         active=active,
         external_status=external_status,
+    )
+
+
+@register_at("sale")
+@autoincrement
+def create_sale(
+    autoincrement: int = None,
+    external_id: str = None,
+    advertiser_id: int = None,
+    product_id: int = None,
+    sale_value: float = None,
+    sale_date: datetime.date = None,
+    active: bool = None,
+):
+    return Sale(
+        id=autoincrement,
+        external_id=external_id or str(fake.pyint()),
+        advertiser_id=advertiser_id or fake.pyint(),
+        product_id=product_id or fake.pyint(),
+        sale_value=sale_value or fake.pydecimal(left_digits=5, right_digits=2, positive=True),
+        sale_date=sale_date or fake.date(),
+        active=active or fake.boolean(),
     )
