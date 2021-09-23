@@ -5,11 +5,11 @@ from setuplog import log
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 
-from databudgie.adapter.base import BaseAdapter
+from databudgie.adapter.base import Adapter
 
 
 # XXX: see if we can count rows in the transactions
-class PostgresAdapter(BaseAdapter):
+class PostgresAdapter(Adapter):
     def export_query(self, session: Session, query: str, dest: io.StringIO):
         engine: Engine = session.get_bind()
         conn: Connection = engine.raw_connection()

@@ -7,11 +7,11 @@ from sqlalchemy import MetaData, Table, text
 from sqlalchemy.engine.cursor import CursorResult
 from sqlalchemy.orm import Session
 
-from databudgie.adapter.base import BaseAdapter
+from databudgie.adapter.base import Adapter
 
 
-class PythonAdapter(BaseAdapter):
-    """Fallback option for adapters we have not implemented.
+class PythonAdapter(Adapter):
+    """Fallback option for unimplemented database adapters.
 
     Uses native Python CSV methods with a lightweight/naive type conversion on insert.
     """

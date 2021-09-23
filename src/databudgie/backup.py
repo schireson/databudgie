@@ -5,7 +5,7 @@ from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
 from setuplog import log
 from sqlalchemy.orm import Session
 
-from databudgie.adapter.base import BaseAdapter, get_adapter
+from databudgie.adapter import Adapter
 from databudgie.utils import capture_failures, S3Location, wrap_buffer
 
 
@@ -42,7 +42,7 @@ def backup(session: Session, query: str, s3_resource: S3ServiceResource, locatio
         table_name: identifer for the table, used in the CSV filename.
         kwargs: additional keyword arguments.
     """
-    adapter: BaseAdapter = get_adapter(session)
+    adapter = Adapter.get_adapter(session)
 
     buffer = io.BytesIO()
     with wrap_buffer(buffer) as wrapper:

@@ -6,7 +6,7 @@ from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
 from setuplog import log
 from sqlalchemy.orm import Session
 
-from databudgie.adapter.base import BaseAdapter, get_adapter
+from databudgie.adapter import Adapter
 from databudgie.utils import capture_failures, S3Location, wrap_buffer
 
 VALID_STRATEGIES = {
@@ -43,7 +43,7 @@ def restore(
 ) -> None:
     """Restore a CSV file from S3 to the database."""
 
-    adapter: BaseAdapter = get_adapter(session)
+    adapter = Adapter.get_adapter(session)
 
     with _download_from_s3(s3_resource, location) as buffer:
         with wrap_buffer(buffer) as wrapper:
