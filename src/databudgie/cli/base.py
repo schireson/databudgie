@@ -47,28 +47,29 @@ resolver = strapp.click.Resolver(config=config, backup_db=backup_db, restore_db=
 
 @resolver.group()
 @click.option("-v", "--verbose", count=True, default=0)
-@click.option("--strict/--no-strict", is_flag=True, default=None)  # TODO: consider pre-check functionality
-def cli(config: Config, verbose: int, strict: bool):
+@click.option("--strict/--no-strict", is_flag=True, default=False)  # TODO: consider pre-check functionality
+@click.option("-a", "--adapter", default=None, help="postgres, python, etc.")
+def cli(config: Config, verbose: int, strict: bool, adapter: str):
     from databudgie.cli.setup import setup
 
     setup(config, verbosity=verbose)
-    resolver.register_values(verbosity=verbose, strict=strict)
+    resolver.register_values(verbosity=verbose, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "backup")
-def backup(config: Config, backup_db: Session, s3_resource: S3ServiceResource, strict: bool):
+def backup(config: Config, backup_db: Session, s3_resource: S3ServiceResource, strict: bool, adapter: str):
     """Perform backup."""
     from databudgie.backup import backup_all
 
     log.info("Performing backup! (environment: %s)", config.environment)
 
-    backup_all(backup_db, s3_resource, config.backup.tables, strict=strict)
+    backup_all(backup_db, s3_resource, config.backup.tables, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "restore")
-def restore(config: Config, restore_db: Session, s3_resource: S3ServiceResource, strict: bool):
+def restore(config: Config, restore_db: Session, s3_resource: S3ServiceResource, strict: bool, adapter: str):
     """Perform restore."""
     from databudgie.restore import restore_all
 
     log.info("Performing restore! (environment: %s)", config.environment)
-    restore_all(restore_db, s3_resource, config.restore.tables, strict=strict)
+    restore_all(restore_db, s3_resource, config.restore.tables, strict=strict, adapter=adapter)

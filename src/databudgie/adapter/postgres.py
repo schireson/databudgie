@@ -19,6 +19,7 @@ class PostgresAdapter(Adapter):
         copy = "COPY ({}) TO STDOUT CSV HEADER".format(query)
         cursor.copy_expert(copy, dest)
         cursor.close()
+        conn.close()
 
     def import_csv(self, session: Session, csv_file: io.StringIO, table: str):
         engine: Engine = session.get_bind()
@@ -28,5 +29,6 @@ class PostgresAdapter(Adapter):
         log.debug(f"Copying buffer to {table}...")
         copy = "COPY {} FROM STDIN CSV HEADER".format(table)
         cursor.copy_expert(copy, csv_file)
+        cursor.close()
         conn.commit()
         conn.close()

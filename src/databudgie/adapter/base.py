@@ -1,6 +1,6 @@
 import abc
 import io
-from typing import Union
+from typing import Any, Union
 
 from sqlalchemy.orm import Session
 
@@ -18,7 +18,7 @@ class Adapter(metaclass=abc.ABCMeta):
         raise NotImplementedError()  # pragma: no cover
 
     @staticmethod
-    def get_adapter(dialect: Union[Session, str]) -> "Adapter":
+    def get_adapter(dialect: Union[Session, Any]) -> "Adapter":
         """Determine an interface based on the dialect name from the Session (or an explicit string).
 
         Examples:

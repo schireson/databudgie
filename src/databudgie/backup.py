@@ -42,7 +42,7 @@ def backup(session: Session, query: str, s3_resource: S3ServiceResource, locatio
         table_name: identifer for the table, used in the CSV filename.
         kwargs: additional keyword arguments.
     """
-    adapter = Adapter.get_adapter(session)
+    adapter = Adapter.get_adapter(kwargs.get("adapter", None) or session)
 
     buffer = io.BytesIO()
     with wrap_buffer(buffer) as wrapper:

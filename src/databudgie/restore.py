@@ -43,7 +43,7 @@ def restore(
 ) -> None:
     """Restore a CSV file from S3 to the database."""
 
-    adapter = Adapter.get_adapter(session)
+    adapter = Adapter.get_adapter(kwargs.get("adapter", None) or session)
 
     with _download_from_s3(s3_resource, location) as buffer:
         with wrap_buffer(buffer) as wrapper:
