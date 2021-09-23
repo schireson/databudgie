@@ -1,6 +1,6 @@
 import csv
 import io
-from typing import Generator, List, Tuple
+from typing import Any, Dict, Generator, List, Tuple
 
 from setuplog import log
 from sqlalchemy import MetaData, Table, text
@@ -29,15 +29,16 @@ class PythonAdapter(Adapter):
 
         prepared_rows: List[dict] = []
         for i, row in enumerate(reader, start=1):
-            for key, value in row.items():
-                if value in ("true", "True"):
-                    row[key] = True  # type: ignore
-                elif value in ("false", "False"):
-                    row[key] = False  # type: ignore
+            new_row: Dict[str, Any] = dict(row)
+            for key, value in new_row.items():
+                if value.lower() == "true":
+                    new_row[key] = True
+                elif value.lower() == "false":
+                    new_row[key] = False
                 elif value == "":
-                    row[key] = None  # type: ignore
+                    new_row[key] = None
 
-            prepared_rows.append(row)
+            prepared_rows.append(new_row)
             if i % 1000 == 0:
                 log.info(f"Preparing {i} rows for {table}...")
 
@@ -51,13 +52,13 @@ class PythonAdapter(Adapter):
         engine.execute(table_ref.insert(), prepared_rows)
         log.info(f"Inserted {len(prepared_rows)} rows into {table}")
 
-    def _query_database(self, session: Session, query: str, chunk_size: int = 1000) -> Generator[list, None, None]:
+    def _query_database(self, session: Session, query: str, chunk_size: int = 1000) -> Generator[List[Any], None, None]:
         cursor: CursorResult = session.execute(text(query))
 
         columns: List[str] = list(cursor.keys())
         yield columns
 
-        row: list
+        row: List[Any]
         for row in cursor.yield_per(chunk_size):
             yield row
 
