@@ -55,10 +55,7 @@ def sample_config():
                         "location": "s3://sample-bucket/public.advertiser.csv",
                         "strategy": "use_latest",
                     },
-                    "public.line_item": {
-                        "location": "s3://sample-bucket/public.line_item.csv",
-                        "strategy": "use_latest",
-                    },
+                    "public.product": {"location": "s3://sample-bucket/public.product.csv", "strategy": "use_latest"},
                 }
             },
         }

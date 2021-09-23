@@ -12,8 +12,8 @@ class Advertiser(Base):  # type: ignore
     name = Column(types.Unicode(255), nullable=False, unique=True)
 
 
-class LineItem(Base):  # type: ignore
-    __tablename__ = "line_item"
+class Product(Base):  # type: ignore
+    __tablename__ = "product"
     __table_args__ = (UniqueConstraint("advertiser_id", "external_id"),)
 
     id = Column(types.Integer(), autoincrement=True, primary_key=True)
@@ -31,7 +31,7 @@ class GenericAd(Base):  # type: ignore
 
     external_id = Column(types.Unicode(255), nullable=False)
     advertiser_id = Column(types.Integer(), ForeignKey("advertiser.id", ondelete="CASCADE"))
-    line_item_id = Column(types.Integer(), ForeignKey("line_item.id", ondelete="CASCADE"))
+    product_id = Column(types.Integer(), ForeignKey("product.id", ondelete="CASCADE"))
     external_name = Column(types.Unicode(255), nullable=False)
     primary_text = Column(types.Unicode(255), nullable=True)
     type = Column(types.Unicode(255), nullable=False)

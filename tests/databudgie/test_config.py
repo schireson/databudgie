@@ -10,13 +10,13 @@ def test_populate_refs():
             "backup": {
                 "tables": {
                     "public.ad_generic": {"location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv"},
-                    "public.line_item": {"location": '${ref:restore.tables."facebook.line_item".location}'},
+                    "public.product": {"location": '${ref:restore.tables."facebook.product".location}'},
                 }
             },
             "restore": {
                 "tables": {
                     "facebook.ad": {"location": '${ref:backup.tables."public.ad_generic".location}'},
-                    "facebook.line_item": {"location": "s3://sample-bucket/databudgie/test/facebook.line_item.csv"},
+                    "facebook.product": {"location": "s3://sample-bucket/databudgie/test/facebook.product.csv"},
                 }
             },
         }
@@ -30,8 +30,8 @@ def test_populate_refs():
     )
 
     assert (
-        populated_config.backup.tables["public.line_item"].location
-        == "s3://sample-bucket/databudgie/test/facebook.line_item.csv"
+        populated_config.backup.tables["public.product"].location
+        == "s3://sample-bucket/databudgie/test/facebook.product.csv"
     )
 
 
@@ -41,7 +41,7 @@ def test_bad_ref():
             "backup": {
                 "tables": {
                     "public.ad_generic": {"location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv"},
-                    "public.line_item": {"location": '${ref:restore.tables."facebook.line_item".location}'},
+                    "public.product": {"location": '${ref:restore.tables."facebook.product".location}'},
                 }
             },
             "restore": {"tables": {}},
