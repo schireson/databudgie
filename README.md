@@ -49,6 +49,26 @@ backup:
 
 TODO
 
+## Manifests
+
+```py
+from sqlalchemy import MetaData
+from sqlalchemy.ext.declarative import declarative_base
+
+from databudgie.manifest import BackupManifestMixin, RestoreManifestMixin
+
+metadata = MetaData()
+Base = declarative_base(metadata=metadata)
+
+
+class DatabudgieBackup(Base, BackupManifestMixin):
+    __tablename__ = "databudgie_backup"
+
+
+class DatabudgieRestore(Base, RestoreManifestMixin):
+    __tablename__ = "databudgie_restore"
+```
+
 ## Configuration
 
 The config is interpretted via [Configly](https://github.com/schireson/configly), so you can use env var interpolation like so:

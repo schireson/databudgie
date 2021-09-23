@@ -44,3 +44,46 @@
     ```bash
     $ databudgie backup
     ```
+
+
+### Manifest  Tables
+
+The following SQL will create tables compatible with the Manifest feature. This is not the recommended approach for production.
+
+```sql
+create table databudgie_backup
+(
+    id          serial                                             not null
+        constraint databudgie_backup_pkey
+            primary key,
+    transaction integer                                            not null,
+    "table"     varchar                                            not null,
+    file_path   varchar                                            not null,
+    exported_at timestamp with time zone default CURRENT_TIMESTAMP not null
+);
+
+create index ix_databudgie_backup_table
+    on databudgie_backup ("table");
+
+create index ix_databudgie_backup_transaction
+    on databudgie_backup (transaction);
+
+------------------------------------------------------------------------------
+
+create table databudgie_restore
+(
+    id          serial                                             not null
+        constraint databudgie_restore_pkey
+            primary key,
+    transaction integer                                            not null,
+    "table"     varchar                                            not null,
+    file_path   varchar                                            not null,
+    inserted_at timestamp with time zone default CURRENT_TIMESTAMP not null
+);
+
+create index ix_databudgie_restore_table
+    on databudgie_restore ("table");
+
+create index ix_databudgie_restore_transaction
+    on databudgie_restore (transaction);
+```
