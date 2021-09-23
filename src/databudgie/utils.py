@@ -1,4 +1,5 @@
 import contextlib
+import io
 import urllib.parse
 
 from setuplog import log
@@ -6,6 +7,26 @@ from setuplog import log
 
 @contextlib.contextmanager
 def capture_failures(ignore=(), strict=False):
+    """Prevent exceptions from interrupting execution.
+
+    Examples:
+        This exception is captured and not propogated:
+        >>> with capture_failures():
+        ...     raise Exception('foo')
+
+        This exception is raised:
+        >>> with capture_failures(strict=True): # doctest: +IGNORE_EXCEPTION_DETAIL
+        ...     raise Exception('foo')
+        Traceback (most recent call last):
+        Exception: foo
+
+        This exception is also raised:
+        >>> with capture_failures(ignore=Exception): # doctest: +IGNORE_EXCEPTION_DETAIL
+        ...     raise Exception('foo')
+        Traceback (most recent call last):
+        Exception: foo
+
+    """
     try:
         yield
     except ignore:
@@ -14,6 +35,14 @@ def capture_failures(ignore=(), strict=False):
         if strict:
             raise
         log.info(err, exc_info=True)
+
+
+@contextlib.contextmanager
+def wrap_buffer(buffer: io.BytesIO):
+    wrapper = io.TextIOWrapper(buffer)
+    yield wrapper
+    wrapper.detach()
+    buffer.seek(0)
 
 
 class S3Location:

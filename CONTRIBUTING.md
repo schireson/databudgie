@@ -23,7 +23,7 @@
 
 1. [Hook direnv to your shell](https://direnv.net/docs/hook.html). If you're using bash, e.g., add this to your `~/.bashrc`.
 
-1. Create an `.envrc` file for secrets/configuration based on the [config.yml](./config.yml) and place it in the root of repo.
+1. Create an `.envrc` file for secrets/configuration based on the [config.databudgie.yml](./config.databudgie.yml) and place it in the root of repo.
 
     Example:
 

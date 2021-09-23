@@ -3,30 +3,9 @@ import io
 from unittest.mock import patch
 
 import pytest
-from configly import Config
 from moto import mock_s3
 
 from databudgie.backup import backup, backup_all
-
-
-@pytest.fixture()
-def sample_config():
-    yield Config(
-        {
-            "backup": {
-                "tables": {
-                    "public.advertiser": {
-                        "location": "s3://sample-bucket/databudgie/test/public.advertiser.csv",
-                        "query": "select * from public.advertiser",
-                    },
-                    "public.ad_generic": {
-                        "location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv",
-                        "query": "select * from public.ad_generic",
-                    },
-                }
-            },
-        }
-    )
 
 
 @mock_s3
@@ -44,7 +23,7 @@ def test_backup_all(pg, mf, s3_resource, sample_config):
 
 
 @mock_s3
-def test_backup_one(pg, mf, s3_resource, sample_config):
+def test_backup_one(pg, mf, s3_resource):
     """Validate the upload for a single table contains the correct contents."""
     mf.facebook_ad.new(external_id="ad_123")
 
@@ -73,9 +52,13 @@ def test_backup_one(pg, mf, s3_resource, sample_config):
 
 @patch("databudgie.backup.backup", side_effect=RuntimeError("Dummy error"))
 def test_backup_failure(mock_backup, sample_config):
+    """Validate alternative behavior of the `strict` flag."""
+
+    # With strict on, the backup should raise an exception.
     with pytest.raises(RuntimeError):
         backup_all(None, None, tables=sample_config.backup.tables, strict=True)
 
+    # With strict off, the backup should produce log messages.
     with patch("databudgie.utils.log") as mock_log:
         backup_all(None, None, tables=sample_config.backup.tables, strict=False)
         assert mock_log.info.call_count == 2
