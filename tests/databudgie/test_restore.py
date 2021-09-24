@@ -5,7 +5,7 @@ from typing import List
 import faker
 import pytest
 from moto import mock_s3
-from mypy_boto3_s3.service_resource import Bucket
+from mypy_boto3_s3.service_resource import S3ServiceResource
 
 from databudgie.restore import restore, restore_all
 from databudgie.utils import wrap_buffer
@@ -14,14 +14,8 @@ from tests.mockmodels.models import Advertiser, Product
 fake = faker.Faker()
 
 
-@pytest.fixture
-def mock_bucket(s3_resource):
-    with mock_s3():
-        bucket: Bucket = s3_resource.create_bucket(Bucket="sample-bucket")
-        yield bucket
-
-
-def mock_s3_csv(bucket: Bucket, key: str, data: List[dict]):
+def mock_s3_csv(s3_resource: S3ServiceResource, key: str, data: List[dict]):
+    bucket = s3_resource.Bucket("sample-bucket")
     buffer = io.BytesIO()
 
     with wrap_buffer(buffer) as wrapper:
@@ -32,7 +26,7 @@ def mock_s3_csv(bucket: Bucket, key: str, data: List[dict]):
     bucket.put_object(Key=key, Body=buffer)
 
 
-def test_restore_all(pg, mock_bucket, s3_resource, sample_config):
+def test_restore_all(pg, sample_config, s3_resource):
     """Validate restore functionality for all tables in a config."""
     mock_advertiser = dict(id=1, name=fake.name())
     mock_product = dict(
@@ -44,8 +38,8 @@ def test_restore_all(pg, mock_bucket, s3_resource, sample_config):
         active=True,
     )
 
-    mock_s3_csv(mock_bucket, "public.advertiser.csv", [mock_advertiser])
-    mock_s3_csv(mock_bucket, "public.product.csv", [mock_product])
+    mock_s3_csv(s3_resource, "public.advertiser.csv", [mock_advertiser])
+    mock_s3_csv(s3_resource, "public.product.csv", [mock_product])
 
     restore_all(pg, s3_resource, sample_config.restore.tables, strict=True)
 
@@ -53,7 +47,7 @@ def test_restore_all(pg, mock_bucket, s3_resource, sample_config):
     assert pg.query(Product).count() == 1
 
 
-def test_restore_one(pg, mf, s3_resource, mock_bucket):
+def test_restore_one(pg, mf, s3_resource):
     """Validate restore functionality for a single table."""
 
     mf.advertiser.new(name=fake.name())
@@ -76,7 +70,8 @@ def test_restore_one(pg, mf, s3_resource, mock_bucket):
             active=False,
         ),
     ]
-    mock_s3_csv(mock_bucket, "products.csv", mock_products)
+
+    mock_s3_csv(s3_resource, "products.csv", mock_products)
 
     restore(pg, "product", s3_resource, "s3://sample-bucket/products.csv")
 
@@ -90,7 +85,7 @@ def test_restore_one(pg, mf, s3_resource, mock_bucket):
     assert products[1].external_id == mock_products[1]["external_id"]
 
 
-def test_restore_overwrite_cascade(pg, mf, s3_resource, mock_bucket):
+def test_restore_overwrite_cascade(pg, mf, s3_resource):
     """Validate behavior for the cascading truncate option."""
 
     advertiser = mf.advertiser.new(name=fake.name())
@@ -106,7 +101,7 @@ def test_restore_overwrite_cascade(pg, mf, s3_resource, mock_bucket):
         active=True,
     )
 
-    mock_s3_csv(mock_bucket, "products.csv", [mock_product])
+    mock_s3_csv(s3_resource, "products.csv", [mock_product])
 
     restore(pg, "product", s3_resource, "s3://sample-bucket/products.csv", truncate=True)
 

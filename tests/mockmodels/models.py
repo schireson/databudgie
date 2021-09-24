@@ -1,6 +1,8 @@
 from sqlalchemy import Column, ForeignKey, MetaData, types, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 
+from databudgie.manifest import BackupManifestMixin, RestoreManifestMixin
+
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 
@@ -51,3 +53,11 @@ class Sale(Base):  # type: ignore
     sale_value = Column(types.Float(), nullable=False)
     sale_date = Column(types.Date(), nullable=False)
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
+
+
+class DatabudgieBackup(Base, BackupManifestMixin):  # type: ignore
+    __tablename__ = "databudgie_backup"
+
+
+class DatabudgieRestore(Base, RestoreManifestMixin):  # type: ignore
+    __tablename__ = "databudgie_restore"
