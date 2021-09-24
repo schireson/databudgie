@@ -4,7 +4,7 @@ import sqlalchemy
 from sqlalchemy import MetaData, Table
 from sqlalchemy.orm import Session
 
-from databudgie.utils import capture_failures
+from databudgie.utils import capture_failures, parse_table
 
 
 class Manifest(metaclass=abc.ABCMeta):
@@ -12,7 +12,7 @@ class Manifest(metaclass=abc.ABCMeta):
         self.table_name = table_name
         self.session = session
 
-        schema, table = table_name.split(".")
+        schema, table = parse_table(table_name)
         self.metadata = MetaData(bind=session.get_bind())
         self.metadata.reflect(schema=schema, only=[table])
         self.manifest_table = Table(table, self.metadata, autoload=True, schema=schema)

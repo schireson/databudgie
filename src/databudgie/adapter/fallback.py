@@ -1,6 +1,6 @@
 import csv
 import io
-from typing import Any, Dict, Generator, List, Tuple
+from typing import Any, Dict, Generator, List
 
 from setuplog import log
 from sqlalchemy import MetaData, Table, text
@@ -8,6 +8,7 @@ from sqlalchemy.engine.cursor import CursorResult
 from sqlalchemy.orm import Session
 
 from databudgie.adapter.base import Adapter
+from databudgie.utils import parse_table
 
 
 class PythonAdapter(Adapter):
@@ -42,7 +43,7 @@ class PythonAdapter(Adapter):
             if i % 1000 == 0:
                 log.info(f"Preparing {i} rows for {table}...")
 
-        schema, table_name = self._parse_table(table)
+        schema, table_name = parse_table(table)
 
         engine = session.get_bind()
         metadata = MetaData()
@@ -61,30 +62,3 @@ class PythonAdapter(Adapter):
         row: List[Any]
         for row in cursor.yield_per(chunk_size):
             yield row
-
-    @staticmethod
-    def _parse_table(table: str) -> Tuple[str, str]:
-        """Split a schema-qualified table name into two parts.
-
-        Examples:
-            >>> PythonAdapter._parse_table("myschema.foo")
-            ('myschema', 'foo')
-
-            >>> PythonAdapter._parse_table("bar")
-            ('public', 'bar')
-
-            >>> PythonAdapter._parse_table("...")  # doctest: +IGNORE_EXCEPTION_DETAIL
-            Traceback (most recent call last):
-            ValueError: Invalid table name: ...
-        """
-        parts = table.split(".")
-
-        if len(parts) == 1:
-            schema = "public"
-            table = parts[0]
-        elif len(parts) == 2:
-            schema, table = parts
-        else:
-            raise ValueError(f"Invalid table name: {table}")
-
-        return schema, table

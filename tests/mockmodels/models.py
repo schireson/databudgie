@@ -1,5 +1,6 @@
 from sqlalchemy import Column, ForeignKey, MetaData, types, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 
 from databudgie.manifest import BackupManifestMixin, RestoreManifestMixin
 
@@ -25,6 +26,8 @@ class Product(Base):  # type: ignore
     external_status = Column(types.Unicode(255), nullable=True)
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
 
+    advertiser = relationship("Advertiser", uselist=False)
+
 
 class GenericAd(Base):  # type: ignore
     __tablename__ = "ad_generic"
@@ -39,6 +42,9 @@ class GenericAd(Base):  # type: ignore
     type = Column(types.Unicode(255), nullable=False)
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
     external_status = Column(types.Unicode(255), nullable=True)
+
+    advertiser = relationship("Advertiser", uselist=False)
+    product = relationship("Product", uselist=False)
 
 
 class Sale(Base):  # type: ignore

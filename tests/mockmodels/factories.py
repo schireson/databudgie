@@ -11,79 +11,79 @@ fake = Faker()
 
 
 @register_at("advertiser")
-def create_advertiser(id: int = None, name: str = None):
+@autoincrement
+def create_advertiser(autoincrement: int, name: str = None):
     name = name or fake.company()
-    return Advertiser(id=id, name=name)
+    return Advertiser(id=autoincrement, name=name)
 
 
 @register_at("product")
+@autoincrement
 def create_product(
-    id: int = None,
-    advertiser_id: int = None,
+    autoincrement: int,
     external_id: int = None,
     external_name: str = None,
     external_status: str = "ACTIVE",
     active: bool = True,
+    advertiser: Advertiser = None,
 ):
-    if not advertiser_id:
+    if not advertiser:
         advertiser = create_advertiser()
-        advertiser_id = advertiser.id
 
     external_id = external_id or fake.unique.pyint()
     external_name = external_name or fake.name()
 
     return Product(
-        id=id,
-        advertiser_id=advertiser_id,
+        id=autoincrement,
         external_id=external_id,
         external_name=external_name,
         external_status=external_status,
         active=active,
+        advertiser=advertiser,
     )
 
 
-@register_at("facebook_ad")
-def create_facebook_ad(
-    id: int = None,
+@register_at("generic_ad")
+@autoincrement
+def create_generic_ad(
+    autoincrement: int,
     external_id: int = None,
-    advertiser_id: int = None,
-    product_id: int = None,
     external_name: str = None,
     primary_text: str = None,
     type: str = "single_media",
     active: bool = True,
     external_status: str = "ACTIVE",
+    advertiser: Advertiser = None,
+    product: Product = None,
 ):
 
-    if not advertiser_id:
+    if not advertiser:
         advertiser = create_advertiser()
-        advertiser_id = advertiser.id
 
-    if not product_id:
-        product = create_product(advertiser_id=advertiser_id)
-        product_id = product.id
+    if not product:
+        product = create_product(advertiser=advertiser)
 
     external_id = external_id or fake.unique.pyint()
     external_name = external_name or fake.name()
     primary_text = primary_text or fake.text()[:30]
 
     return GenericAd(
-        id=id,
+        id=autoincrement,
         external_id=external_id,
-        advertiser_id=advertiser_id,
-        product_id=product_id,
         external_name=external_name,
         primary_text=primary_text,
         type=type,
         active=active,
         external_status=external_status,
+        advertiser=advertiser,
+        product=product,
     )
 
 
 @register_at("sale")
 @autoincrement
 def create_sale(
-    autoincrement: int = None,
+    autoincrement: int,
     external_id: str = None,
     advertiser_id: int = None,
     product_id: int = None,

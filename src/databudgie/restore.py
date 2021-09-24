@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
 from databudgie.manifest.manager import Manifest
-from databudgie.utils import capture_failures, S3Location, wrap_buffer
+from databudgie.utils import capture_failures, parse_table, S3Location, wrap_buffer
 
 VALID_STRATEGIES = {
     "use_latest": "use_latest",
@@ -59,6 +59,10 @@ def restore(
     """Restore a CSV file from S3 to the database."""
 
     adapter = Adapter.get_adapter(kwargs.get("adapter", None) or session)
+
+    # Force table_name to be fully qualified
+    schema, table = parse_table(table_name)
+    table_name = f"{schema}.{table}"
 
     with _download_from_s3(s3_resource, location) as buffer:
         with wrap_buffer(buffer) as wrapper:
