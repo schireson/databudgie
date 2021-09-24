@@ -70,12 +70,12 @@ def backup(
         adapter.export_query(session, query, wrapper)
 
     _upload_to_s3(s3_resource, location, buffer)
+    buffer.close()
 
     if manifest:
         manifest.record(table_name, location)
 
     log.info(f"Uploaded {table_name} to {location}")
-    buffer.close()
 
 
 def _upload_to_s3(s3_resource: S3ServiceResource, location: str, buffer: io.BytesIO):

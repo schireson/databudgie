@@ -4,7 +4,7 @@ import logging
 from faker import Faker
 from sqlalchemy_model_factory import autoincrement, register_at
 
-from tests.mockmodels.models import Advertiser, GenericAd, Product, Sale
+from tests.mockmodels.models import Advertiser, DatabudgieBackup, GenericAd, Product, Sale
 
 logging.getLogger("faker").setLevel(logging.INFO)
 fake = Faker()
@@ -99,4 +99,16 @@ def create_sale(
         sale_value=sale_value or fake.pydecimal(left_digits=5, right_digits=2, positive=True),
         sale_date=sale_date or fake.date(),
         active=active or fake.boolean(),
+    )
+
+
+@register_at("manifest", name="backup")
+def create_backup_manifest(
+    transaction: int = None, table: str = None, file_path: str = None, exported_at: str = None,
+):
+    return DatabudgieBackup(
+        transaction=transaction or fake.pyint(),
+        table=table or fake.word(),
+        file_path=file_path or fake.file_path(),
+        exported_at=exported_at or fake.date_time_this_year(),
     )

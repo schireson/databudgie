@@ -4,7 +4,7 @@ import sqlalchemy
 from sqlalchemy import MetaData, Table
 from sqlalchemy.orm import Session
 
-from databudgie.utils import capture_failures, parse_table
+from databudgie.utils import parse_table
 
 
 class Manifest(metaclass=abc.ABCMeta):
@@ -37,7 +37,6 @@ class Manifest(metaclass=abc.ABCMeta):
     def set_transaction_id(self, id: int):
         self.transaction_id = id
 
-    @capture_failures()
     def record(self, table_name: str, location: str):
         self.session.execute(
             self.manifest_table.insert(),
