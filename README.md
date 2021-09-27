@@ -55,18 +55,14 @@ TODO
 from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 
-from databudgie.manifest import BackupManifestMixin, RestoreManifestMixin
+from databudgie.manifest import DatabudgieManifestMixin
 
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
 
 
-class DatabudgieBackup(Base, BackupManifestMixin):
-    __tablename__ = "databudgie_backup"
-
-
-class DatabudgieRestore(Base, RestoreManifestMixin):
-    __tablename__ = "databudgie_restore"
+class DatabudgieManifest(Base, DatabudgieManifestMixin):
+    __tablename__ = "databudgie_manifest"
 ```
 
 ## Configuration

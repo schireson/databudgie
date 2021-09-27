@@ -46,44 +46,16 @@
     ```
 
 
-### Manifest  Tables
+### Manifest Tables
 
-The following SQL will create tables compatible with the Manifest feature. This is not the recommended approach for production.
+The following Python will create a manifest table from the `tests.mockmodels.models.DatabudgieManifest` model.
 
-```sql
-create table databudgie_backup
-(
-    id          serial                                             not null
-        constraint databudgie_backup_pkey
-            primary key,
-    transaction integer                                            not null,
-    "table"     varchar                                            not null,
-    file_path   varchar                                            not null,
-    exported_at timestamp with time zone default CURRENT_TIMESTAMP not null
-);
+Please supply your own SQLAlchemy connection string.
 
-create index ix_databudgie_backup_table
-    on databudgie_backup ("table");
+```python
+from sqlalchemy import create_engine
+from tests.mockmodels.models import Base
 
-create index ix_databudgie_backup_transaction
-    on databudgie_backup (transaction);
-
-------------------------------------------------------------------------------
-
-create table databudgie_restore
-(
-    id          serial                                             not null
-        constraint databudgie_restore_pkey
-            primary key,
-    transaction integer                                            not null,
-    "table"     varchar                                            not null,
-    file_path   varchar                                            not null,
-    inserted_at timestamp with time zone default CURRENT_TIMESTAMP not null
-);
-
-create index ix_databudgie_restore_table
-    on databudgie_restore ("table");
-
-create index ix_databudgie_restore_transaction
-    on databudgie_restore (transaction);
+engine = create_engine('SQLALCHEMY_CONN_URL', echo=True)
+Base.metadata.tables["databudgie_manifest"].create(bind=engine)
 ```
