@@ -44,3 +44,18 @@
     ```bash
     $ databudgie backup
     ```
+
+
+### Manifest Tables
+
+The following Python will create a manifest table from the `tests.mockmodels.models.DatabudgieManifest` model.
+
+Please supply your own SQLAlchemy connection string.
+
+```python
+from sqlalchemy import create_engine
+from tests.mockmodels.models import Base
+
+engine = create_engine('SQLALCHEMY_CONN_URL', echo=True)
+Base.metadata.tables["databudgie_manifest"].create(bind=engine)
+```

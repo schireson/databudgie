@@ -1,3 +1,5 @@
+from typing import Optional
+
 import click
 import sqlalchemy.orm
 import strapp.click
@@ -6,6 +8,8 @@ from configly import Config
 from mypy_boto3_s3 import S3ServiceResource
 from setuplog import log
 from sqlalchemy.orm import Session
+
+from databudgie.manifest.manager import Manifest
 
 
 def config():
@@ -29,6 +33,24 @@ def restore_db(config):
     return _create_postgres_session(config.restore.url)
 
 
+def backup_manifest(config, backup_db):
+    from databudgie.manifest.manager import BackupManifest
+
+    table_name: Optional[str] = config.backup.get("manifest")
+    if table_name:
+        return BackupManifest(backup_db, table_name)
+    return None
+
+
+def restore_manifest(config, restore_db):
+    from databudgie.manifest.manager import RestoreManifest
+
+    table_name: Optional[str] = config.restore.get("manifest")
+    if table_name:
+        return RestoreManifest(restore_db, table_name)
+    return None
+
+
 def s3_resource(config) -> S3ServiceResource:
     import boto3
 
@@ -42,7 +64,14 @@ def s3_resource(config) -> S3ServiceResource:
     return s3
 
 
-resolver = strapp.click.Resolver(config=config, backup_db=backup_db, restore_db=restore_db, s3_resource=s3_resource)
+resolver = strapp.click.Resolver(
+    config=config,
+    backup_db=backup_db,
+    restore_db=restore_db,
+    backup_manifest=backup_manifest,
+    restore_manifest=restore_manifest,
+    s3_resource=s3_resource,
+)
 
 
 @resolver.group()
@@ -57,19 +86,44 @@ def cli(config: Config, verbose: int, strict: bool, adapter: str):
 
 
 @resolver.command(cli, "backup")
-def backup(config: Config, backup_db: Session, s3_resource: S3ServiceResource, strict: bool, adapter: str):
+@click.option("--backup-id", default=None, help="Restore manifest id.")
+def backup(
+    config: Config,
+    backup_db: Session,
+    s3_resource: S3ServiceResource,
+    strict: bool,
+    adapter: str,
+    backup_manifest: Optional[Manifest] = None,
+    backup_id: Optional[int] = None,
+):
     """Perform backup."""
     from databudgie.backup import backup_all
 
-    log.info("Performing backup! (environment: %s)", config.environment)
+    if backup_manifest and backup_id:
+        backup_manifest.set_transaction_id(backup_id)
 
-    backup_all(backup_db, s3_resource, config.backup.tables, strict=strict, adapter=adapter)
+    log.info("Performing backup! (environment: %s)", config.environment)
+    backup_all(backup_db, s3_resource, config.backup.tables, manifest=backup_manifest, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "restore")
-def restore(config: Config, restore_db: Session, s3_resource: S3ServiceResource, strict: bool, adapter: str):
+@click.option("--restore-id", default=None, help="Restore manifest id.")
+def restore(
+    config: Config,
+    restore_db: Session,
+    s3_resource: S3ServiceResource,
+    strict: bool,
+    restore_manifest: Optional[Manifest] = None,
+    restore_id: Optional[int] = None,
+    adapter: str = None,
+):
     """Perform restore."""
     from databudgie.restore import restore_all
 
+    if restore_manifest and restore_id:
+        restore_manifest.set_transaction_id(restore_id)
+
     log.info("Performing restore! (environment: %s)", config.environment)
-    restore_all(restore_db, s3_resource, config.restore.tables, strict=strict, adapter=adapter)
+    restore_all(
+        restore_db, s3_resource, config.restore.tables, manifest=restore_manifest, strict=strict, adapter=adapter
+    )

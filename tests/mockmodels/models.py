@@ -1,5 +1,8 @@
 from sqlalchemy import Column, ForeignKey, MetaData, types, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+
+from databudgie.manifest import DatabudgieManifestMixin
 
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
@@ -23,6 +26,8 @@ class Product(Base):  # type: ignore
     external_status = Column(types.Unicode(255), nullable=True)
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
 
+    advertiser = relationship("Advertiser", uselist=False)
+
 
 class GenericAd(Base):  # type: ignore
     __tablename__ = "ad_generic"
@@ -38,6 +43,9 @@ class GenericAd(Base):  # type: ignore
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
     external_status = Column(types.Unicode(255), nullable=True)
 
+    advertiser = relationship("Advertiser", uselist=False)
+    product = relationship("Product", uselist=False)
+
 
 class Sale(Base):  # type: ignore
     """Contains a variety of fields for testing type conversion."""
@@ -51,3 +59,7 @@ class Sale(Base):  # type: ignore
     sale_value = Column(types.Float(), nullable=False)
     sale_date = Column(types.Date(), nullable=False)
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
+
+
+class DatabudgieManifest(Base, DatabudgieManifestMixin):  # type: ignore
+    __tablename__ = "databudgie_manifest"

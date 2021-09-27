@@ -17,7 +17,7 @@ def test_populate_refs():
                 "tables": {
                     "facebook.ad": {"location": '${ref:backup.tables."public.ad_generic".location}'},
                     "facebook.product": {"location": "s3://sample-bucket/databudgie/test/facebook.product.csv"},
-                }
+                },
             },
         }
     )

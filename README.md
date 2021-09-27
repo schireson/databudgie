@@ -49,6 +49,31 @@ backup:
 
 TODO
 
+## Manifests
+
+Create manifest tables in your database using the Mixins provided by `databudgie.manifest`:
+
+```py
+from sqlalchemy import MetaData
+from sqlalchemy.ext.declarative import declarative_base
+
+from databudgie.manifest import DatabudgieManifestMixin
+
+metadata = MetaData()
+Base = declarative_base(metadata=metadata)
+
+
+class DatabudgieManifest(Base, DatabudgieManifestMixin):
+    __tablename__ = "databudgie_manifest"
+```
+
+Add manifest config options to your `backup` and `restore` sections:
+
+```yml
+backup:
+  manifest: public.databudgie_manifest
+```
+
 ## Configuration
 
 The config is interpretted via [Configly](https://github.com/schireson/configly), so you can use env var interpolation like so:
@@ -78,6 +103,7 @@ s3: # used to access the bucket where CSVs will be uploaded
 
 backup: # configuration for CSV sources
   url: postgresql://postgres:postgres@localhost:5432/postgres
+  manifest: public.databudgie_manifest
   tables:
     public.ad_facebook:
       query: "select * from public.ad_facebook where advertiser_id = 4"
@@ -85,6 +111,7 @@ backup: # configuration for CSV sources
 
 restore: # configuration for CSV restore targets
   url: postgresql://postgres:postgres@localhost:5432/postgres
+  manifest: public.databudgie_manifest
   tables:
     facebook.ad:
       strategy: use_latest

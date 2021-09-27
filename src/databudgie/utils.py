@@ -1,6 +1,7 @@
 import contextlib
 import io
 import urllib.parse
+from typing import Tuple
 
 from setuplog import log
 
@@ -66,3 +67,30 @@ class S3Location:
     @property
     def key(self):
         return self._parsed.path.lstrip("/")
+
+
+def parse_table(table: str) -> Tuple[str, str]:
+    """Split a schema-qualified table name into two parts.
+
+    Examples:
+        >>> parse_table("myschema.foo")
+        ('myschema', 'foo')
+
+        >>> parse_table("bar")
+        ('public', 'bar')
+
+        >>> parse_table("...")  # doctest: +IGNORE_EXCEPTION_DETAIL
+        Traceback (most recent call last):
+        ValueError: Invalid table name: ...
+    """
+    parts = table.split(".")
+
+    if len(parts) == 1:
+        schema = "public"
+        table = parts[0]
+    elif len(parts) == 2:
+        schema, table = parts
+    else:
+        raise ValueError(f"Invalid table name: {table}")
+
+    return schema, table
