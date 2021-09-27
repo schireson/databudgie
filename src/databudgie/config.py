@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 from configly import Config
 
@@ -17,7 +17,8 @@ def populate_refs(config: Config) -> Config:
     def recurse(conf: Dict[str, Union[str, dict]]) -> dict:
         for key, value in conf.items():
             if isinstance(value, str):  # if value is string, check and perform replacement
-                if match := ref_regex.match(value):
+                match: Optional[re.Match] = ref_regex.match(value)
+                if match:
                     source_path = match.group(1)
                     source_value = extract_ref_value(source_path, root_conf)
                     conf[key] = source_value

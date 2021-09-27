@@ -36,7 +36,8 @@ def restore_db(config):
 def backup_manifest(config, backup_db):
     from databudgie.manifest.manager import BackupManifest
 
-    if table_name := config.backup.get("manifest"):
+    table_name: Optional[str] = config.backup.get("manifest")
+    if table_name:
         return BackupManifest(backup_db, table_name)
     return None
 
@@ -44,7 +45,8 @@ def backup_manifest(config, backup_db):
 def restore_manifest(config, restore_db):
     from databudgie.manifest.manager import RestoreManifest
 
-    if table_name := config.restore.get("manifest"):
+    table_name: Optional[str] = config.restore.get("manifest")
+    if table_name:
         return RestoreManifest(restore_db, table_name)
     return None
 
