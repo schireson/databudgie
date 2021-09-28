@@ -1,12 +1,13 @@
 import contextlib
 import io
-from typing import Generator, Mapping, Optional, TypedDict
+from typing import Generator, Mapping, Optional
 
 from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
 from setuplog import log
 from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
+from databudgie.compat import TypedDict
 from databudgie.manifest.manager import Manifest
 from databudgie.utils import capture_failures, parse_table, S3Location, wrap_buffer
 
