@@ -12,10 +12,10 @@ from sqlalchemy.orm import Session
 from databudgie.manifest.manager import Manifest
 
 
-def config():
+def _load_config(config_file: str) -> Config:
     from databudgie.config import populate_refs
 
-    base_config = Config.from_yaml("config.databudgie.yml")
+    base_config = Config.from_yaml(config_file)
     return populate_refs(base_config)
 
 
@@ -65,7 +65,6 @@ def s3_resource(config) -> S3ServiceResource:
 
 
 resolver = strapp.click.Resolver(
-    config=config,
     backup_db=backup_db,
     restore_db=restore_db,
     backup_manifest=backup_manifest,
@@ -75,14 +74,17 @@ resolver = strapp.click.Resolver(
 
 
 @resolver.group()
-@click.option("-v", "--verbose", count=True, default=0)
 @click.option("--strict/--no-strict", is_flag=True, default=False)  # TODO: consider pre-check functionality
 @click.option("-a", "--adapter", default=None, help="postgres, python, etc.")
-def cli(config: Config, verbose: int, strict: bool, adapter: str):
+@click.option("-c", "--config", default="config.databudgie.yml", help="config file")
+@click.option("-v", "--verbose", count=True, default=0)
+def cli(strict: bool, adapter: str, config: str, verbose: int):
     from databudgie.cli.setup import setup
 
-    setup(config, verbosity=verbose)
-    resolver.register_values(verbosity=verbose, strict=strict, adapter=adapter)
+    conf: Config = _load_config(config)
+
+    setup(conf, verbosity=verbose)
+    resolver.register_values(adapter=adapter, config=conf, strict=strict, verbosity=verbose)
 
 
 @resolver.command(cli, "backup")
