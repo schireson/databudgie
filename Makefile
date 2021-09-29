@@ -3,8 +3,8 @@
 AWS_PROFILE ?= media-activation-prod
 
 init:
-	pyenv install -s 3.9.6
-	pyenv virtualenv 3.9.6 ma-databudgie-py39
+	pyenv install -s 3.7.10
+	pyenv virtualenv 3.7.10 ma-databudgie-py37
 
 install:
 	poetry install -E psycopg2-binary
