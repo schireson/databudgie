@@ -18,4 +18,4 @@ COPY . .
 
 RUN poetry install
 
-CMD [ "bash" ]
+CMD [ "databudgie" ]
