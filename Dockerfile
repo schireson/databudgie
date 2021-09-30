@@ -2,7 +2,7 @@ FROM python:3.9.6-slim-buster
 
 WORKDIR /app
 
-ENV PATH="/root/.poetry/bin:${PATH}"
+ENV PATH="/root/.poetry/bin:${PATH}" VERSION=${VERSION}
 
 RUN apt-get update \
     && apt-get upgrade -y \

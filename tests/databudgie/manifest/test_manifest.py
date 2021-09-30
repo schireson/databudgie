@@ -24,7 +24,7 @@ def test_manifest_backup_resume_transaction(pg, mf, s3_resource, sample_config):
     with patch("databudgie.backup.log") as mock_log:
         test_backup_all(pg, mf, sample_config, s3_resource, manifest=manifest)
         assert mock_log.info.call_count == 2
-        mock_log.info.assert_has_calls([call("Skipping public.advertiser..."), call("Skipping public.ad_generic...")])
+        mock_log.info.assert_has_calls([call("Skipping public.store..."), call("Skipping public.ad_generic...")])
 
 
 def test_manifest_restore(pg, mf, s3_resource):
@@ -47,7 +47,7 @@ def test_manifest_restore_resume_transaction(pg, s3_resource, sample_config):
     with patch("databudgie.restore.log") as mock_log:
         test_restore_all(pg, sample_config, s3_resource, manifest=manifest)
         assert mock_log.info.call_count == 2
-        mock_log.info.assert_has_calls([call("Skipping public.advertiser..."), call("Skipping public.product...")])
+        mock_log.info.assert_has_calls([call("Skipping public.store..."), call("Skipping public.product...")])
 
 
 def test_manifest_subsequent_transaction(pg, mf):

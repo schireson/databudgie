@@ -17,7 +17,7 @@ def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
         "databudgie/test/public.ad_generic.csv",
-        "databudgie/test/public.advertiser.csv",
+        "databudgie/test/public.store.csv",
     ]
 
 
@@ -65,7 +65,7 @@ def _validate_backup_contents(s3_resource, s3_key, expected_contents: List[Gener
     assert len(contents) == len(expected_contents)
     for actual, expected in zip(contents, expected_contents):
         assert actual["external_id"] == expected.external_id
-        assert actual["advertiser_id"] == str(expected.advertiser_id)
+        assert actual["store_id"] == str(expected.store_id)
         assert actual["product_id"] == str(expected.product_id)
         assert actual["external_name"] == expected.external_name
         assert actual["primary_text"] == expected.primary_text

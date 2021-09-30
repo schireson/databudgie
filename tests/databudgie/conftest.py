@@ -39,9 +39,9 @@ def sample_config():
         {
             "backup": {
                 "tables": {
-                    "public.advertiser": {
-                        "location": "s3://sample-bucket/databudgie/test/public.advertiser.csv",
-                        "query": "select * from public.advertiser",
+                    "public.store": {
+                        "location": "s3://sample-bucket/databudgie/test/public.store.csv",
+                        "query": "select * from public.store",
                     },
                     "public.ad_generic": {
                         "location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv",
@@ -51,10 +51,7 @@ def sample_config():
             },
             "restore": {
                 "tables": {
-                    "public.advertiser": {
-                        "location": "s3://sample-bucket/public.advertiser.csv",
-                        "strategy": "use_latest",
-                    },
+                    "public.store": {"location": "s3://sample-bucket/public.store.csv", "strategy": "use_latest"},
                     "public.product": {"location": "s3://sample-bucket/public.product.csv", "strategy": "use_latest"},
                 }
             },

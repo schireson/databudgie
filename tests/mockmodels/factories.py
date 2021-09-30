@@ -4,17 +4,17 @@ import logging
 from faker import Faker
 from sqlalchemy_model_factory import autoincrement, register_at
 
-from tests.mockmodels.models import Advertiser, DatabudgieManifest, GenericAd, Product, Sale
+from tests.mockmodels.models import DatabudgieManifest, GenericAd, Product, Sale, Store
 
 logging.getLogger("faker").setLevel(logging.INFO)
 fake = Faker()
 
 
-@register_at("advertiser")
+@register_at("store")
 @autoincrement
-def create_advertiser(autoincrement: int, name: str = None):
+def create_store(autoincrement: int, name: str = None):
     name = name or fake.company()
-    return Advertiser(id=autoincrement, name=name)
+    return Store(id=autoincrement, name=name)
 
 
 @register_at("product")
@@ -25,10 +25,10 @@ def create_product(
     external_name: str = None,
     external_status: str = "ACTIVE",
     active: bool = True,
-    advertiser: Advertiser = None,
+    store: Store = None,
 ):
-    if not advertiser:
-        advertiser = create_advertiser()
+    if not store:
+        store = create_store()
 
     external_id = external_id or fake.unique.pyint()
     external_name = external_name or fake.name()
@@ -39,7 +39,7 @@ def create_product(
         external_name=external_name,
         external_status=external_status,
         active=active,
-        advertiser=advertiser,
+        store=store,
     )
 
 
@@ -53,15 +53,15 @@ def create_generic_ad(
     type: str = "single_media",
     active: bool = True,
     external_status: str = "ACTIVE",
-    advertiser: Advertiser = None,
+    store: Store = None,
     product: Product = None,
 ):
 
-    if not advertiser:
-        advertiser = create_advertiser()
+    if not store:
+        store = create_store()
 
     if not product:
-        product = create_product(advertiser=advertiser)
+        product = create_product(store=store)
 
     external_id = external_id or fake.unique.pyint()
     external_name = external_name or fake.name()
@@ -75,7 +75,7 @@ def create_generic_ad(
         type=type,
         active=active,
         external_status=external_status,
-        advertiser=advertiser,
+        store=store,
         product=product,
     )
 
@@ -85,7 +85,7 @@ def create_generic_ad(
 def create_sale(
     autoincrement: int,
     external_id: str = None,
-    advertiser_id: int = None,
+    store_id: int = None,
     product_id: int = None,
     sale_value: float = None,
     sale_date: datetime.date = None,
@@ -94,7 +94,7 @@ def create_sale(
     return Sale(
         id=autoincrement,
         external_id=external_id or str(fake.pyint()),
-        advertiser_id=advertiser_id or fake.pyint(),
+        store_id=store_id or fake.pyint(),
         product_id=product_id or fake.pyint(),
         sale_value=sale_value or fake.pydecimal(left_digits=5, right_digits=2, positive=True),
         sale_date=sale_date or fake.date(),

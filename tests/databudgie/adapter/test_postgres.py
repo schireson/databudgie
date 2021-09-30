@@ -9,7 +9,7 @@ def test_type_conversion(pg, mf, s3_resource):
         s.id: dict(
             id=s.id,
             external_id=s.external_id,
-            advertiser_id=s.advertiser_id,
+            store_id=s.store_id,
             product_id=s.product_id,
             sale_value=s.sale_value,
             sale_date=s.sale_date,
@@ -29,7 +29,7 @@ def test_type_conversion(pg, mf, s3_resource):
         restored_sale = restored_sales[id]
         assert original_sale["id"] == restored_sale.id
         assert original_sale["external_id"] == restored_sale.external_id
-        assert original_sale["advertiser_id"] == restored_sale.advertiser_id
+        assert original_sale["store_id"] == restored_sale.store_id
         assert original_sale["product_id"] == restored_sale.product_id
         assert original_sale["sale_value"] == restored_sale.sale_value
         assert original_sale["sale_date"] == restored_sale.sale_date

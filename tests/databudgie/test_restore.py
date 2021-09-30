@@ -7,7 +7,7 @@ from mypy_boto3_s3.service_resource import S3ServiceResource
 
 from databudgie.restore import restore, restore_all
 from databudgie.utils import wrap_buffer
-from tests.mockmodels.models import Advertiser, Product
+from tests.mockmodels.models import Product, Store
 
 fake = faker.Faker()
 
@@ -26,34 +26,34 @@ def mock_s3_csv(s3_resource: S3ServiceResource, key: str, data: List[dict]):
 
 def test_restore_all(pg, sample_config, s3_resource, **extras):
     """Validate restore functionality for all tables in a config."""
-    mock_advertiser = dict(id=1, name=fake.name())
+    mock_store = dict(id=1, name=fake.name())
     mock_product = dict(
         id=1,
-        advertiser_id=1,
+        store_id=1,
         external_id=str(fake.unique.pyint()),
         external_name=fake.name(),
         external_status="ACTIVE",
         active=True,
     )
 
-    mock_s3_csv(s3_resource, "public.advertiser.csv", [mock_advertiser])
+    mock_s3_csv(s3_resource, "public.store.csv", [mock_store])
     mock_s3_csv(s3_resource, "public.product.csv", [mock_product])
 
     restore_all(pg, s3_resource, sample_config.restore.tables, strict=True, **extras)
 
-    assert pg.query(Advertiser).count() == 1
+    assert pg.query(Store).count() == 1
     assert pg.query(Product).count() == 1
 
 
 def test_restore_one(pg, mf, s3_resource, **extras):
     """Validate restore functionality for a single table."""
 
-    advertiser = mf.advertiser.new(name=fake.name())
+    store = mf.store.new(name=fake.name())
 
     mock_products = [
         dict(
             id=1,
-            advertiser_id=advertiser.id,
+            store_id=store.id,
             external_id=str(fake.unique.pyint()),
             external_name=fake.name(),
             external_status="ACTIVE",
@@ -61,7 +61,7 @@ def test_restore_one(pg, mf, s3_resource, **extras):
         ),
         dict(
             id=2,
-            advertiser_id=advertiser.id,
+            store_id=store.id,
             external_id=str(fake.unique.pyint()),
             external_name=fake.name(),
             external_status=None,
@@ -86,13 +86,13 @@ def test_restore_one(pg, mf, s3_resource, **extras):
 def test_restore_overwrite_cascade(pg, mf, s3_resource):
     """Validate behavior for the cascading truncate option."""
 
-    advertiser = mf.advertiser.new(name=fake.name())
-    mf.product.new(advertiser=advertiser)
-    mf.product.new(advertiser=advertiser)
+    store = mf.store.new(name=fake.name())
+    mf.product.new(store=store)
+    mf.product.new(store=store)
 
     mock_product = dict(
         id=1,
-        advertiser_id=advertiser.id,
+        store_id=store.id,
         external_id=fake.unique.pyint(),
         external_name=fake.name(),
         external_status="ACTIVE",
@@ -103,5 +103,5 @@ def test_restore_overwrite_cascade(pg, mf, s3_resource):
 
     restore(pg, "product", s3_resource, "s3://sample-bucket/products.csv", truncate=True)
 
-    advertisers = pg.query(Product).all()
-    assert len(advertisers) == 1
+    stores = pg.query(Product).all()
+    assert len(stores) == 1
