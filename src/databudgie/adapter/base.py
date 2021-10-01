@@ -2,6 +2,8 @@ import abc
 import io
 from typing import Any, Union
 
+import sqlalchemy
+from setuplog import log
 from sqlalchemy.orm import Session
 
 
@@ -16,6 +18,14 @@ class Adapter(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def import_csv(self, session: Session, csv_file: io.StringIO, table: str):
         raise NotImplementedError()  # pragma: no cover
+
+    def truncate_table(self, session, table: str):
+        log.info(f"Truncating {table}...")
+        try:
+            session.execute(f"TRUNCATE TABLE {table} CASCADE")
+            session.commit()
+        except sqlalchemy.exc.ProgrammingError:
+            session.rollback()
 
     @staticmethod
     def get_adapter(dialect: Union[Session, Any]) -> "Adapter":

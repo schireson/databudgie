@@ -1,6 +1,7 @@
 import io
+from typing import List
 
-import psycopg2
+import psycopg2.errors
 from setuplog import log
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
@@ -26,8 +27,11 @@ class PostgresAdapter(Adapter):
         conn: Connection = engine.raw_connection()
         cursor: psycopg2.cursor = conn.cursor()
 
+        # Reading the header line from the buffer removes it for the ingest
+        columns: List[str] = csv_file.readline().strip().split(",")
+
         log.debug(f"Copying buffer to {table}...")
-        copy = "COPY {} FROM STDIN CSV HEADER".format(table)
+        copy = "COPY {table} ({columns}) FROM STDIN CSV".format(table=table, columns=",".join(columns))
         cursor.copy_expert(copy, csv_file)
         cursor.close()
         conn.commit()

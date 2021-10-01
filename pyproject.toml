@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databudgie"
-version = "1.2.0"
+version = "1.2.1"
 description = ""
 authors = ["Andrew Sosa <andrewso@known.is>"]
 packages = [
@@ -12,11 +12,11 @@ databudgie = "databudgie.__main__:run"
 
 [tool.poetry.dependencies]
 python = "^3.7"
-configly = "^0.2.0"
-
+configly = {extras = ["yaml"], version = "^0.2.2"}
 strapp = {version = ">=0.2.7", extras = ["click", "sqlalchemy", "sentry"] }
 click = "^7.0.0"
 setuplog = "^0.2.2"
+boto3 = "^1.18.52"
 boto3-stubs = {extras = ["s3"], version = "^1.18.38"}
 typing-extensions = "^3.10.0"
 
