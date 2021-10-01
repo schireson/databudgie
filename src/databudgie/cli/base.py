@@ -89,7 +89,7 @@ def cli(strict: bool, adapter: str, config: str, verbose: int):
 
 @resolver.command(cli, "backup")
 @click.option("--backup-id", default=None, help="Restore manifest id.")
-def backup(
+def backup_cli(
     config: Config,
     backup_db: Session,
     s3_resource: S3ServiceResource,
@@ -110,7 +110,7 @@ def backup(
 
 @resolver.command(cli, "restore")
 @click.option("--restore-id", default=None, help="Restore manifest id.")
-def restore(
+def restore_cli(
     config: Config,
     restore_db: Session,
     s3_resource: S3ServiceResource,
@@ -129,3 +129,13 @@ def restore(
     restore_all(
         restore_db, s3_resource, config.restore.tables, manifest=restore_manifest, strict=strict, adapter=adapter
     )
+
+
+@resolver.command(cli, "config")
+@click.option("-i", "--indent", default=2, help="Indentation level.")
+def config_cli(config: Config, indent: int):
+    """Print dereferenced and populated config."""
+
+    from databudgie.config import pretty_print
+
+    pretty_print(config, increment=indent)

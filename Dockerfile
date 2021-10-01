@@ -18,4 +18,5 @@ COPY . .
 
 RUN poetry install
 
+# TODO: change this to entrypoint ["databudgie"] with command ["config"] with airflow 2.x
 CMD [ "databudgie" ]
