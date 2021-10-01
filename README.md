@@ -25,7 +25,7 @@ databudgie has two primary functions:
 $ databudgie [--strict] backup
 ```
 
-The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs in the S3 bucket and path defined by the `.location` options. For `public.ad_facebook` below, the file `s3://my-s3-bucket/databudgie/dev/public.ad_facebook.csv` will be created.
+The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs in the S3 bucket and path defined by the `.location` options. For `public.ad_generic` below, the file `s3://my-s3-bucket/databudgie/dev/public.ad_generic.csv` will be created.
 
 The name under `backup.tables.<NAME>` does not need to match the database in any manner. This value is only used for the `${ref:...}` annotations.
 
@@ -37,11 +37,11 @@ Sample backup configuration:
 backup:
   url: postgresql://postgres:postgres@localhost:5432/postgres
   tables:
-    public.ad_facebook:
-      query: "select * from public.ad_facebook where advertiser_id = 4"
-      location: s3://my-s3-bucket/databudgie/dev/public.ad_facebook.csv
+    public.ad_generic:
+      query: "select * from public.ad_generic where store_id = 4"
+      location: s3://my-s3-bucket/databudgie/dev/public.ad_generic.csv
     public.ad_twitter:
-      query: "select * from public.ad_twitter where advertiser_id = 4"
+      query: "select * from public.ad_twitter where store_id = 4"
       location: s3://my-s3-bucket/databudgie/dev/public.ad_twitter.csv
 ```
 
@@ -105,17 +105,17 @@ backup: # configuration for CSV sources
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
   tables:
-    public.ad_facebook:
-      query: "select * from public.ad_facebook where advertiser_id = 4"
-      location: s3://my-s3-bucket/databudgie/dev/public.ad_facebook.csv
+    public.ad_generic:
+      query: "select * from public.ad_generic where store_id = 4"
+      location: s3://my-s3-bucket/databudgie/dev/public.ad_generic.csv
 
 restore: # configuration for CSV restore targets
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
   tables:
-    facebook.ad:
+    generic.ad:
       strategy: use_latest
-      location: ${ref:backup.tables."public.ad_facebook".location}
+      location: ${ref:backup.tables."public.ad_generic".location}
       # Use referenced value from elsewhere in the config ^
 ```
 

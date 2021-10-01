@@ -10,13 +10,13 @@ def test_populate_refs():
             "backup": {
                 "tables": {
                     "public.ad_generic": {"location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv"},
-                    "public.product": {"location": '${ref:restore.tables."facebook.product".location}'},
+                    "public.product": {"location": '${ref:restore.tables."generic.product".location}'},
                 }
             },
             "restore": {
                 "tables": {
-                    "facebook.ad": {"location": '${ref:backup.tables."public.ad_generic".location}'},
-                    "facebook.product": {"location": "s3://sample-bucket/databudgie/test/facebook.product.csv"},
+                    "generic.ad": {"location": '${ref:backup.tables."public.ad_generic".location}'},
+                    "generic.product": {"location": "s3://sample-bucket/databudgie/test/generic.product.csv"},
                 },
             },
         }
@@ -25,13 +25,13 @@ def test_populate_refs():
     populated_config: Config = populate_refs(sample_config)
 
     assert (
-        populated_config.restore.tables["facebook.ad"].location
+        populated_config.restore.tables["generic.ad"].location
         == "s3://sample-bucket/databudgie/test/public.ad_generic.csv"
     )
 
     assert (
         populated_config.backup.tables["public.product"].location
-        == "s3://sample-bucket/databudgie/test/facebook.product.csv"
+        == "s3://sample-bucket/databudgie/test/generic.product.csv"
     )
 
 
@@ -41,7 +41,7 @@ def test_bad_ref():
             "backup": {
                 "tables": {
                     "public.ad_generic": {"location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv"},
-                    "public.product": {"location": '${ref:restore.tables."facebook.product".location}'},
+                    "public.product": {"location": '${ref:restore.tables."generic.product".location}'},
                 }
             },
             "restore": {"tables": {}},
