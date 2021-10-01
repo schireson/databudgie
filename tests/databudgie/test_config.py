@@ -1,7 +1,9 @@
+from unittest.mock import call, patch
+
 import pytest
 from configly import Config
 
-from databudgie.config import populate_refs
+from databudgie.config import populate_refs, pretty_print
 
 
 def test_populate_refs():
@@ -50,3 +52,29 @@ def test_bad_ref():
 
     with pytest.raises(KeyError):
         populate_refs(incomplete_config)
+
+
+@patch("databudgie.config.print")
+def test_pretty_print(mock_print, sample_config):
+    output = [
+        "backup:",
+        "  tables:",
+        "    public.store:",
+        "      location: s3://sample-bucket/databudgie/test/public.store.csv",
+        "      query: select * from public.store",
+        "    public.ad_generic:",
+        "      location: s3://sample-bucket/databudgie/test/public.ad_generic.csv",
+        "      query: select * from public.ad_generic",
+        "restore:",
+        "  tables:",
+        "    public.store:",
+        "      location: s3://sample-bucket/public.store.csv",
+        "      strategy: use_latest",
+        "    public.product:",
+        "      location: s3://sample-bucket/public.product.csv",
+        "      strategy: use_latest",
+    ]
+
+    pretty_print(sample_config)
+
+    mock_print.assert_has_calls([call(line) for line in output])
