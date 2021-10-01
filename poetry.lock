@@ -189,19 +189,16 @@ reference = 'schireson'
 
 [[package]]
 name = "boto3"
-version = "1.18.52"
+version = "1.17.71"
 description = "The AWS SDK for Python"
 category = "main"
 optional = false
-python-versions = ">= 3.6"
+python-versions = ">= 2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
 [package.dependencies]
-botocore = ">=1.21.52,<1.22.0"
+botocore = ">=1.20.71,<1.21.0"
 jmespath = ">=0.7.1,<1.0.0"
-s3transfer = ">=0.5.0,<0.6.0"
-
-[package.extras]
-crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
+s3transfer = ">=0.4.0,<0.5.0"
 
 [package.source]
 type = "legacy"
@@ -515,11 +512,11 @@ reference = 'schireson'
 
 [[package]]
 name = "botocore"
-version = "1.21.52"
+version = "1.20.112"
 description = "Low-level, data-driven core of boto 3."
 category = "main"
 optional = false
-python-versions = ">= 3.6"
+python-versions = ">= 2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
 
 [package.dependencies]
 jmespath = ">=0.7.1,<1.0.0"
@@ -1852,11 +1849,11 @@ reference = 'schireson'
 
 [[package]]
 name = "s3transfer"
-version = "0.5.0"
+version = "0.4.2"
 description = "An Amazon S3 Transfer Manager"
 category = "main"
 optional = false
-python-versions = ">= 3.6"
+python-versions = "*"
 
 [package.dependencies]
 botocore = ">=1.12.36,<2.0a.0"
@@ -2492,7 +2489,7 @@ psycopg2-binary = []
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.7"
-content-hash = "52d7f9e596ccc25986dfb1f380ffbc854f2de2af87cff1c5823687f03242e591"
+content-hash = "0b0ace22e253de23c83306a0289a99f669010f1ccb4cf12674f5b788b43b15df"
 
 [metadata.files]
 alabaster = [
@@ -2540,16 +2537,16 @@ bleach = [
     {file = "bleach-4.1.0.tar.gz", hash = "sha256:0900d8b37eba61a802ee40ac0061f8c2b5dee29c1927dd1d233e075ebf5a71da"},
 ]
 boto3 = [
-    {file = "boto3-1.18.52-py3-none-any.whl", hash = "sha256:27824d3767c5213f0006f71e552b912bc4659241b77ca8b0be0b813cf0518a9e"},
-    {file = "boto3-1.18.52.tar.gz", hash = "sha256:5b585a279478bd6df4b07db7d6150f413ba6add1f38e68aaa533d3337efd0b22"},
+    {file = "boto3-1.17.71-py2.py3-none-any.whl", hash = "sha256:bcb1b76ca5a60586181ad202b19f4c50cb7c22ac68cae20f997abe311e22bf2a"},
+    {file = "boto3-1.17.71.tar.gz", hash = "sha256:edf9b3b36e08cd575a9458bf59871852335aceb5db2d07bfc8530bae3a97d045"},
 ]
 boto3-stubs = [
     {file = "boto3-stubs-1.18.52.tar.gz", hash = "sha256:60f54146d506e71c8a3bf52d4bda7e38f9a387c34bc20cb8a03abe8ceea293c6"},
     {file = "boto3_stubs-1.18.52-py3-none-any.whl", hash = "sha256:a30138e087903a4a52e322d4236ddda0c296a3d2e53173b1551a30e6d85a9ba9"},
 ]
 botocore = [
-    {file = "botocore-1.21.52-py3-none-any.whl", hash = "sha256:e8797c0933c660e130cf2f51667f5003950d7e592f4c3944e8f04f201493d17a"},
-    {file = "botocore-1.21.52.tar.gz", hash = "sha256:04c071aec4f1981b38e3be760838b976337fd6ebd95a31ceeca9f9e4b4733c1f"},
+    {file = "botocore-1.20.112-py2.py3-none-any.whl", hash = "sha256:6d51de0981a3ef19da9e6a3c73b5ab427e3c0c8b92200ebd38d087299683dd2b"},
+    {file = "botocore-1.20.112.tar.gz", hash = "sha256:d0b9b70b6eb5b65bb7162da2aaf04b6b086b15cc7ea322ddc3ef2f5e07944dcf"},
 ]
 botocore-stubs = [
     {file = "botocore-stubs-1.21.49.tar.gz", hash = "sha256:331629af4b46b1c1e4df647171cb61f03a69cb1a1bbf03b7636f1083b3eb8e63"},
@@ -3201,8 +3198,8 @@ rfc3986 = [
     {file = "ruamel.yaml.clib-0.2.6.tar.gz", hash = "sha256:4ff604ce439abb20794f05613c374759ce10e3595d1867764dd1ae675b85acbd"},
 ]
 s3transfer = [
-    {file = "s3transfer-0.5.0-py3-none-any.whl", hash = "sha256:9c1dc369814391a6bda20ebbf4b70a0f34630592c9aa520856bf384916af2803"},
-    {file = "s3transfer-0.5.0.tar.gz", hash = "sha256:50ed823e1dc5868ad40c8dc92072f757aa0e653a192845c94a3b676f4a62da4c"},
+    {file = "s3transfer-0.4.2-py2.py3-none-any.whl", hash = "sha256:9b3752887a2880690ce628bc263d6d13a3864083aeacff4890c1c9839a5eb0bc"},
+    {file = "s3transfer-0.4.2.tar.gz", hash = "sha256:cb022f4b16551edebbb31a377d3f09600dbada7363d8c5db7976e7f47732e1b2"},
 ]
 secretstorage = [
     {file = "SecretStorage-3.3.1-py3-none-any.whl", hash = "sha256:422d82c36172d88d6a0ed5afdec956514b189ddbfb72fefab0c8a1cee4eaf71f"},
