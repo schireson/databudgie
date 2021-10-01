@@ -69,9 +69,7 @@ def restore(
         with wrap_buffer(buffer) as wrapper:
             with session:
                 if truncate:
-                    log.info(f"Truncating {table_name}...")
-                    session.execute(f"TRUNCATE TABLE {table_name} CASCADE")
-                    session.commit()
+                    adapter.truncate_table(session, table_name)
                 adapter.import_csv(session, wrapper, table_name)
 
     if manifest:
