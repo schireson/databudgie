@@ -121,14 +121,15 @@ workflows:
     jobs:
       - lint
       - test
-      - push-docker-image:
-          requires:
-            - lint
-            - test
-          filters:
-            branches:
-              only:
-                - /^main$/
+      # temporarily disabled to stop erring in CircleCI
+      # - push-docker-image:
+      #     requires:
+      #       - lint
+      #       - test
+      #     filters:
+      #       branches:
+      #         only:
+      #           - /^main$/
       - publish:
           requires:
             - lint
