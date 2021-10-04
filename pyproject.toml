@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databudgie"
-version = "1.2.2"
+version = "1.2.3"
 description = ""
 authors = ["Andrew Sosa <andrewso@known.is>"]
 packages = [
@@ -19,6 +19,8 @@ setuplog = "^0.2.2"
 boto3 = "^1.16.10,<1.17.72"
 boto3-stubs = {extras = ["s3"], version = "^1.18.38"}
 typing-extensions = "^3.10.0"
+psycopg2 = { version = ">=2.7", optional = true }
+psycopg2-binary = { version = ">=2.7", optional = true }
 
 [tool.poetry.dev-dependencies]
 bandit = "^1.6.2"
@@ -37,8 +39,6 @@ pytest-mock-resources = {extras = ["postgres"], version = "^2.1.2"}
 responses = "^0.10.9"
 types-freezegun = "^0.1.3"
 types-requests = "^0.1.11"
-psycopg2 = { version = ">=2.7", optional = true }
-psycopg2-binary = { version = ">=2.7", optional = true }
 faker = "^8.12.1"
 moto = {extras = ["s3"], version = "^2.2.6"}
 sqlalchemy-model-factory = "^0.3.1"
