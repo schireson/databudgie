@@ -29,8 +29,8 @@ class Product(Base):  # type: ignore
     store = relationship("Store", uselist=False)
 
 
-class GenericAd(Base):  # type: ignore
-    __tablename__ = "ad_generic"
+class Customer(Base):  # type: ignore
+    __tablename__ = "customer"
 
     id = Column(types.Integer(), autoincrement=True, primary_key=True)
 
@@ -38,7 +38,6 @@ class GenericAd(Base):  # type: ignore
     store_id = Column(types.Integer(), ForeignKey("store.id", ondelete="CASCADE"))
     product_id = Column(types.Integer(), ForeignKey("product.id", ondelete="CASCADE"))
     external_name = Column(types.Unicode(255), nullable=False)
-    primary_text = Column(types.Unicode(255), nullable=True)
     type = Column(types.Unicode(255), nullable=False)
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
     external_status = Column(types.Unicode(255), nullable=True)

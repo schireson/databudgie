@@ -11,13 +11,13 @@ def test_populate_refs():
         {
             "backup": {
                 "tables": {
-                    "public.ad_generic": {"location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv"},
+                    "public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer.csv"},
                     "public.product": {"location": '${ref:restore.tables."generic.product".location}'},
                 }
             },
             "restore": {
                 "tables": {
-                    "generic.ad": {"location": '${ref:backup.tables."public.ad_generic".location}'},
+                    "generic.customer": {"location": '${ref:backup.tables."public.customer".location}'},
                     "generic.product": {"location": "s3://sample-bucket/databudgie/test/generic.product.csv"},
                 },
             },
@@ -27,8 +27,8 @@ def test_populate_refs():
     populated_config: Config = populate_refs(sample_config)
 
     assert (
-        populated_config.restore.tables["generic.ad"].location
-        == "s3://sample-bucket/databudgie/test/public.ad_generic.csv"
+        populated_config.restore.tables["generic.customer"].location
+        == "s3://sample-bucket/databudgie/test/public.customer.csv"
     )
 
     assert (
@@ -42,7 +42,7 @@ def test_bad_ref():
         {
             "backup": {
                 "tables": {
-                    "public.ad_generic": {"location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv"},
+                    "public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer.csv"},
                     "public.product": {"location": '${ref:restore.tables."generic.product".location}'},
                 }
             },
@@ -62,9 +62,9 @@ def test_pretty_print(mock_print, sample_config):
         "    public.store:",
         "      location: s3://sample-bucket/databudgie/test/public.store.csv",
         "      query: select * from public.store",
-        "    public.ad_generic:",
-        "      location: s3://sample-bucket/databudgie/test/public.ad_generic.csv",
-        "      query: select * from public.ad_generic",
+        "    public.customer:",
+        "      location: s3://sample-bucket/databudgie/test/public.customer.csv",
+        "      query: select * from public.customer",
         "restore:",
         "  tables:",
         "    public.store:",
