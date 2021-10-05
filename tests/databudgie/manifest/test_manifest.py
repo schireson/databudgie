@@ -13,8 +13,8 @@ def test_manifest_backup(pg, mf, s3_resource):
     row = pg.query(DatabudgieManifest).first()
 
     assert row.transaction == 1
-    assert row.table == "public.ad_generic"
-    assert row.file_path == "s3://sample-bucket/databudgie/test/public.ad_generic.csv"
+    assert row.table == "public.customer"
+    assert row.file_path == "s3://sample-bucket/databudgie/test/public.customer.csv"
 
 
 def test_manifest_backup_resume_transaction(pg, mf, s3_resource, sample_config):
@@ -24,7 +24,7 @@ def test_manifest_backup_resume_transaction(pg, mf, s3_resource, sample_config):
     with patch("databudgie.backup.log") as mock_log:
         test_backup_all(pg, mf, sample_config, s3_resource, manifest=manifest)
         assert mock_log.info.call_count == 2
-        mock_log.info.assert_has_calls([call("Skipping public.store..."), call("Skipping public.ad_generic...")])
+        mock_log.info.assert_has_calls([call("Skipping public.store..."), call("Skipping public.customer...")])
 
 
 def test_manifest_restore(pg, mf, s3_resource):

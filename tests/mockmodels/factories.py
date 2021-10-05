@@ -4,7 +4,7 @@ import logging
 from faker import Faker
 from sqlalchemy_model_factory import autoincrement, register_at
 
-from tests.mockmodels.models import DatabudgieManifest, GenericAd, Product, Sale, Store
+from tests.mockmodels.models import Customer, DatabudgieManifest, Product, Sale, Store
 
 logging.getLogger("faker").setLevel(logging.INFO)
 fake = Faker()
@@ -43,14 +43,13 @@ def create_product(
     )
 
 
-@register_at("generic_ad")
+@register_at("customer")
 @autoincrement
-def create_generic_ad(
+def create_customer(
     autoincrement: int,
     external_id: int = None,
     external_name: str = None,
-    primary_text: str = None,
-    type: str = "single_media",
+    type: str = "new",
     active: bool = True,
     external_status: str = "ACTIVE",
     store: Store = None,
@@ -65,13 +64,11 @@ def create_generic_ad(
 
     external_id = external_id or fake.unique.pyint()
     external_name = external_name or fake.name()
-    primary_text = primary_text or fake.text()[:30]
 
-    return GenericAd(
+    return Customer(
         id=autoincrement,
         external_id=external_id,
         external_name=external_name,
-        primary_text=primary_text,
         type=type,
         active=active,
         external_status=external_status,

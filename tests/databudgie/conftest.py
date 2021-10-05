@@ -43,9 +43,9 @@ def sample_config():
                         "location": "s3://sample-bucket/databudgie/test/public.store.csv",
                         "query": "select * from public.store",
                     },
-                    "public.ad_generic": {
-                        "location": "s3://sample-bucket/databudgie/test/public.ad_generic.csv",
-                        "query": "select * from public.ad_generic",
+                    "public.customer": {
+                        "location": "s3://sample-bucket/databudgie/test/public.customer.csv",
+                        "query": "select * from public.customer",
                     },
                 }
             },
