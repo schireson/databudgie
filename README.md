@@ -25,7 +25,7 @@ databudgie has two primary functions:
 $ databudgie [--strict] backup
 ```
 
-The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs in the S3 bucket and path defined by the `.location` options. For `public.ad_generic` below, the file `s3://my-s3-bucket/databudgie/dev/public.ad_generic.csv` will be created.
+The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs in the S3 bucket and path defined by the `.location` options. For `public.product` below, the file `s3://my-s3-bucket/databudgie/dev/public.product.csv` will be created.
 
 The name under `backup.tables.<NAME>` does not need to match the database in any manner. This value is only used for the `${ref:...}` annotations.
 
@@ -38,9 +38,9 @@ backup:
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
   tables:
-    public.ad:
-      location: s3://my-s3-bucket/databudgie/public.ad_generic.csv
-      query: "select * from public.ad where store_id = 4"
+    public.product:
+      location: s3://my-s3-bucket/databudgie/public.product.csv
+      query: "select * from public.product where store_id = 4"
     public.sales:
       location: s3://my-s3-bucket/databudgie/public.sales.csv
       query: "select * from public.sales where store_id = 4"
@@ -61,8 +61,8 @@ restore:
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
   tables:
-    public.ad:
-      location: s3://my-s3-bucket/databudgie/public.ad_generic.csv
+    public.product:
+      location: s3://my-s3-bucket/databudgie/public.product.csv
       strategy: use_latest
       truncate: true
     public.sales:
@@ -129,17 +129,17 @@ backup: # configuration for CSV sources
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
   tables:
-    public.ad_generic:
-      query: "select * from public.ad_generic where store_id = 4"
-      location: s3://my-s3-bucket/databudgie/dev/public.ad_generic.csv
+    public.product:
+      query: "select * from public.product where store_id = 4"
+      location: s3://my-s3-bucket/databudgie/dev/public.product.csv
 
 restore: # configuration for CSV restore targets
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
   tables:
-    generic.ad:
+    public.product:
       strategy: use_latest
-      location: ${ref:backup.tables."public.ad_generic".location}
+      location: ${ref:backup.tables."public.product".location}
       # Use referenced value from elsewhere in the config ^
 ```
 

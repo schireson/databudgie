@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from databudgie.backup import backup, backup_all
-from tests.mockmodels.models import GenericAd
+from tests.mockmodels.models import Customer
 
 
 def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
@@ -16,25 +16,25 @@ def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
-        "databudgie/test/public.ad_generic.csv",
+        "databudgie/test/public.customer.csv",
         "databudgie/test/public.store.csv",
     ]
 
 
 def test_backup_one(pg, mf, s3_resource, **extras):
     """Validate the upload for a single table contains the correct contents."""
-    ad = mf.generic_ad.new(external_id="ad_123")
+    customer = mf.customer.new(external_id="cid_123")
 
     backup(
         pg,
-        query="select * from public.ad_generic",
+        query="select * from public.customer",
         s3_resource=s3_resource,
-        location="s3://sample-bucket/databudgie/test/public.ad_generic.csv",
-        table_name="public.ad_generic",
+        location="s3://sample-bucket/databudgie/test/public.customer.csv",
+        table_name="public.customer",
         **extras,
     )
 
-    _validate_backup_contents(s3_resource, "databudgie/test/public.ad_generic.csv", [ad])
+    _validate_backup_contents(s3_resource, "databudgie/test/public.customer.csv", [customer])
 
 
 def test_backup_failure(sample_config):
@@ -51,7 +51,7 @@ def test_backup_failure(sample_config):
             assert mock_log.info.call_count == 2
 
 
-def _validate_backup_contents(s3_resource, s3_key, expected_contents: List[GenericAd]):
+def _validate_backup_contents(s3_resource, s3_key, expected_contents: List[Customer]):
     """Validate the contents of a backup file. Columns from the file will be raw."""
     buffer = io.BytesIO()
     uploaded_object = s3_resource.Object("sample-bucket", s3_key)
@@ -68,7 +68,6 @@ def _validate_backup_contents(s3_resource, s3_key, expected_contents: List[Gener
         assert actual["store_id"] == str(expected.store_id)
         assert actual["product_id"] == str(expected.product_id)
         assert actual["external_name"] == expected.external_name
-        assert actual["primary_text"] == expected.primary_text
         assert actual["type"] == expected.type
         assert actual["active"] in _comparable_bool(expected.active)
         assert actual["external_status"] == expected.external_status
