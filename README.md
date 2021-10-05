@@ -36,18 +36,40 @@ Sample backup configuration:
 ```yml
 backup:
   url: postgresql://postgres:postgres@localhost:5432/postgres
+  manifest: public.databudgie_manifest
   tables:
-    public.ad_generic:
-      query: "select * from public.ad_generic where store_id = 4"
-      location: s3://my-s3-bucket/databudgie/dev/public.ad_generic.csv
-    public.ad_twitter:
-      query: "select * from public.ad_twitter where store_id = 4"
-      location: s3://my-s3-bucket/databudgie/dev/public.ad_twitter.csv
+    public.ad:
+      location: s3://my-s3-bucket/databudgie/public.ad_generic.csv
+      query: "select * from public.ad where store_id = 4"
+    public.sales:
+      location: s3://my-s3-bucket/databudgie/public.sales.csv
+      query: "select * from public.sales where store_id = 4"
 ```
 
 ## Restore
 
-TODO
+```
+$ databudgie [--strict] restore
+```
+
+The restore command will download files from S3 and restore them into the database. databudgie will iterate over the `restore.tables` and insert the CSV contents into the tables in order of appearance.
+
+The column headers in the CSV will be used to match the contents of the file to the columns in the table. This allows for leaving columns with default values unset if you are restoring data to a different table than which it was copied from.
+
+```yml
+restore:
+  url: postgresql://postgres:postgres@localhost:5432/postgres
+  manifest: public.databudgie_manifest
+  tables:
+    public.ad:
+      location: s3://my-s3-bucket/databudgie/public.ad_generic.csv
+      strategy: use_latest
+      truncate: true
+    public.sales:
+      location: s3://my-s3-bucket/databudgie/public.sales.csv
+      strategy: use_latest
+      truncate: true
+```
 
 ## Manifests
 
@@ -73,6 +95,8 @@ Add manifest config options to your `backup` and `restore` sections:
 backup:
   manifest: public.databudgie_manifest
 ```
+
+Both the `backup` and `restore` commands accept a `--backup-id` or `--restore-id` option to continue a transaction which may have previously crashed in progress. Tables which already have manifest entries for the transaction id will be skipped.
 
 ## Configuration
 
