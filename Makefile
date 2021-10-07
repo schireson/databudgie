@@ -30,18 +30,3 @@ test:
 
 docker-login-cmd:
 	eval $$(aws --profile=$(AWS_PROFILE) ecr get-login --no-include-email --region us-east-1)
-
-build:
-	docker build . \
-		-t databudgie \
-		-t 233478501758.dkr.ecr.us-east-1.amazonaws.com/databudgie \
-		--build-arg VERSION=$(VERSION)
-
-push:
-	docker push 233478501758.dkr.ecr.us-east-1.amazonaws.com/databudgie
-
-pull:
-	docker pull 233478501758.dkr.ecr.us-east-1.amazonaws.com/databudgie
-
-enter:
-	docker run --env-file .env -v ${PWD}:/app -it 233478501758.dkr.ecr.us-east-1.amazonaws.com/databudgie bash
