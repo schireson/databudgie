@@ -64,18 +64,6 @@ commands:
             - .venv
           key: v2-{{ checksum "pyproject.toml" }}-{{ checksum "poetry.lock" }}
 
-  push-docker-image:
-    description: Push a Docker image to ECR
-    steps:
-      - run:
-          command: |
-            export AWS_ACCESS_KEY_ID=$ECR_AWS_ACCESS_KEY_ID
-            export AWS_SECRET_ACCESS_KEY=$ECR_AWS_SECRET_ACCESS_KEY
-            $(aws ecr get-login --no-include-email --region us-east-1 --registry-ids 831655002651)
-
-            lucha aws whitelist --use-docker-ip --profile artifactory -- make build
-            make push
-
   publish:
     description: Authenticate with a particular ECR instance on AWS
     steps:
@@ -101,15 +89,6 @@ jobs:
       - run-make:
           command: test
 
-  push-docker-image:
-    executor: main
-    steps:
-      - setup_remote_docker:
-          docker_layer_caching: true
-      - setup
-      - aws-create-credentials
-      - push-docker-image
-
   publish:
     executor: main
     steps:
@@ -121,15 +100,6 @@ workflows:
     jobs:
       - lint
       - test
-      # temporarily disabled to stop erring in CircleCI
-      # - push-docker-image:
-      #     requires:
-      #       - lint
-      #       - test
-      #     filters:
-      #       branches:
-      #         only:
-      #           - /^main$/
       - publish:
           requires:
             - lint
