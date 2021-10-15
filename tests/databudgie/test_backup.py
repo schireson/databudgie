@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from databudgie.backup import backup, backup_all
+from databudgie.etl.backup import backup, backup_all
 from tests.mockmodels.models import Customer
 
 
@@ -16,8 +16,8 @@ def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
-        "databudgie/test/public.customer.csv",
-        "databudgie/test/public.store.csv",
+        "databudgie/test/public.customer/2021-04-26T09:00:00.csv",
+        "databudgie/test/public.store/2021-04-26T09:00:00.csv",
     ]
 
 
@@ -29,18 +29,18 @@ def test_backup_one(pg, mf, s3_resource, **extras):
         pg,
         query="select * from public.customer",
         s3_resource=s3_resource,
-        location="s3://sample-bucket/databudgie/test/public.customer.csv",
+        location="s3://sample-bucket/databudgie/test/public.customer",
         table_name="public.customer",
         **extras,
     )
 
-    _validate_backup_contents(s3_resource, "databudgie/test/public.customer.csv", [customer])
+    _validate_backup_contents(s3_resource, "databudgie/test/public.customer/2021-04-26T09:00:00.csv", [customer])
 
 
 def test_backup_failure(sample_config):
     """Validate alternative behavior of the `strict` flag."""
 
-    with patch("databudgie.backup.backup", side_effect=RuntimeError("Dummy error")):
+    with patch("databudgie.etl.backup.backup", side_effect=RuntimeError("Dummy error")):
         # With strict on, the backup should raise an exception.
         with pytest.raises(RuntimeError):
             backup_all(None, None, tables=sample_config.backup.tables, strict=True)

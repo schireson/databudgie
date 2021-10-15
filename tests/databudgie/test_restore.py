@@ -5,7 +5,7 @@ from typing import List
 import faker
 from mypy_boto3_s3.service_resource import S3ServiceResource
 
-from databudgie.restore import restore, restore_all
+from databudgie.etl.restore import restore, restore_all
 from databudgie.utils import wrap_buffer
 from tests.mockmodels.models import Product, Store
 
@@ -36,8 +36,8 @@ def test_restore_all(pg, sample_config, s3_resource, **extras):
         active=True,
     )
 
-    mock_s3_csv(s3_resource, "public.store.csv", [mock_store])
-    mock_s3_csv(s3_resource, "public.product.csv", [mock_product])
+    mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv", [mock_store])
+    mock_s3_csv(s3_resource, "public.product/2021-04-26T09:00:00.csv", [mock_product])
 
     restore_all(pg, s3_resource, sample_config.restore.tables, strict=True, **extras)
 
@@ -69,9 +69,9 @@ def test_restore_one(pg, mf, s3_resource, **extras):
         ),
     ]
 
-    mock_s3_csv(s3_resource, "products.csv", mock_products)
+    mock_s3_csv(s3_resource, "products/2021-04-26T09:00:00.csv", mock_products)
 
-    restore(pg, "product", s3_resource, "s3://sample-bucket/products.csv", **extras)
+    restore(pg, "product", s3_resource, "s3://sample-bucket/products", **extras)
 
     products = pg.query(Product).all()
     assert len(products) == 2
@@ -99,9 +99,9 @@ def test_restore_overwrite_cascade(pg, mf, s3_resource):
         active=True,
     )
 
-    mock_s3_csv(s3_resource, "products.csv", [mock_product])
+    mock_s3_csv(s3_resource, "products/2021-04-26T09:00:00.csv", [mock_product])
 
-    restore(pg, "product", s3_resource, "s3://sample-bucket/products.csv", truncate=True)
+    restore(pg, "product", s3_resource, "s3://sample-bucket/products", truncate=True)
 
     stores = pg.query(Product).all()
     assert len(stores) == 1

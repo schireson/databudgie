@@ -1,5 +1,5 @@
-from databudgie.backup import backup
-from databudgie.restore import restore
+from databudgie.etl.backup import backup
+from databudgie.etl.restore import restore
 from tests.mockmodels.models import Sale
 
 
@@ -18,7 +18,7 @@ def test_type_conversion(pg, mf, s3_resource):
         for s in sales
     }
 
-    location = "s3://sample-bucket/public.sales.csv"
+    location = "s3://sample-bucket/public.sales"
 
     backup(pg, "select * from public.sales", s3_resource, location=location, table_name="sales")
     restore(pg, "public.sales", s3_resource, location, truncate=True)

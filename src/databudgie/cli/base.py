@@ -99,7 +99,7 @@ def backup_cli(
     backup_id: Optional[int] = None,
 ):
     """Perform backup."""
-    from databudgie.backup import backup_all
+    from databudgie.etl.backup import backup_all
 
     if backup_manifest and backup_id:
         backup_manifest.set_transaction_id(backup_id)
@@ -120,7 +120,7 @@ def restore_cli(
     adapter: str = None,
 ):
     """Perform restore."""
-    from databudgie.restore import restore_all
+    from databudgie.etl.restore import restore_all
 
     if restore_manifest and restore_id:
         restore_manifest.set_transaction_id(restore_id)

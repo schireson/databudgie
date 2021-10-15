@@ -25,7 +25,7 @@ databudgie has two primary functions:
 $ databudgie [--strict] backup
 ```
 
-The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs in the S3 bucket and path defined by the `.location` options. For `public.product` below, the file `s3://my-s3-bucket/databudgie/dev/public.product.csv` will be created.
+The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs in the S3 bucket and path defined by the `.location` options. For `public.product` below, the file `s3://my-s3-bucket/databudgie/dev/public.product/2021-04-26T09:00:00.csv` will be created (with the timestamp matching the current date and time).
 
 The name under `backup.tables.<NAME>` does not need to match the database in any manner. This value is only used for the `${ref:...}` annotations.
 
@@ -39,10 +39,10 @@ backup:
   manifest: public.databudgie_manifest
   tables:
     public.product:
-      location: s3://my-s3-bucket/databudgie/public.product.csv
+      location: s3://my-s3-bucket/databudgie/public.product
       query: "select * from public.product where store_id = 4"
     public.sales:
-      location: s3://my-s3-bucket/databudgie/public.sales.csv
+      location: s3://my-s3-bucket/databudgie/public.sales
       query: "select * from public.sales where store_id = 4"
 ```
 
@@ -62,12 +62,12 @@ restore:
   manifest: public.databudgie_manifest
   tables:
     public.product:
-      location: s3://my-s3-bucket/databudgie/public.product.csv
-      strategy: use_latest
+      location: s3://my-s3-bucket/databudgie/public.product
+      strategy: use_latest_filename
       truncate: true
     public.sales:
-      location: s3://my-s3-bucket/databudgie/public.sales.csv
-      strategy: use_latest
+      location: s3://my-s3-bucket/databudgie/public.sales
+      strategy: use_latest_filename
       truncate: true
 ```
 
@@ -131,14 +131,14 @@ backup: # configuration for CSV sources
   tables:
     public.product:
       query: "select * from public.product where store_id = 4"
-      location: s3://my-s3-bucket/databudgie/dev/public.product.csv
+      location: s3://my-s3-bucket/databudgie/dev/public.product
 
 restore: # configuration for CSV restore targets
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
   tables:
     public.product:
-      strategy: use_latest
+      strategy: use_latest_filename
       location: ${ref:backup.tables."public.product".location}
       # Use referenced value from elsewhere in the config ^
 ```
