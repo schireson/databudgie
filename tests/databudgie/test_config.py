@@ -11,14 +11,14 @@ def test_populate_refs():
         {
             "backup": {
                 "tables": {
-                    "public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer.csv"},
+                    "public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer"},
                     "public.product": {"location": '${ref:restore.tables."generic.product".location}'},
                 }
             },
             "restore": {
                 "tables": {
                     "generic.customer": {"location": '${ref:backup.tables."public.customer".location}'},
-                    "generic.product": {"location": "s3://sample-bucket/databudgie/test/generic.product.csv"},
+                    "generic.product": {"location": "s3://sample-bucket/databudgie/test/generic.product"},
                 },
             },
         }
@@ -28,12 +28,12 @@ def test_populate_refs():
 
     assert (
         populated_config.restore.tables["generic.customer"].location
-        == "s3://sample-bucket/databudgie/test/public.customer.csv"
+        == "s3://sample-bucket/databudgie/test/public.customer"
     )
 
     assert (
         populated_config.backup.tables["public.product"].location
-        == "s3://sample-bucket/databudgie/test/generic.product.csv"
+        == "s3://sample-bucket/databudgie/test/generic.product"
     )
 
 
@@ -42,7 +42,7 @@ def test_bad_ref():
         {
             "backup": {
                 "tables": {
-                    "public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer.csv"},
+                    "public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer"},
                     "public.product": {"location": '${ref:restore.tables."generic.product".location}'},
                 }
             },
@@ -60,19 +60,19 @@ def test_pretty_print(mock_print, sample_config):
         "backup:",
         "  tables:",
         "    public.store:",
-        "      location: s3://sample-bucket/databudgie/test/public.store.csv",
+        "      location: s3://sample-bucket/databudgie/test/public.store",
         "      query: select * from public.store",
         "    public.customer:",
-        "      location: s3://sample-bucket/databudgie/test/public.customer.csv",
+        "      location: s3://sample-bucket/databudgie/test/public.customer",
         "      query: select * from public.customer",
         "restore:",
         "  tables:",
         "    public.store:",
-        "      location: s3://sample-bucket/public.store.csv",
-        "      strategy: use_latest",
+        "      location: s3://sample-bucket/public.store",
+        "      strategy: use_latest_filename",
         "    public.product:",
-        "      location: s3://sample-bucket/public.product.csv",
-        "      strategy: use_latest",
+        "      location: s3://sample-bucket/public.product",
+        "      strategy: use_latest_metadata",
     ]
 
     pretty_print(sample_config)
