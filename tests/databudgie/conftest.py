@@ -1,6 +1,7 @@
 import boto3
 import pytest
 from configly import Config
+from freezegun import freeze_time
 from moto import mock_s3
 from pytest_mock_resources import create_postgres_fixture, PostgresConfig
 
@@ -33,6 +34,12 @@ def s3_resource():
         yield s3
 
 
+@pytest.fixture(autouse=True)
+def fixed_time():
+    with freeze_time("2021-04-26 09:00:00"):
+        yield
+
+
 @pytest.fixture()
 def sample_config():
     yield Config(
@@ -40,19 +47,22 @@ def sample_config():
             "backup": {
                 "tables": {
                     "public.store": {
-                        "location": "s3://sample-bucket/databudgie/test/public.store.csv",
+                        "location": "s3://sample-bucket/databudgie/test/public.store",
                         "query": "select * from public.store",
                     },
                     "public.customer": {
-                        "location": "s3://sample-bucket/databudgie/test/public.customer.csv",
+                        "location": "s3://sample-bucket/databudgie/test/public.customer",
                         "query": "select * from public.customer",
                     },
                 }
             },
             "restore": {
                 "tables": {
-                    "public.store": {"location": "s3://sample-bucket/public.store.csv", "strategy": "use_latest"},
-                    "public.product": {"location": "s3://sample-bucket/public.product.csv", "strategy": "use_latest"},
+                    "public.store": {"location": "s3://sample-bucket/public.store", "strategy": "use_latest_filename"},
+                    "public.product": {
+                        "location": "s3://sample-bucket/public.product",
+                        "strategy": "use_latest_metadata",
+                    },
                 }
             },
         }

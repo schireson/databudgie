@@ -1,4 +1,6 @@
 import io
+from datetime import datetime
+from os import path
 from typing import Mapping, Optional
 
 from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
@@ -8,7 +10,7 @@ from sqlalchemy.orm import Session
 from databudgie.adapter import Adapter
 from databudgie.compat import TypedDict
 from databudgie.manifest.manager import Manifest
-from databudgie.utils import capture_failures, S3Location, wrap_buffer
+from databudgie.utils import capture_failures, FILENAME_FORMAT, S3Location, wrap_buffer
 
 
 class BackupConfig(TypedDict):
@@ -70,16 +72,19 @@ def backup(
     with wrap_buffer(buffer) as wrapper:
         adapter.export_query(session, query, wrapper)
 
-    _upload_to_s3(s3_resource, location, buffer)
+    # path.join will handle optionally trailing slashes in the location
+    fully_qualified_path = path.join(location, datetime.now().strftime(FILENAME_FORMAT))
+
+    _upload_to_s3(s3_resource, fully_qualified_path, buffer)
     buffer.close()
 
     if manifest:
-        manifest.record(table_name, location)
+        manifest.record(table_name, fully_qualified_path)
 
-    log.info(f"Uploaded {table_name} to {location}")
+    log.info(f"Uploaded {table_name} to {fully_qualified_path}")
 
 
-def _upload_to_s3(s3_resource: S3ServiceResource, location: str, buffer: io.BytesIO):
-    s3_location = S3Location(location)
+def _upload_to_s3(s3_resource: S3ServiceResource, s3_path: str, buffer: io.BytesIO):
+    s3_location = S3Location(s3_path)
     s3_bucket: Bucket = s3_resource.Bucket(s3_location.bucket)
     s3_bucket.put_object(Key=s3_location.key, Body=buffer)

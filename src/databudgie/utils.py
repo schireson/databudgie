@@ -5,6 +5,9 @@ from typing import Tuple
 
 from setuplog import log
 
+DATETIME_FORMAT = r"%Y-%m-%dT%H:%M:%S"
+FILENAME_FORMAT = f"{DATETIME_FORMAT}.csv"
+
 
 @contextlib.contextmanager
 def capture_failures(ignore=(), strict=False):
