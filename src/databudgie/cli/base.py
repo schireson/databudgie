@@ -105,7 +105,7 @@ def backup_cli(
         backup_manifest.set_transaction_id(backup_id)
 
     log.info("Performing backup! (environment: %s)", config.environment)
-    backup_all(backup_db, s3_resource, config.backup.tables, manifest=backup_manifest, strict=strict, adapter=adapter)
+    backup_all(backup_db, s3_resource, config, manifest=backup_manifest, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "restore")

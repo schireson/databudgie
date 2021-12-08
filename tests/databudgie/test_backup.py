@@ -4,15 +4,40 @@ from typing import Any, Dict, List
 from unittest.mock import patch
 
 import pytest
+from configly import Config
 
 from databudgie.etl.backup import backup, backup_all
+from databudgie.etl.base import TableOp
 from tests.mockmodels.models import Customer
 
 
 def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
     """Validate the backup_all performs backup for all tables in the backup config."""
 
-    backup_all(pg, s3_resource, tables=sample_config.backup.tables, strict=True, **extras)
+    backup_all(pg, s3_resource, config=sample_config, strict=True, **extras)
+
+    all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    assert all_object_keys == [
+        "databudgie/test/public.customer/2021-04-26T09:00:00.csv",
+        "databudgie/test/public.store/2021-04-26T09:00:00.csv",
+    ]
+
+
+def test_backup_all_glob(pg, s3_resource):
+    config = Config(
+        {
+            "backup": {
+                "tables": {
+                    "public.*": {
+                        "location": "s3://sample-bucket/databudgie/test/{table}",
+                        "query": "select * from {table}",
+                        "exclude": ["public.databudgie_*", "public.product", "public.sales"],
+                    },
+                }
+            },
+        }
+    )
+    backup_all(pg, s3_resource, config, strict=True)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -27,27 +52,29 @@ def test_backup_one(pg, mf, s3_resource, **extras):
 
     backup(
         pg,
-        query="select * from public.customer",
+        table_op=TableOp(
+            query="select * from public.customer",
+            location="s3://sample-bucket/databudgie/test/public.customer",
+            table_name="public.customer",
+        ),
         s3_resource=s3_resource,
-        location="s3://sample-bucket/databudgie/test/public.customer",
-        table_name="public.customer",
         **extras,
     )
 
     _validate_backup_contents(s3_resource, "databudgie/test/public.customer/2021-04-26T09:00:00.csv", [customer])
 
 
-def test_backup_failure(sample_config):
+def test_backup_failure(pg, sample_config):
     """Validate alternative behavior of the `strict` flag."""
 
     with patch("databudgie.etl.backup.backup", side_effect=RuntimeError("Dummy error")):
         # With strict on, the backup should raise an exception.
         with pytest.raises(RuntimeError):
-            backup_all(None, None, tables=sample_config.backup.tables, strict=True)
+            backup_all(pg, None, config=sample_config, strict=True)
 
         # With strict off, the backup should produce log messages.
         with patch("databudgie.utils.log") as mock_log:
-            backup_all(None, None, tables=sample_config.backup.tables, strict=False)
+            backup_all(pg, None, config=sample_config, strict=False)
             assert mock_log.info.call_count == 2
 
 
