@@ -101,7 +101,10 @@ def create_sale(
 
 @register_at("manifest", name="backup")
 def create_manifest_row(
-    transaction: int = None, table: str = None, file_path: str = None, timestamp: str = None,
+    transaction: int = None,
+    table: str = None,
+    file_path: str = None,
+    timestamp: str = None,
 ):
     return DatabudgieManifest(
         transaction=transaction or fake.pyint(),

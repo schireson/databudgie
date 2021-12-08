@@ -8,8 +8,7 @@ from sqlalchemy.orm import Session
 
 
 class Adapter(metaclass=abc.ABCMeta):
-    """Root class designating a shared interface for operating on different databases.
-    """
+    """Root class designating a shared interface for operating on different databases."""
 
     @abc.abstractmethod
     def export_query(self, session: Session, query: str, dest: io.StringIO):
