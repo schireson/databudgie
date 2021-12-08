@@ -20,7 +20,12 @@ class Product(Base):  # type: ignore
     __table_args__ = (UniqueConstraint("store_id", "external_id"),)
 
     id = Column(types.Integer(), autoincrement=True, primary_key=True)
-    store_id = Column(types.Integer(), ForeignKey("store.id"), nullable=False, index=True,)
+    store_id = Column(
+        types.Integer(),
+        ForeignKey("store.id"),
+        nullable=False,
+        index=True,
+    )
     external_id = Column(types.Unicode(255), nullable=False)
     external_name = Column(types.Unicode(255), nullable=False)
     external_status = Column(types.Unicode(255), nullable=True)

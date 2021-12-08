@@ -47,5 +47,6 @@ def setup_logging(level: str, verbosity: int):
     actual_level = max(chosen_level - 10 * verbosity, logging.DEBUG)
 
     _setup_logging(
-        actual_level, log_level_overrides=package_verbosity(verbosity),
+        actual_level,
+        log_level_overrides=package_verbosity(verbosity),
     )
