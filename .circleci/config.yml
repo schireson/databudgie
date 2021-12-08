@@ -58,7 +58,7 @@ commands:
             virtualenv .venv
             . .venv/bin/activate
 
-            lucha aws whitelist --profile artifactory -- make install
+            make install
       - save_cache:
           paths:
             - .venv
@@ -86,6 +86,7 @@ jobs:
     executor: main
     steps:
       - setup-python
+      - setup_remote_docker
       - run-make:
           command: test
 
