@@ -126,9 +126,7 @@ def restore_cli(
         restore_manifest.set_transaction_id(restore_id)
 
     log.info("Performing restore! (environment: %s)", config.environment)
-    restore_all(
-        restore_db, s3_resource, config.restore.tables, manifest=restore_manifest, strict=strict, adapter=adapter
-    )
+    restore_all(restore_db, s3_resource, config, manifest=restore_manifest, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "config")

@@ -52,12 +52,15 @@ def test_backup_one(pg, mf, s3_resource, **extras):
 
     backup(
         pg,
-        table_op=TableOp(
-            query="select * from public.customer",
-            location="s3://sample-bucket/databudgie/test/public.customer",
-            table_name="public.customer",
-        ),
         s3_resource=s3_resource,
+        config=None,
+        table_op=TableOp(
+            "public.customer",
+            dict(
+                query="select * from public.customer",
+                location="s3://sample-bucket/databudgie/test/public.customer",
+            ),
+        ),
         **extras,
     )
 

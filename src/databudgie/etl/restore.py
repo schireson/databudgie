@@ -1,14 +1,16 @@
 import contextlib
 import io
 from datetime import datetime
-from typing import Generator, Iterable, Mapping, Optional, Tuple
+from typing import Generator, Iterable, List, Optional, Tuple
 
+from configly import Config
 from mypy_boto3_s3.service_resource import Bucket, ObjectSummary, S3ServiceResource
 from setuplog import log
 from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
 from databudgie.compat import TypedDict
+from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
 from databudgie.utils import capture_failures, FILENAME_FORMAT, parse_table, S3Location, wrap_buffer
 
@@ -22,52 +24,55 @@ class RestoreConfig(TypedDict):
 def restore_all(
     session: Session,
     s3_resource: S3ServiceResource,
-    tables: Mapping[str, RestoreConfig],
+    config: Config,
     manifest: Optional[Manifest] = None,
-    **kwargs,
+    strict=False,
+    adapter: Optional[str] = None,
 ) -> None:
-    """Perform restore on all tables in the config.
+    """Perform restore on all tables in the config."""
+    table_ops = expand_table_ops(session, config.restore.tables, manifest=manifest)
 
-    kwargs can include:
-        - adapter (Adapter): TODO
-        - strategy (str): TODO
-    """
-    strict = kwargs.get("strict", False)
+    actual_adapter = Adapter.get_adapter(adapter or session)
 
-    for table_name, conf in tables.items():
-        if manifest and table_name in manifest:
-            log.info(f"Skipping {table_name}...")
+    truncate_tables(session, table_ops, adapter=actual_adapter)
+
+    for table_op in table_ops:
+        log.info(f"Restoring {table_op.table_name}...")
+
+        with capture_failures(strict=strict):
+            restore(session, s3_resource, config=config, table_op=table_op, manifest=manifest, adapter=actual_adapter)
+
+
+def truncate_tables(session: Session, table_ops: List[TableOp], adapter: Adapter):
+    for table_op in table_ops:
+        truncate = table_op.raw_conf.get("truncate", False)
+        if not truncate:
             continue
 
-        log.info(f"Restoring {table_name}...")
-        with capture_failures(strict=strict):
-            restore(session, table_name, s3_resource, manifest=manifest, **conf, **kwargs)
+        adapter.truncate_table(session, table_op.table_name)
 
 
 def restore(
     session: Session,
-    table_name: str,
     s3_resource: S3ServiceResource,
-    location: str,
+    *,
+    config: Config,
+    adapter: Adapter,
+    table_op: TableOp,
     manifest: Optional[Manifest] = None,
-    strategy: str = "use_latest_filename",
-    truncate: bool = False,
-    **kwargs,
 ) -> None:
     """Restore a CSV file from S3 to the database."""
 
-    adapter = Adapter.get_adapter(kwargs.get("adapter", None) or session)
-
     # Force table_name to be fully qualified
-    schema, table = parse_table(table_name)
+    schema, table = parse_table(table_op.table_name)
     table_name = f"{schema}.{table}"
 
-    with _download_from_s3(s3_resource, location, strategy) as (buffer, s3_path):
+    strategy = table_op.raw_conf.get("strategy", "use_latest_filename")
+    with _download_from_s3(s3_resource, table_op.location(config), strategy) as (buffer, s3_path):
         with wrap_buffer(buffer) as wrapper:
             with session:
-                if truncate:
-                    adapter.truncate_table(session, table_name)
-                adapter.import_csv(session, wrapper, table_name)
+                adapter.import_csv(session, wrapper, table_op.table_name)
+                session.commit()
 
         if manifest:
             manifest.record(table_name, s3_path)
