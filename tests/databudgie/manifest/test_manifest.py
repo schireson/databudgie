@@ -44,7 +44,7 @@ def test_manifest_restore_resume_transaction(pg, s3_resource, sample_config):
 
     test_restore_all(pg, sample_config, s3_resource, manifest=manifest)
 
-    with patch("databudgie.etl.restore.log") as mock_log:
+    with patch("databudgie.etl.base.log") as mock_log:
         test_restore_all(pg, sample_config, s3_resource, manifest=manifest)
         assert mock_log.info.call_count == 2
         mock_log.info.assert_has_calls([call("Skipping public.store..."), call("Skipping public.product...")])

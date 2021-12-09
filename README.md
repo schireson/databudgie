@@ -143,6 +143,41 @@ restore: # configuration for CSV restore targets
       # Use referenced value from elsewhere in the config ^
 ```
 
+### Globbing
+
+Using common globbing rules:
+
+| Pattern | Meaning                          |
+| ------- | -------------------------------- |
+| \*      | matches everything               |
+| ?       | matches any single character     |
+| [seq]   | matches any character in seq     |
+| [!seq]  | matches any character not in seq |
+
+```yml
+backup:
+  tables:
+    public.*:
+      query: "select * from {table}"
+      location: s3://my-s3-bucket/databudgie/dev/{table}
+restore:
+  tables:
+    public.*:
+      query: "select * from {table}"
+      location: s3://my-s3-bucket/databudgie/dev/{table}
+```
+
+This expands the definition of matched tables in both backup/restore.
+
+### Config templating
+
+The following format specifiers have been implemented for referencing non-static
+data in config:
+
+| Name  | Example                                          | Description                                                                                                                            |
+| ----- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| table | query: select \* from {table}                    | Templates the referenced table name into "query"'s value                                                                               |
+| ref   | location: {ref:backup.tables[public.*].location} | Templates the value retrieved by following the config traversal from backup -> tables -> public.\* -> location into "location"'s value |
 
 ## Contributing
 

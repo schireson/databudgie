@@ -39,7 +39,7 @@ def backup_all(
         manifest: optional manifest to record the backup location.
         adapter: optional adapter
     """
-    table_ops = expand_table_ops(session, config.backup.tables, ref=config, manifest=manifest)
+    table_ops = expand_table_ops(session, config.backup.tables, manifest=manifest)
 
     for table_op in table_ops:
         log.info(f"Backing up {table_op.table_name}...")
@@ -48,6 +48,7 @@ def backup_all(
             backup(
                 session,
                 s3_resource,
+                config=config,
                 table_op=table_op,
                 manifest=manifest,
                 adapter=adapter,
@@ -58,6 +59,7 @@ def backup(
     session: Session,
     s3_resource: S3ServiceResource,
     *,
+    config: Config,
     table_op: TableOp,
     manifest: Optional[Manifest] = None,
     adapter=None,
@@ -66,10 +68,9 @@ def backup(
 
     Arguments:
         session: A SQLAlchemy session with the PostgreSQL database from which to query data.
-        query: string SQL query to run against the session.
         s3_resource: boto S3 resource from an authenticated session.
-        location: folder path on S3 of where to put the CSV
-        table_name: identifer for the table, used in the CSV filename.
+        config: The raw backup configuration.
+        table_op: The table operation being acted up on.
         manifest: optional manifest to record the backup location.
         adapter: optional adapter
     """
@@ -77,10 +78,10 @@ def backup(
 
     buffer = io.BytesIO()
     with wrap_buffer(buffer) as wrapper:
-        adapter.export_query(session, table_op.query, wrapper)
+        adapter.export_query(session, table_op.query(config), wrapper)
 
     # path.join will handle optionally trailing slashes in the location
-    fully_qualified_path = path.join(table_op.location, datetime.now().strftime(FILENAME_FORMAT))
+    fully_qualified_path = path.join(table_op.location(config), datetime.now().strftime(FILENAME_FORMAT))
 
     _upload_to_s3(s3_resource, fully_qualified_path, buffer)
     buffer.close()
