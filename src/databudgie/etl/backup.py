@@ -1,4 +1,6 @@
 import io
+import os
+import pathlib
 from datetime import datetime
 from os import path
 from typing import Optional
@@ -12,7 +14,8 @@ from databudgie.adapter import Adapter
 from databudgie.compat import TypedDict
 from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
-from databudgie.utils import capture_failures, FILENAME_FORMAT, S3Location, wrap_buffer
+from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
+from databudgie.utils import capture_failures, FILENAME_FORMAT, wrap_buffer
 
 
 class BackupConfig(TypedDict):
@@ -23,22 +26,25 @@ class BackupConfig(TypedDict):
 
 def backup_all(
     session: Session,
-    s3_resource: S3ServiceResource,
     config: Config,
     manifest: Optional[Manifest] = None,
     strict=False,
     adapter=None,
+    s3_resource: Optional[S3ServiceResource] = None,
 ):
     """Perform backup on all tables in the config.
 
     Arguments:
         session: A SQLAlchemy session with the PostgreSQL database from which to query data.
-        s3_resource: boto S3 resource from an authenticated session.
         config: config object mapping table names to their query and location.
         strict: terminate backup after failing one table.
         manifest: optional manifest to record the backup location.
         adapter: optional adapter
+        s3_resource: optional boto S3 resource from an authenticated session.
     """
+    concrete_adapter = Adapter.get_adapter(adapter or session)
+    s3_resource = optional_s3_resource(config)
+
     table_ops = expand_table_ops(session, config.backup.tables, manifest=manifest)
 
     for table_op in table_ops:
@@ -47,35 +53,33 @@ def backup_all(
         with capture_failures(strict=strict):
             backup(
                 session,
-                s3_resource,
                 config=config,
                 table_op=table_op,
                 manifest=manifest,
-                adapter=adapter,
+                adapter=concrete_adapter,
+                s3_resource=s3_resource,
             )
 
 
 def backup(
     session: Session,
-    s3_resource: S3ServiceResource,
     *,
     config: Config,
     table_op: TableOp,
+    adapter: Adapter,
     manifest: Optional[Manifest] = None,
-    adapter=None,
+    s3_resource: Optional[S3ServiceResource] = None,
 ):
     """Dump query contents to S3 as a CSV file.
 
     Arguments:
         session: A SQLAlchemy session with the PostgreSQL database from which to query data.
-        s3_resource: boto S3 resource from an authenticated session.
         config: The raw backup configuration.
         table_op: The table operation being acted up on.
+        adapter: the selected behavior adapter
         manifest: optional manifest to record the backup location.
-        adapter: optional adapter
+        s3_resource: optional boto S3 resource from an authenticated session.
     """
-    adapter = Adapter.get_adapter(adapter or session)
-
     buffer = io.BytesIO()
     with wrap_buffer(buffer) as wrapper:
         adapter.export_query(session, table_op.query(config), wrapper)
@@ -83,7 +87,7 @@ def backup(
     # path.join will handle optionally trailing slashes in the location
     fully_qualified_path = path.join(table_op.location(config), datetime.now().strftime(FILENAME_FORMAT))
 
-    _upload_to_s3(s3_resource, fully_qualified_path, buffer)
+    persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
     buffer.close()
 
     if manifest:
@@ -92,7 +96,13 @@ def backup(
     log.info(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
 
 
-def _upload_to_s3(s3_resource: S3ServiceResource, s3_path: str, buffer: io.BytesIO):
-    s3_location = S3Location(s3_path)
-    s3_bucket: Bucket = s3_resource.Bucket(s3_location.bucket)
-    s3_bucket.put_object(Key=s3_location.key, Body=buffer)
+def persist_backup(path: str, buffer: io.BytesIO, s3_resource: Optional[S3ServiceResource] = None):
+    if is_s3_path(path):
+        s3_location = S3Location(path)
+        s3_bucket: Bucket = s3_resource.Bucket(s3_location.bucket)  # type: ignore
+        s3_bucket.put_object(Key=s3_location.key, Body=buffer)
+    else:
+        parent = pathlib.PurePath(path).parent
+        os.makedirs(parent, exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(buffer.getbuffer())

@@ -8,7 +8,7 @@ init:
 	pyenv virtualenv 3.7.10 ma-databudgie-py37
 
 install:
-	poetry install -E psycopg2-binary
+	poetry install -E psycopg2-binary -E s3
 
 
 format:
