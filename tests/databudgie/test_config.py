@@ -1,57 +1,6 @@
 from unittest.mock import call, patch
 
-import pytest
-from configly import Config
-
-from databudgie.config import populate_refs, pretty_print
-
-
-def test_populate_refs():
-    sample_config = Config(
-        {
-            "backup": {
-                "tables": {
-                    "public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer"},
-                    "public.product": {"location": '${ref:restore.tables."generic.product".location}'},
-                }
-            },
-            "restore": {
-                "tables": {
-                    "generic.customer": {"location": '${ref:backup.tables."public.customer".location}'},
-                    "generic.product": {"location": "s3://sample-bucket/databudgie/test/generic.product"},
-                },
-            },
-        }
-    )
-
-    populated_config: Config = populate_refs(sample_config)
-
-    assert (
-        populated_config.restore.tables["generic.customer"].location
-        == "s3://sample-bucket/databudgie/test/public.customer"
-    )
-
-    assert (
-        populated_config.backup.tables["public.product"].location
-        == "s3://sample-bucket/databudgie/test/generic.product"
-    )
-
-
-def test_bad_ref():
-    incomplete_config = Config(
-        {
-            "backup": {
-                "tables": {
-                    "public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer"},
-                    "public.product": {"location": '${ref:restore.tables."generic.product".location}'},
-                }
-            },
-            "restore": {"tables": {}},
-        }
-    )
-
-    with pytest.raises(KeyError):
-        populate_refs(incomplete_config)
+from databudgie.config import pretty_print
 
 
 @patch("databudgie.config.print")

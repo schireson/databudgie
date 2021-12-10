@@ -12,13 +12,6 @@ from sqlalchemy.orm import Session
 from databudgie.manifest.manager import Manifest
 
 
-def _load_config(config_file: str) -> Config:
-    from databudgie.config import populate_refs
-
-    base_config = Config.from_yaml(config_file)
-    return populate_refs(base_config)
-
-
 def _create_postgres_session(url):
     engine = sqlalchemy.create_engine(url)
     session = sqlalchemy.orm.scoping.scoped_session(sqlalchemy.orm.session.sessionmaker(bind=engine))()
@@ -81,7 +74,7 @@ resolver = strapp.click.Resolver(
 def cli(strict: bool, adapter: str, config: str, verbose: int):
     from databudgie.cli.setup import setup
 
-    conf: Config = _load_config(config)
+    conf = Config.from_yaml(config)
 
     setup(conf, verbosity=verbose)
     resolver.register_values(adapter=adapter, config=conf, strict=strict, verbosity=verbose)
