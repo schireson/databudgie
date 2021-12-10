@@ -3,8 +3,11 @@ import io
 from typing import List
 
 import faker
+from configly import Config
 from mypy_boto3_s3.service_resource import S3ServiceResource
 
+from databudgie.adapter.base import Adapter
+from databudgie.etl.base import TableOp
 from databudgie.etl.restore import restore, restore_all
 from databudgie.utils import wrap_buffer
 from tests.mockmodels.models import Product, Store
@@ -39,7 +42,7 @@ def test_restore_all(pg, sample_config, s3_resource, **extras):
     mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv", [mock_store])
     mock_s3_csv(s3_resource, "public.product/2021-04-26T09:00:00.csv", [mock_product])
 
-    restore_all(pg, s3_resource, sample_config.restore.tables, strict=True, **extras)
+    restore_all(pg, s3_resource, sample_config, strict=True, **extras)
 
     assert pg.query(Store).count() == 1
     assert pg.query(Product).count() == 1
@@ -71,7 +74,14 @@ def test_restore_one(pg, mf, s3_resource, **extras):
 
     mock_s3_csv(s3_resource, "products/2021-04-26T09:00:00.csv", mock_products)
 
-    restore(pg, "product", s3_resource, "s3://sample-bucket/products", **extras)
+    restore(
+        pg,
+        s3_resource,
+        adapter=Adapter.get_adapter(pg),
+        config=None,
+        table_op=TableOp("product", dict(location="s3://sample-bucket/products")),
+        **extras
+    )
 
     products = pg.query(Product).all()
     assert len(products) == 2
@@ -83,7 +93,7 @@ def test_restore_one(pg, mf, s3_resource, **extras):
     assert products[1].external_id == mock_products[1]["external_id"]
 
 
-def test_restore_overwrite_cascade(pg, mf, s3_resource):
+def test_restore_all_overwrite_cascade(pg, mf, s3_resource):
     """Validate behavior for the cascading truncate option."""
 
     store = mf.store.new(name=fake.name())
@@ -101,7 +111,55 @@ def test_restore_overwrite_cascade(pg, mf, s3_resource):
 
     mock_s3_csv(s3_resource, "products/2021-04-26T09:00:00.csv", [mock_product])
 
-    restore(pg, "product", s3_resource, "s3://sample-bucket/products", truncate=True)
+    restore_all(
+        pg,
+        s3_resource,
+        config=Config(
+            {"restore": {"tables": {"product": {"truncate": True, "location": "s3://sample-bucket/products"}}}}
+        ),
+    )
+
+    stores = pg.query(Product).all()
+    assert len(stores) == 1
+
+
+def test_restore_glob(pg, mf, s3_resource):
+    """Validate restore composes with glob table specifications."""
+
+    # Prove we truncate the rows
+    store = mf.store.new(name=fake.name())
+    mf.product.new(store=store)
+    mf.product.new(store=store)
+
+    mock_s3_csv(
+        s3_resource,
+        "public.store/2021-04-26T09:00:00.csv",
+        [
+            dict(id=1, name=fake.name()),
+            dict(id=2, name=fake.name()),
+        ],
+    )
+    mock_s3_csv(
+        s3_resource,
+        "public.product/2021-04-26T09:00:00.csv",
+        [
+            dict(
+                id=1,
+                store_id=1,
+                external_id=fake.unique.pyint(),
+                external_name=fake.name(),
+                external_status="ACTIVE",
+                active=True,
+            ),
+        ],
+    )
+
+    config = Config({"restore": {"tables": {"public.*": {"location": "s3://sample-bucket/{table}", "truncate": True}}}})
+
+    restore_all(pg, s3_resource, config)
+
+    stores = pg.query(Store).all()
+    assert len(stores) == 2
 
     stores = pg.query(Product).all()
     assert len(stores) == 1

@@ -105,7 +105,7 @@ def backup_cli(
         backup_manifest.set_transaction_id(backup_id)
 
     log.info("Performing backup! (environment: %s)", config.environment)
-    backup_all(backup_db, s3_resource, config.backup.tables, manifest=backup_manifest, strict=strict, adapter=adapter)
+    backup_all(backup_db, s3_resource, config, manifest=backup_manifest, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "restore")
@@ -126,9 +126,7 @@ def restore_cli(
         restore_manifest.set_transaction_id(restore_id)
 
     log.info("Performing restore! (environment: %s)", config.environment)
-    restore_all(
-        restore_db, s3_resource, config.restore.tables, manifest=restore_manifest, strict=strict, adapter=adapter
-    )
+    restore_all(restore_db, s3_resource, config, manifest=restore_manifest, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "config")
