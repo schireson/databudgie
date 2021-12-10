@@ -1,6 +1,6 @@
 import logging
 
-import strapp.sentry
+import strapp.logging
 from configly import Config
 
 package_verbosity = strapp.logging.package_verbosity_factory(
@@ -16,11 +16,16 @@ package_verbosity = strapp.logging.package_verbosity_factory(
 
 
 def setup(config: Config, verbosity: int):
-    setup_logging(config.logging.level, verbosity)
+    setup_logging(config.get("logging", {}).get("level", "INFO"), verbosity)
     setup_sentry(config)
 
 
 def setup_sentry(config: Config):
+    import strapp.sentry
+
+    if not config.get("sentry"):
+        return
+
     strapp.sentry.setup_sentry(
         dsn=config.sentry.sentry_dsn,
         release=config.sentry.version,
