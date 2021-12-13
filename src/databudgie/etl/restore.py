@@ -1,11 +1,13 @@
 import contextlib
 import io
+import json
 import os
 import pathlib
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Generator, Iterable, List, Optional, Tuple, TYPE_CHECKING
 
+import sqlalchemy
 from configly import Config
 from setuplog import log
 from sqlalchemy.orm import Session
@@ -15,7 +17,7 @@ from databudgie.compat import TypedDict
 from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
-from databudgie.utils import capture_failures, FILENAME_FORMAT, parse_table, wrap_buffer
+from databudgie.utils import capture_failures, join_paths, parse_table, restore_filename, wrap_buffer
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
@@ -37,6 +39,8 @@ def restore_all(
     """Perform restore on all tables in the config."""
     concrete_adapter = Adapter.get_adapter(adapter or session)
     s3_resource = optional_s3_resource(config)
+
+    restore_all_ddl(session, config, s3_resource=s3_resource)
 
     table_ops = expand_table_ops(session, config.restore.tables, manifest=manifest)
 
@@ -63,6 +67,46 @@ def truncate_tables(session: Session, table_ops: List[TableOp], adapter: Adapter
             continue
 
         adapter.truncate_table(session, table_op.table_name)
+
+
+def restore_all_ddl(
+    session: Session,
+    config: Config,
+    s3_resource: Optional["S3ServiceResource"] = None,
+):
+    restore_config = config.restore
+    ddl_config = restore_config.get("ddl", {})
+    if not ddl_config.get("enabled", False):
+        return
+
+    ddl_path = ddl_config["location"]
+    strategy = ddl_config.get("strategy", "use_latest_filename")
+
+    manifest_path = os.path.join(ddl_path)
+    with get_file_contents(manifest_path, strategy, s3_resource=s3_resource, filetype="json") as (buffer, _):
+        tables = json.load(buffer)
+
+    table_ops = expand_table_ops(session, restore_config.tables, existing_tables=tables)
+    for table_op in table_ops:
+        location = table_op.location(ref=config)
+        strategy = table_op.raw_conf.get("strategy", "use_latest_filename")
+
+        path = join_paths(ddl_path, location)
+        with get_file_contents(path, strategy, s3_resource=s3_resource) as (buffer, path):
+            query = buffer.read().decode("utf-8")
+
+        query = "\n".join(
+            line
+            for line in query.splitlines()
+            if not line.startswith("--")
+            and not line.startswith("SET")
+            and not line.startswith("SELECT pg_catalog")
+            and line
+        )
+        session.execute(sqlalchemy.text(query))
+        session.commit()
+
+        log.info(f"Restored {table_op.table_name} DDL from {path}")
 
 
 def restore(
@@ -109,9 +153,7 @@ class ObjectSummary:
 
 @contextlib.contextmanager
 def get_file_contents(
-    location: str,
-    strategy: str,
-    s3_resource: Optional["S3ServiceResource"] = None,
+    location: str, strategy: str, s3_resource: Optional["S3ServiceResource"] = None, filetype="csv"
 ) -> Generator[Tuple[io.BytesIO, str], None, None]:
     concrete_strategy = VALID_STRATEGIES[strategy]
 
@@ -124,7 +166,7 @@ def get_file_contents(
         object_generator = (
             ObjectSummary(o.key, o.last_modified) for o in s3_bucket.objects.filter(Prefix=s3_location.key)
         )
-        target_object: ObjectSummary = concrete_strategy(object_generator)
+        target_object: ObjectSummary = concrete_strategy(object_generator, filetype=filetype)
 
         s3_bucket.download_fileobj(target_object.key, buffer)
         path = f"s3://{s3_location.bucket}/{target_object.key}"
@@ -134,7 +176,7 @@ def get_file_contents(
             for dir_entry in os.scandir(location)
             if dir_entry.is_file()
         )
-        target_object = concrete_strategy(object_generator)
+        target_object = concrete_strategy(object_generator, filetype=filetype)
 
         with open(target_object.key, "rb") as f:
             buffer.write(f.read())
@@ -147,16 +189,14 @@ def get_file_contents(
     buffer.close()
 
 
-def _use_filename_strategy(available_objects: Iterable[ObjectSummary]) -> ObjectSummary:
+def _use_filename_strategy(available_objects: Iterable[ObjectSummary], filetype="csv") -> ObjectSummary:
     objects_by_filename = {obj.path.name: obj for obj in available_objects}
-    ordered_filenames = sorted(
-        objects_by_filename.keys(), key=lambda x: datetime.strptime(x, FILENAME_FORMAT), reverse=True
-    )
+    ordered_filenames = sorted(objects_by_filename.keys(), key=lambda x: restore_filename(x, filetype), reverse=True)
 
     return objects_by_filename[ordered_filenames[0]]
 
 
-def _use_metadata_strategy(available_objects: Iterable[ObjectSummary]) -> ObjectSummary:
+def _use_metadata_strategy(available_objects: Iterable[ObjectSummary], filetype="csv") -> ObjectSummary:
     objects_by_last_modified_date = {s3_object.last_modified: s3_object for s3_object in available_objects}
     ordered_last_modified_dates = sorted(objects_by_last_modified_date.keys(), reverse=True)
 

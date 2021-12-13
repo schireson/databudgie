@@ -67,6 +67,9 @@ def cli(strict: bool, adapter: str, config: str, verbose: int):
 
 @resolver.command(cli, "backup")
 @click.option("--backup-id", default=None, help="Restore manifest id.")
+@click.option(
+    "--ddl", default=None, is_flag=True, help="Whether to backup the DDL. Overrides the config option, if set"
+)
 def backup_cli(
     config: Config,
     backup_db: Session,
@@ -74,12 +77,16 @@ def backup_cli(
     adapter: str,
     backup_manifest: Optional[Manifest] = None,
     backup_id: Optional[int] = None,
+    ddl: Optional[bool] = False,
 ):
     """Perform backup."""
     from databudgie.etl.backup import backup_all
 
     if backup_manifest and backup_id:
         backup_manifest.set_transaction_id(backup_id)
+
+    if ddl is not None:
+        config["backup"].setdefault("ddl", {})["enabled"] = ddl
 
     log.info("Performing backup! (environment: %s)", config.environment)
     backup_all(backup_db, config, manifest=backup_manifest, strict=strict, adapter=adapter)

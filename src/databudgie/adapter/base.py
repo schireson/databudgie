@@ -18,6 +18,11 @@ class Adapter(metaclass=abc.ABCMeta):
     def import_csv(self, session: Session, csv_file: io.StringIO, table: str):
         raise NotImplementedError()  # pragma: no cover
 
+    @staticmethod
+    @abc.abstractmethod
+    def export_table_ddl(session: Session, table_name: str):
+        raise NotImplementedError()  # pragma: no cover
+
     def truncate_table(self, session, table: str):
         log.info(f"Truncating {table}...")
         try:
