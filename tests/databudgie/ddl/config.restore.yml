@@ -1,0 +1,11 @@
+restore:
+  ddl:
+    enabled: <% ENV[DDL_ENABLED, true] %>
+    location: <% ENV[TABLE_LOCATION] %>/ddl
+
+  tables:
+    public.*:
+      location: <% ENV[TABLE_LOCATION] %>/{table}
+      query: select * from {table}
+      exclude:
+        - public.databudgie_manifest

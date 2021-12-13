@@ -1,11 +1,25 @@
 import contextlib
 import io
+import os
+from datetime import datetime
 from typing import Tuple
 
 from setuplog import log
 
+from databudgie.s3 import is_s3_path
+
 DATETIME_FORMAT = r"%Y-%m-%dT%H:%M:%S"
-FILENAME_FORMAT = f"{DATETIME_FORMAT}.csv"
+FILENAME_FORMAT = "{DATETIME_FORMAT}.csv"
+
+
+def generate_filename(timestamp=None, filetype="csv"):
+    if timestamp is None:
+        timestamp = datetime.now()
+    return timestamp.strftime(f"{DATETIME_FORMAT}.{filetype}")
+
+
+def restore_filename(timestamp, filetype="csv"):
+    return datetime.strptime(timestamp, f"{DATETIME_FORMAT}.{filetype}")
 
 
 @contextlib.contextmanager
@@ -73,3 +87,9 @@ def parse_table(table: str) -> Tuple[str, str]:
         raise ValueError(f"Invalid table name: {table}")
 
     return schema, table
+
+
+def join_paths(*components: str) -> str:
+    first_component, *rest_components = components
+    normalized_components = [c[5:] if is_s3_path(c) else c for c in rest_components]
+    return os.path.join(first_component, *normalized_components)
