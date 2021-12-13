@@ -111,10 +111,6 @@ This is a complete sample configuration:
 ```yml
 environment: production
 
-sentry:
-  sentry_dsn: sample@sentry.io/dsn
-  version: abcedf
-
 logging:
   enabled: true
   level: INFO
@@ -178,6 +174,18 @@ data in config:
 | ----- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | table | query: select \* from {table}                    | Templates the referenced table name into "query"'s value                                                                               |
 | ref   | location: {ref:backup.tables[public.*].location} | Templates the value retrieved by following the config traversal from backup -> tables -> public.\* -> location into "location"'s value |
+
+### Sentry
+
+Sentry configuration can optionally be included, so that any errors in uses of
+the databudgie CLI are reported. Note this has no effect when using databudgie
+as a library (where you should instead set up sentry in your application).
+
+```yml
+sentry:
+  sentry_dsn: sample@sentry.io/dsn
+  version: abcedf
+```
 
 ## Contributing
 
