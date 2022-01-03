@@ -1,10 +1,9 @@
-from configly import Config
-
 from databudgie.adapter.base import Adapter
 from databudgie.etl.backup import backup
 from databudgie.etl.base import TableOp
 from databudgie.etl.restore import restore_all
 from tests.mockmodels.models import Sale
+from tests.utils import make_config
 
 
 def test_type_conversion(pg, mf, s3_resource):
@@ -34,7 +33,7 @@ def test_type_conversion(pg, mf, s3_resource):
 
     restore_all(
         pg,
-        config=Config({"restore": {"tables": {"public.sales": {"truncate": True, "location": location}}}}),
+        config=make_config(restore={"tables": {"public.sales": {"truncate": True, "location": location}}}),
     )
 
     restored_sales = {s.id: s for s in pg.query(Sale).all()}

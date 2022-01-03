@@ -57,3 +57,7 @@ class Adapter(metaclass=abc.ABCMeta):
             from databudgie.adapter.fallback import PythonAdapter
 
             return PythonAdapter()
+
+    @staticmethod
+    def reset_database(session: Session):
+        raise NotImplementedError()

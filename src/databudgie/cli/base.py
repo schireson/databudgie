@@ -8,6 +8,7 @@ from configly import Config
 from setuplog import log
 from sqlalchemy.orm import Session
 
+from databudgie.config import compose_value
 from databudgie.manifest.manager import Manifest
 
 
@@ -77,7 +78,7 @@ def backup_cli(
     adapter: str,
     backup_manifest: Optional[Manifest] = None,
     backup_id: Optional[int] = None,
-    ddl: Optional[bool] = False,
+    ddl: Optional[bool] = None,
 ):
     """Perform backup."""
     from databudgie.etl.backup import backup_all
@@ -85,8 +86,7 @@ def backup_cli(
     if backup_manifest and backup_id:
         backup_manifest.set_transaction_id(backup_id)
 
-    if ddl is not None:
-        config["backup"].setdefault("ddl", {})["enabled"] = ddl
+    config = compose_value(config, "backup", "ddl", "enabled", value=ddl, default=False)
 
     log.info("Performing backup! (environment: %s)", config.environment)
     backup_all(backup_db, config, manifest=backup_manifest, strict=strict, adapter=adapter)
@@ -94,6 +94,22 @@ def backup_cli(
 
 @resolver.command(cli, "restore")
 @click.option("--restore-id", default=None, help="Restore manifest id.")
+@click.option(
+    "--ddl", default=None, is_flag=True, help="Whether to backup the DDL. Overrides the config option, if set"
+)
+@click.option(
+    "--clean/--no-clean",
+    is_flag=True,
+    default=None,
+    help="Drops and recreates the target database before performing the restore",
+)
+@click.option(
+    "--yes",
+    "-y",
+    is_flag=True,
+    default=False,
+    help="Dont ask for confirmation",
+)
 def restore_cli(
     config: Config,
     restore_db: Session,
@@ -101,6 +117,9 @@ def restore_cli(
     restore_manifest: Optional[Manifest] = None,
     restore_id: Optional[int] = None,
     adapter: str = None,
+    ddl: bool = None,
+    clean: bool = None,
+    interactive: bool = True,
 ):
     """Perform restore."""
     from databudgie.etl.restore import restore_all
@@ -108,7 +127,15 @@ def restore_cli(
     if restore_manifest and restore_id:
         restore_manifest.set_transaction_id(restore_id)
 
-    log.info("Performing restore! (environment: %s)", config.environment)
+    config = compose_value(config, "restore", "ddl", "enabled", value=ddl, default=False)
+    config = compose_value(config, "restore", "ddl", "clean", value=clean, default=False)
+
+    if interactive and config.restore.ddl.clean:
+        message = "About to delete the database! input 'y' if that's what you want: "
+        if input(message) != "y":  # nosec
+            return False
+
+    log.info("Performing restore! (environment: %s)", config.get("environment"))
 
     restore_all(restore_db, config=config, manifest=restore_manifest, strict=strict, adapter=adapter)
 

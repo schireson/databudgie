@@ -38,14 +38,14 @@ def test_manifest_restore(pg, mf, s3_resource):
     assert row.file_path == "s3://sample-bucket/products/2021-04-26T09:00:00.csv"
 
 
-def test_manifest_restore_resume_transaction(pg, s3_resource, sample_config):
+def test_manifest_restore_resume_transaction(pg, s3_resource):
     manifest = RestoreManifest(pg, DatabudgieManifest.__tablename__)
     manifest.set_transaction_id(999)  # arbitary transaction id for better coverage
 
-    test_restore_all(pg, sample_config, s3_resource, manifest=manifest)
+    test_restore_all(pg, s3_resource, manifest=manifest)
 
     with patch("databudgie.etl.base.log") as mock_log:
-        test_restore_all(pg, sample_config, s3_resource, manifest=manifest)
+        test_restore_all(pg, s3_resource, manifest=manifest)
         assert mock_log.info.call_count == 2
         mock_log.info.assert_has_calls([call("Skipping public.store..."), call("Skipping public.product...")])
 
