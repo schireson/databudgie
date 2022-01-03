@@ -1,5 +1,6 @@
 from configly import Config
 
+from databudgie.adapter.base import Adapter
 from databudgie.etl.backup import backup
 from databudgie.etl.base import TableOp
 from databudgie.etl.restore import restore_all
@@ -25,14 +26,14 @@ def test_type_conversion(pg, mf, s3_resource):
 
     backup(
         pg,
-        s3_resource,
+        s3_resource=s3_resource,
+        adapter=Adapter.get_adapter(pg),
         config=None,
         table_op=TableOp("sales", dict(location=location, query="select * from public.sales")),
     )
 
     restore_all(
         pg,
-        s3_resource,
         config=Config({"restore": {"tables": {"public.sales": {"truncate": True, "location": location}}}}),
     )
 

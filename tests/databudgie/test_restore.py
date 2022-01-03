@@ -1,5 +1,8 @@
 import csv
 import io
+import os.path
+import tempfile
+from datetime import datetime
 from typing import List
 
 import faker
@@ -15,8 +18,7 @@ from tests.mockmodels.models import Product, Store
 fake = faker.Faker()
 
 
-def mock_s3_csv(s3_resource: S3ServiceResource, key: str, data: List[dict]):
-    bucket = s3_resource.Bucket("sample-bucket")
+def mock_csv(data: List[dict]):
     buffer = io.BytesIO()
 
     with wrap_buffer(buffer) as wrapper:
@@ -24,6 +26,13 @@ def mock_s3_csv(s3_resource: S3ServiceResource, key: str, data: List[dict]):
         writer.writeheader()
         writer.writerows(data)
 
+    buffer.seek(0)
+    return buffer
+
+
+def mock_s3_csv(s3_resource: S3ServiceResource, key: str, data: List[dict]):
+    bucket = s3_resource.Bucket("sample-bucket")
+    buffer = mock_csv(data)
     bucket.put_object(Key=key, Body=buffer)
 
 
@@ -42,7 +51,7 @@ def test_restore_all(pg, sample_config, s3_resource, **extras):
     mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv", [mock_store])
     mock_s3_csv(s3_resource, "public.product/2021-04-26T09:00:00.csv", [mock_product])
 
-    restore_all(pg, s3_resource, sample_config, strict=True, **extras)
+    restore_all(pg, sample_config, strict=True, **extras)
 
     assert pg.query(Store).count() == 1
     assert pg.query(Product).count() == 1
@@ -76,11 +85,11 @@ def test_restore_one(pg, mf, s3_resource, **extras):
 
     restore(
         pg,
-        s3_resource,
         adapter=Adapter.get_adapter(pg),
         config=None,
         table_op=TableOp("product", dict(location="s3://sample-bucket/products")),
-        **extras
+        s3_resource=s3_resource,
+        **extras,
     )
 
     products = pg.query(Product).all()
@@ -113,11 +122,53 @@ def test_restore_all_overwrite_cascade(pg, mf, s3_resource):
 
     restore_all(
         pg,
-        s3_resource,
         config=Config(
-            {"restore": {"tables": {"product": {"truncate": True, "location": "s3://sample-bucket/products"}}}}
+            {"restore": {"tables": {"product": {"truncate": True, "location": "s3://sample-bucket/products"}}}},
         ),
     )
+
+    stores = pg.query(Product).all()
+    assert len(stores) == 1
+
+
+def test_restore_all_local_files(pg, mf):
+    """Validate behavior for the cascading truncate option."""
+
+    store = mf.store.new(name=fake.name())
+    mf.product.new(store=store)
+    mf.product.new(store=store)
+
+    mock_product = dict(
+        id=1,
+        store_id=store.id,
+        external_id=fake.unique.pyint(),
+        external_name=fake.name(),
+        external_status="ACTIVE",
+        active=True,
+    )
+
+    fake_file_data = mock_csv([mock_product]).read()
+    with tempfile.TemporaryDirectory() as dir_name:
+        now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        with open(os.path.sep.join([dir_name, f"{now}.csv"]), "wb") as f:
+            f.write(fake_file_data)
+
+        restore_all(
+            pg,
+            config=Config(
+                {
+                    "restore": {
+                        "tables": {
+                            "product": {
+                                "truncate": True,
+                                "location": dir_name,
+                            }
+                        }
+                    }
+                },
+            ),
+            strict=True,
+        )
 
     stores = pg.query(Product).all()
     assert len(stores) == 1
@@ -156,7 +207,7 @@ def test_restore_glob(pg, mf, s3_resource):
 
     config = Config({"restore": {"tables": {"public.*": {"location": "s3://sample-bucket/{table}", "truncate": True}}}})
 
-    restore_all(pg, s3_resource, config)
+    restore_all(pg, config)
 
     stores = pg.query(Store).all()
     assert len(stores) == 2

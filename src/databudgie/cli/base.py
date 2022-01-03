@@ -5,7 +5,6 @@ import sqlalchemy.orm
 import strapp.click
 import strapp.logging
 from configly import Config
-from mypy_boto3_s3 import S3ServiceResource
 from setuplog import log
 from sqlalchemy.orm import Session
 
@@ -44,25 +43,11 @@ def restore_manifest(config, restore_db):
     return None
 
 
-def s3_resource(config) -> S3ServiceResource:
-    import boto3
-
-    session = boto3.session.Session(
-        aws_access_key_id=config.s3.aws_access_key_id,
-        aws_secret_access_key=config.s3.aws_secret_access_key,
-        profile_name=config.s3.profile,
-        region_name=config.s3.region,
-    )
-    s3: S3ServiceResource = session.resource("s3")
-    return s3
-
-
 resolver = strapp.click.Resolver(
     backup_db=backup_db,
     restore_db=restore_db,
     backup_manifest=backup_manifest,
     restore_manifest=restore_manifest,
-    s3_resource=s3_resource,
 )
 
 
@@ -85,7 +70,6 @@ def cli(strict: bool, adapter: str, config: str, verbose: int):
 def backup_cli(
     config: Config,
     backup_db: Session,
-    s3_resource: S3ServiceResource,
     strict: bool,
     adapter: str,
     backup_manifest: Optional[Manifest] = None,
@@ -98,7 +82,7 @@ def backup_cli(
         backup_manifest.set_transaction_id(backup_id)
 
     log.info("Performing backup! (environment: %s)", config.environment)
-    backup_all(backup_db, s3_resource, config, manifest=backup_manifest, strict=strict, adapter=adapter)
+    backup_all(backup_db, config, manifest=backup_manifest, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "restore")
@@ -106,7 +90,6 @@ def backup_cli(
 def restore_cli(
     config: Config,
     restore_db: Session,
-    s3_resource: S3ServiceResource,
     strict: bool,
     restore_manifest: Optional[Manifest] = None,
     restore_id: Optional[int] = None,
@@ -119,7 +102,8 @@ def restore_cli(
         restore_manifest.set_transaction_id(restore_id)
 
     log.info("Performing restore! (environment: %s)", config.environment)
-    restore_all(restore_db, s3_resource, config, manifest=restore_manifest, strict=strict, adapter=adapter)
+
+    restore_all(restore_db, config=config, manifest=restore_manifest, strict=strict, adapter=adapter)
 
 
 @resolver.command(cli, "config")
