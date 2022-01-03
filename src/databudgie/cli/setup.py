@@ -29,7 +29,7 @@ def setup_sentry(config: Config):
     strapp.sentry.setup_sentry(
         dsn=config.sentry.sentry_dsn,
         release=config.sentry.version,
-        environment=config.environment,
+        environment=config.get("environment"),
         service_name="databudgie",
         level="WARNING",
         breadcrumb_level="INFO",

@@ -7,7 +7,9 @@ from typing import List
 
 import psycopg2.errors
 from setuplog import log
-from sqlalchemy.engine import Connection, Engine
+from sqlalchemy import text
+from sqlalchemy.engine import Connection, create_engine, Engine
+from sqlalchemy.engine.url import URL
 from sqlalchemy.orm import Session
 
 from databudgie.adapter.base import Adapter
@@ -55,3 +57,28 @@ class PostgresAdapter(Adapter):
             command, capture_output=True, env={**os.environ, "PGPASSWORD": url.password}, check=True
         )
         return result.stdout
+
+    @staticmethod
+    def reset_database(session: Session):
+        """Attempt to kill the existing database and bring it back up."""
+        connection = session.connection()
+        url: URL = connection.engine.url
+        database = url.database
+
+        # "template1" is a *special* internal postgres database that we can be guaranteed
+        # to connect to after having dropped (potentially) all other available databases.
+        # "template0", used below is not allowed to be connected to.
+        template_url = url.set(database="template1")
+
+        template_engine = create_engine(template_url)
+        with template_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+            kill_pids = text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :database;")
+            connection.execute(kill_pids, database=database)
+
+            connection.execute(text(f"DROP DATABASE {database}"))
+
+            # "template0" is an even more special database. You cannot create databases
+            # from a template while there are active connections to it.
+            connection.execute(text(f"CREATE DATABASE {database} template=template0"))
+
+        session.invalidate()

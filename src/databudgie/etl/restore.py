@@ -40,6 +40,8 @@ def restore_all(
     concrete_adapter = Adapter.get_adapter(adapter or session)
     s3_resource = optional_s3_resource(config)
 
+    if config.restore.ddl.clean:
+        concrete_adapter.reset_database(session)
     restore_all_ddl(session, config, s3_resource=s3_resource)
 
     table_ops = expand_table_ops(session, config.restore.tables, manifest=manifest)
@@ -60,15 +62,6 @@ def restore_all(
             )
 
 
-def truncate_tables(session: Session, table_ops: List[TableOp], adapter: Adapter):
-    for table_op in table_ops:
-        truncate = table_op.raw_conf.get("truncate", False)
-        if not truncate:
-            continue
-
-        adapter.truncate_table(session, table_op.table_name)
-
-
 def restore_all_ddl(
     session: Session,
     config: Config,
@@ -79,7 +72,7 @@ def restore_all_ddl(
     if not ddl_config.get("enabled", False):
         return
 
-    ddl_path = ddl_config["location"]
+    ddl_path = ddl_config.get("location", "ddl")
     strategy = ddl_config.get("strategy", "use_latest_filename")
 
     manifest_path = os.path.join(ddl_path)
@@ -107,6 +100,15 @@ def restore_all_ddl(
         session.commit()
 
         log.info(f"Restored {table_op.table_name} DDL from {path}")
+
+
+def truncate_tables(session: Session, table_ops: List[TableOp], adapter: Adapter):
+    for table_op in table_ops:
+        truncate = table_op.raw_conf.get("truncate", False)
+        if not truncate:
+            continue
+
+        adapter.truncate_table(session, table_op.table_name)
 
 
 def restore(
