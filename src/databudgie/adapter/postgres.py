@@ -1,4 +1,8 @@
 import io
+import os
+import shlex
+import shutil
+import subprocess  # nosec
 from typing import List
 
 import psycopg2.errors
@@ -7,6 +11,7 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
 
 from databudgie.adapter.base import Adapter
+from databudgie.adapter.fallback import PythonAdapter
 
 
 # XXX: see if we can count rows in the transactions
@@ -36,3 +41,17 @@ class PostgresAdapter(Adapter):
         cursor.close()
         conn.commit()
         conn.close()
+
+    @staticmethod
+    def export_table_ddl(session: Session, table_name: str):
+        if not shutil.which("pg_dump"):
+            PythonAdapter.export_table_ddl(session, table_name)
+            return
+
+        url = session.connection().engine.url
+        raw_command = f"pg_dump -h {url.host} -p {url.port} -U {url.username} -d {url.database} --no-password --schema-only -t {table_name} --no-comments"
+        command = shlex.split(raw_command)
+        result = subprocess.run(  # nosec
+            command, capture_output=True, env={**os.environ, "PGPASSWORD": url.password}, check=True
+        )
+        return result.stdout

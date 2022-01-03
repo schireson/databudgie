@@ -32,7 +32,9 @@ class TableOp:
         return query.format(table=self.table_name, ref=ref)
 
 
-def expand_table_ops(session, tables, *, manifest: Optional[Manifest] = None) -> List[TableOp]:
+def expand_table_ops(
+    session, tables, *, manifest: Optional[Manifest] = None, existing_tables: Optional[List[str]] = None
+) -> List[TableOp]:
     """Produce a full list of table operations to be performed.
 
     tables in the set of `tables` may be globbed and produce more concrete
@@ -41,7 +43,7 @@ def expand_table_ops(session, tables, *, manifest: Optional[Manifest] = None) ->
     Additionally, tables may be filtered, either by the pre-existence of
     manifest data or explicit table exclusions.
     """
-    existing_tables = collect_existing_tables(session)
+    existing_tables = existing_tables or collect_existing_tables(session)
 
     # Avoid hardcoding things like "public", we hardcode this elsewhere, this
     # should probably be moved upstream.

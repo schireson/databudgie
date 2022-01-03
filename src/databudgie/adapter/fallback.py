@@ -62,3 +62,7 @@ class PythonAdapter(Adapter):
         row: List[Any]
         for row in cursor.yield_per(chunk_size):
             yield row
+
+    @staticmethod
+    def export_table_ddl(session: Session, table_name: str):
+        raise NotImplementedError()

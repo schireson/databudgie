@@ -85,6 +85,8 @@ jobs:
   test:
     executor: main
     steps:
+      - run:
+          command: sudo apt-get update && sudo apt-get install postgresql-client
       - setup-python
       - setup_remote_docker
       - run-make:
