@@ -1,5 +1,4 @@
 import abc
-from datetime import datetime
 
 import sqlalchemy
 from sqlalchemy import MetaData, Table
@@ -48,7 +47,6 @@ class Manifest(metaclass=abc.ABCMeta):
                     "action": self.action,
                     "table": table_name,
                     "file_path": location,
-                    "timestamp": datetime.now(),
                 }
             ],
         )
