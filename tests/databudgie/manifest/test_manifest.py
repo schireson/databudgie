@@ -7,7 +7,7 @@ from tests.mockmodels.models import DatabudgieManifest
 
 
 def test_manifest_backup(pg, mf, s3_resource):
-    manifest = BackupManifest(pg, DatabudgieManifest.__tablename__)
+    manifest = BackupManifest(pg, DatabudgieManifest.__table__.name)
     test_backup_one(pg, mf, s3_resource, manifest=manifest)
 
     row = pg.query(DatabudgieManifest).first()
@@ -18,7 +18,7 @@ def test_manifest_backup(pg, mf, s3_resource):
 
 
 def test_manifest_backup_resume_transaction(pg, mf, s3_resource, sample_config):
-    manifest = BackupManifest(pg, DatabudgieManifest.__tablename__)
+    manifest = BackupManifest(pg, DatabudgieManifest.__table__.name)
     test_backup_all(pg, mf, sample_config, s3_resource, manifest=manifest)
 
     with patch("databudgie.etl.base.log") as mock_log:
@@ -28,7 +28,7 @@ def test_manifest_backup_resume_transaction(pg, mf, s3_resource, sample_config):
 
 
 def test_manifest_restore(pg, mf, s3_resource):
-    manifest = RestoreManifest(pg, DatabudgieManifest.__tablename__)
+    manifest = RestoreManifest(pg, DatabudgieManifest.__table__.name)
     test_restore_one(pg, mf, s3_resource, manifest=manifest)
 
     row = pg.query(DatabudgieManifest).first()
@@ -39,7 +39,7 @@ def test_manifest_restore(pg, mf, s3_resource):
 
 
 def test_manifest_restore_resume_transaction(pg, s3_resource):
-    manifest = RestoreManifest(pg, DatabudgieManifest.__tablename__)
+    manifest = RestoreManifest(pg, DatabudgieManifest.__table__.name)
     manifest.set_transaction_id(999)  # arbitary transaction id for better coverage
 
     test_restore_all(pg, s3_resource, manifest=manifest)
@@ -53,7 +53,7 @@ def test_manifest_restore_resume_transaction(pg, s3_resource):
 def test_manifest_subsequent_transaction(pg, mf):
     mf.manifest.backup(transaction=1, table="public.user", file_path="s3://sample-bucket/users/2021-04-26T09:00:00.csv")
 
-    manifest = BackupManifest(pg, DatabudgieManifest.__tablename__)
+    manifest = BackupManifest(pg, DatabudgieManifest.__table__.name)
     manifest.record("public.user", "s3://sample-bucket/users/2021-04-26T09:00:00.csv")
 
     rows = pg.query(DatabudgieManifest).all()

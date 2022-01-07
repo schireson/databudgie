@@ -21,7 +21,7 @@ databudgie has two primary functions:
 
 ## Backup
 
-```
+```bash
 $ databudgie [--strict] backup
 ```
 
@@ -31,7 +31,7 @@ The `--strict` option will cause databudgie to exit if it encounters an error ba
 
 Sample backup configuration:
 
-```yml
+```yaml
 backup:
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
@@ -50,7 +50,7 @@ By default, `databudgie` only backs up data. If the DDL structure of the databas
 also expected to be backed up, there is an optional `ddl` section of the restore
 config that can be supplied.
 
-```yml
+```yaml
 backup:
   ddl:
     enabled: true
@@ -74,7 +74,7 @@ The above fragment represents the available options and their defaults.
 
 ## Restore
 
-```
+```bash
 $ databudgie [--strict] restore
 ```
 
@@ -82,7 +82,7 @@ The restore command will download files and restore them into the database. data
 
 The column headers in the CSV will be used to match the contents of the file to the columns in the table. This allows for leaving columns with default values unset if you are restoring data to a different table than which it was copied from.
 
-```yml
+```yaml
 restore:
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
@@ -103,7 +103,7 @@ By default, `databudgie` assumes the target tables already exist. If the DDL
 structure of the database is also expected to be restored, there is an optional
 `ddl` section of the restore config that can be supplied.
 
-```yml
+```yaml
 restore:
   ddl:
     enabled: false
@@ -164,42 +164,61 @@ restore side agree on the value of the `compression` key.
 
 ## Manifests
 
-Create manifest tables in your database using the Mixins provided by `databudgie.manifest`:
-
-```py
-from sqlalchemy import MetaData
-from sqlalchemy.ext.declarative import declarative_base
-
-from databudgie.manifest import DatabudgieManifestMixin
-
-metadata = MetaData()
-Base = declarative_base(metadata=metadata)
-
-
-class DatabudgieManifest(Base, DatabudgieManifestMixin):
-    __tablename__ = "databudgie_manifest"
-```
+The "manifest" table is an optional feature of Databudgie. It will record an audit
+log of backup/restore operations that are performed.
 
 Add manifest config options to your `backup` and `restore` sections:
 
-```yml
+```yaml
 backup:
   manifest: public.databudgie_manifest
 ```
 
 Both the `backup` and `restore` commands accept a `--backup-id` or `--restore-id` option to continue a transaction which may have previously crashed in progress. Tables which already have manifest entries for the transaction id will be skipped.
 
+We provide a convenience function to automatically define the manifest table on your
+metadata (which you can wrap in a declarative model, if you need to), so that, for
+example alembic can automatically create it for you.
+
+Alternatively, you can minimally define a table with (at least) the columns:
+
+- transaction (Integer)
+- action (String)
+- table (String)
+- file_path (String)
+
+```python
+from sqlalchemy import MetaData
+
+from databudgie.manifest import create_manifest_table
+
+metadata = MetaData()
+manifest_table = create_manifest_table(metadata, 'databudgie_manifest')
+
+# alternatively
+
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+manifest_table = create_manifest_table(Base.metadata, 'databudgie_manifest')
+
+# even more alternatively
+
+class DatabudgieManifest(Base):  # type: ignore
+    __table__ = create_manifest_table(Base.metadata, tablename="databudgie_manifest")
+```
+
 ## Configuration
 
 The config is interpreted via [Configly](https://github.com/schireson/configly), so you can use env var interpolation like so:
 
-```yml
+```yaml
 environment: <% ENV[ENVIRONMENT, null] %>
 ```
 
 This is a complete sample configuration:
 
-```yml
+```yaml
 environment: production
 
 logging:
@@ -312,7 +331,7 @@ Sentry configuration can optionally be included, so that any errors in uses of
 the databudgie CLI are reported. Note this has no effect when using databudgie
 as a library (where you should instead set up sentry in your application).
 
-```yml
+```yaml
 sentry:
   sentry_dsn: sample@sentry.io/dsn
   version: abcedf
