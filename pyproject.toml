@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databudgie"
-version = "2.1.0"
+version = "2.2.1"
 description = ""
 authors = ["Andrew Sosa <andrewso@known.is>"]
 packages = [
@@ -11,19 +11,21 @@ packages = [
 databudgie = "databudgie.__main__:run"
 
 [tool.poetry.dependencies]
-python = "^3.7"
-configly = {extras = ["yaml"], version = "^0.2.2"}
-strapp = {version = ">=0.2.7", extras = ["click", "sqlalchemy"] }
-click = "^7.0.0"
-setuplog = "^0.2.2"
-typing-extensions = "^3.10.0"
+python = ">=3.7,<4"
 
-boto3 = { version = "^1.16.10,<1.17.72", optional = true }
+configly = {version = "*", extras = ["yaml"]}
+strapp = {version = ">=0.2.7", extras = ["click", "sqlalchemy"] }
+click = ">=7.0.0"
+setuplog = ">=0.2.2"
+typing-extensions = {version = ">=3.10.0", python = "<3.8"}
+
+boto3 = { version = "*", optional = true }
 sentry-sdk = { version = "*", optional = true }
 psycopg2 = { version = ">=2.7", optional = true }
 psycopg2-binary = { version = ">=2.7", optional = true }
 
 [tool.poetry.dev-dependencies]
+boto3 = "^1.16.10,<1.17.72"
 bandit = "^1.6.2"
 black = "^21.11b1"
 boto3-stubs = {extras = ["s3"], version = "^1.18.38"}
