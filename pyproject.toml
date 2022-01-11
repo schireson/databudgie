@@ -1,10 +1,13 @@
 [tool.poetry]
 name = "databudgie"
-version = "2.2.2"
+version = "2.2.3"
 description = ""
 authors = ["Andrew Sosa <andrewso@known.is>"]
 packages = [
     { include = "databudgie", from = "src" },
+]
+include = [
+    "py.typed",
 ]
 
 [tool.poetry.scripts]
