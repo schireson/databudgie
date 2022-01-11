@@ -46,6 +46,34 @@ backup:
       query: "select * from public.sales where store_id = 4"
 ```
 
+### DDL
+
+By default, `databudgie` only backs up data. If the DDL structure of the database is
+also expected to be backed up, there is an optional `ddl` section of the restore
+config that can be supplied.
+
+```yml
+backup:
+  ddl:
+    enabled: true
+    location: s3://bucket/ddl
+
+  tables:
+    public.*:
+      location: s3://bucket/{table}
+```
+
+The above fragment represents the available options and their defaults.
+
+- `restore.ddl.enabled`: When true, backs up the structures (schemas, tables, etc).
+
+- `restore.ddl.location`: The root location at which to store the ddl.
+
+  Note that table-specific ddl composes with ddl root `location` with the table-specific
+  `location` value, to determine the absolute path. Given the above example, you would get
+  `s3://bucket/ddl/public.tablename` (in addition to the `s3://bucket/public.tablename` for
+  the actual data).
+
 ## Restore
 
 ```
@@ -70,6 +98,46 @@ restore:
       strategy: use_latest_filename
       truncate: true
 ```
+
+### DDL
+
+By default, `databudgie` assumes the target tables already exist. If the DDL
+structure of the database is also expected to be restored, there is an optional
+`ddl` section of the restore config that can be supplied.
+
+```yml
+restore:
+  ddl:
+    enabled: false
+    clean: false
+    location: s3://bucket/ddl
+
+  tables:
+    public.*:
+      location: s3://bucket/{table}
+```
+
+The above fragment represents the available options and their defaults.
+
+- `restore.ddl.enabled`: When true, restores the backed up structures (schemas, tables, etc),
+  dropping tables if they already exist.
+
+  This **can** result in problems with sufficiently complex foreign key relationships and
+  existing data.
+
+- `restore.ddl.clean`: Drops the target database, recreates it, and restores into the new database
+  instead.
+
+  To avoid the aforementioned issues with data/table complexity, starting with a known-empty
+  database can be a simpler alternative, especially when the backups are of a set of
+  self-contained set of structures.
+
+- `restore.ddl.location`: The root location at which to look for the ddl.
+
+  Note that table-specific ddl composes with ddl root `location` with the table-specific
+  `location` value, to determine the absolute path. Given the above example, you would get
+  `s3://bucket/ddl/public.tablename` (in addition to the `s3://bucket/public.tablename` for
+  the actual data).
 
 ## Manifests
 

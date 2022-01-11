@@ -81,7 +81,7 @@ def backup_ddl(
     if not ddl_config.get("enabled", False):
         return
 
-    ddl_path = ddl_config["location"]
+    ddl_path = ddl_config.get("location", "ddl")
 
     for table_op in table_ops:
         log.debug(f"Backing up {table_op.table_name} DDL...")

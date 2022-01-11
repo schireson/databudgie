@@ -66,3 +66,15 @@ class PythonAdapter(Adapter):
     @staticmethod
     def export_table_ddl(session: Session, table_name: str):
         raise NotImplementedError()
+
+    @staticmethod
+    def reset_database(session):
+        """Reset the database in a database-backend agnostic way.
+
+        Create a temp database, connect to it, drop the target database, and drop
+        the temp database.
+
+        This method suffers from being rather prone to failure, but is better
+        than nothing!
+        """
+        raise NotImplementedError()

@@ -13,7 +13,7 @@ def pmr_postgres_config():
     return PostgresConfig(image="postgres:11-alpine")
 
 
-pg = create_postgres_fixture(Base, session=True)
+pg = create_postgres_fixture(Base, session=True, createdb_template="template0")
 
 
 @pytest.fixture
