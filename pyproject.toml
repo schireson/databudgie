@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "databudgie"
-version = "2.2.3"
+version = "2.2.4"
 description = ""
-authors = ["Andrew Sosa <andrewso@known.is>"]
+authors = ["Andrew Sosa <andrewso@known.is>", "Dan Cardin <ddcardin@gmail.com>"]
 packages = [
     { include = "databudgie", from = "src" },
 ]
