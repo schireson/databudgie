@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import io
 import json
 import os
 import pathlib
 from datetime import datetime
 from os import path
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 
 from configly import Config
-from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
 from setuplog import log
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,9 @@ from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
 from databudgie.utils import capture_failures, generate_filename, join_paths, wrap_buffer
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
 
 
 class BackupConfig(TypedDict):
