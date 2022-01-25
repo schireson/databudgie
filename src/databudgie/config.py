@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Mapping, Optional, Tuple, Union
 
 from configly import Config
 
@@ -92,3 +92,39 @@ def normalize_table_config(tables: Union[Dict[str, TableConf], List[TableConf]])
         for table_conf in tables:
             name = table_conf.get("name") or ""
             yield (name, table_conf)
+
+
+def fallback_config_value(*configs: Mapping, key: str, default=None):
+    """Compose the values between two pieces of `Config`, falling back to the.
+
+    This can be used to define configuration at descending levels of specificity,
+    in order to choose the most specific value given. the `configs` value should
+    be given in ascending level of specificity.
+
+    Examples:
+        >>> from configly import Config
+
+        >>> global_config = Config({'foo': 'global_foo', 'bar': 'global_bar', 'baz': 'global_baz'})
+        >>> backup_config = Config({'bar': None})
+        >>> table_config = Config({'foo': 'table_foo'})
+
+        Choses the most specific value available.
+        >>> fallback_config_value(global_config, backup_config, table_config, key='foo')
+        'table_foo'
+
+        If a value is explicitly provided, even if `None`, it should be used
+        >>> fallback_config_value(global_config, backup_config, table_config, key='bar')
+
+        >>> fallback_config_value(global_config, backup_config, table_config, key='baz')
+        'global_baz'
+
+        And finally, if there's no value at any level, use the default.
+        >>> fallback_config_value(global_config, backup_config, table_config, key='random', default=4)
+        4
+    """
+    for config in reversed(configs):
+        try:
+            return config[key]
+        except KeyError:
+            pass
+    return default

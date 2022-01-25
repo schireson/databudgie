@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
 from databudgie.compat import TypedDict
+from databudgie.compression import Compressor
+from databudgie.config import fallback_config_value
 from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
@@ -127,7 +129,12 @@ def restore(
     table_name = f"{schema}.{table}"
 
     strategy = table_op.raw_conf.get("strategy") or "use_latest_filename"
-    with get_file_contents(table_op.location(config), strategy, s3_resource=s3_resource) as (buffer, path):
+    compression = fallback_config_value(config.restore, table_op.raw_conf, key="compression")
+
+    file_contents = get_file_contents(
+        table_op.location(config), strategy, s3_resource=s3_resource, compression=compression
+    )
+    with file_contents as (buffer, path):
         with wrap_buffer(buffer) as wrapper:
             with session:
                 adapter.import_csv(session, wrapper, table_op.table_name)
@@ -155,7 +162,7 @@ class ObjectSummary:
 
 @contextlib.contextmanager
 def get_file_contents(
-    location: str, strategy: str, s3_resource: Optional["S3ServiceResource"] = None, filetype="csv"
+    location: str, strategy: str, s3_resource: Optional["S3ServiceResource"] = None, filetype="csv", compression=None
 ) -> Generator[Tuple[io.BytesIO, str], None, None]:
     concrete_strategy = VALID_STRATEGIES[strategy]
 
@@ -187,13 +194,18 @@ def get_file_contents(
     log.info(f"Using {target_object.key}...")
 
     buffer.seek(0)
-    yield buffer, path
+
+    cbuffer = Compressor.get_with_name(compression).extract(buffer)
+
+    yield cbuffer, path
     buffer.close()
 
 
 def _use_filename_strategy(available_objects: Iterable[ObjectSummary], filetype="csv") -> ObjectSummary:
     objects_by_filename = {obj.path.name: obj for obj in available_objects}
-    ordered_filenames = sorted(objects_by_filename.keys(), key=lambda x: restore_filename(x, filetype), reverse=True)
+    ordered_filenames = sorted(
+        objects_by_filename.keys(), key=lambda x: restore_filename(x, filetype=filetype), reverse=True
+    )
 
     return objects_by_filename[ordered_filenames[0]]
 

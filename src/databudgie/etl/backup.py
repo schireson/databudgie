@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
 from databudgie.compat import TypedDict
+from databudgie.compression import Compressor
+from databudgie.config import fallback_config_value
 from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
@@ -35,7 +37,7 @@ def backup_all(
     manifest: Optional[Manifest] = None,
     strict=False,
     adapter=None,
-    s3_resource: Optional[S3ServiceResource] = None,
+    s3_resource: Optional["S3ServiceResource"] = None,
 ):
     """Perform backup on all tables in the config.
 
@@ -79,7 +81,7 @@ def backup_ddl(
     *,
     timestamp: datetime,
     adapter=Adapter,
-    s3_resource: Optional[S3ServiceResource] = None,
+    s3_resource: Optional["S3ServiceResource"] = None,
 ):
     ddl_config = config.get("ddl", {})
     if not ddl_config.get("enabled", False):
@@ -101,7 +103,7 @@ def backup_ddl(
 
     manifest_data = json.dumps([op.table_name for op in table_ops]).encode("utf-8")
     with io.BytesIO(manifest_data) as buffer:
-        manifest_path = join_paths(ddl_path, generate_filename(timestamp, "json"))
+        manifest_path = join_paths(ddl_path, generate_filename(timestamp, filetype="json"))
         persist_backup(manifest_path, buffer, s3_resource=s3_resource)
 
 
@@ -113,7 +115,7 @@ def backup(
     adapter: Adapter,
     timestamp: Optional[datetime] = None,
     manifest: Optional[Manifest] = None,
-    s3_resource: Optional[S3ServiceResource] = None,
+    s3_resource: Optional["S3ServiceResource"] = None,
 ):
     """Dump query contents to S3 as a CSV file.
 
@@ -131,9 +133,10 @@ def backup(
         adapter.export_query(session, table_op.query(config), wrapper)
 
     # path.join will handle optionally trailing slashes in the location
-    fully_qualified_path = path.join(table_op.location(config), generate_filename(timestamp))
+    compression = fallback_config_value(config.backup, table_op.raw_conf, key="compression")
+    fully_qualified_path = path.join(table_op.location(config), generate_filename(timestamp, compression=compression))
 
-    persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
+    persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource, compression=compression)
     buffer.close()
 
     if manifest:
@@ -142,7 +145,9 @@ def backup(
     log.info(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
 
 
-def persist_backup(path: str, buffer: io.BytesIO, s3_resource: Optional[S3ServiceResource] = None):
+def persist_backup(path: str, buffer: io.BytesIO, s3_resource: Optional["S3ServiceResource"] = None, compression=None):
+    buffer = Compressor.get_with_name(compression).compress(buffer)
+
     if is_s3_path(path):
         s3_location = S3Location(path)
         s3_bucket: Bucket = s3_resource.Bucket(s3_location.bucket)  # type: ignore
