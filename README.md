@@ -19,7 +19,7 @@ databudgie has two primary functions:
 1. Dumping postgres query results to a CSV file (optionally in an S3 bucket).
 1. Restoring a CSV file (optionally from an S3 bucket) into a postgres table.
 
-### Backup
+## Backup
 
 ```
 $ databudgie [--strict] backup
@@ -136,6 +136,31 @@ The above fragment represents the available options and their defaults.
   `location` value, to determine the absolute path. Given the above example, you would get
   `s3://bucket/ddl/public.tablename` (in addition to the `s3://bucket/public.tablename` for
   the actual data).
+
+## Compression
+
+Compression can be enabled in both the backup and restore config sections.
+
+```yml
+backup:
+  compression: gzip
+
+# or
+
+restore:
+  compression: gzip
+```
+
+Additionally, it can be enabled (or disabled) on a per-`table`-section basis. The
+table-specific config will override the more global config value, if given.
+
+Currently suported compression options are:
+
+- gzip
+
+This automatically appends the compression file extension to the backup files
+(i.e. gz for gzip), and will only work correctly if both the backup side and
+restore side agree on the value of the `compression` key.
 
 ## Manifests
 
