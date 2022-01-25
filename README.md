@@ -27,7 +27,6 @@ $ databudgie [--strict] backup
 
 The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs and path defined by the `.location` options. For `public.product` below, the file `s3://my-s3-bucket/databudgie/dev/public.product/2021-04-26T09:00:00.csv` will be created (with the timestamp matching the current date and time).
 
-The name under `backup.tables.<NAME>` does not need to match the database in any manner. This value is only used for the `${ref:...}` annotations.
 
 The `--strict` option will cause databudgie to exit if it encounters an error backing up a specific table, otherwise it will attempt to proceed to other tables.
 
@@ -197,8 +196,7 @@ restore: # configuration for CSV restore targets
   tables:
     public.product:
       strategy: use_latest_filename
-      location: ${ref:backup.tables."public.product".location}
-      # Use referenced value from elsewhere in the config ^
+      location: s3://my-s3-bucket/databudgie/dev/public.product
 ```
 
 ### Paths
@@ -229,6 +227,16 @@ Currently two path "kinds" are supported:
   leading up to the leaf folder does not yet exist, it will be automatically
   created.
 
+### Config templating
+
+The following format specifiers have been implemented for referencing non-static
+data in config:
+
+| Name  | Example                                          | Description                                                                                                                            |
+| ----- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| table | query: select \* from {table}                    | Templates the referenced table name into "query"'s value                                                                               |
+| ref   | location: {ref.backup.tables[public.*].location} | Templates the value retrieved by following the config traversal from backup -> tables -> public.\* -> location into "location"'s value |
+
 ### Globbing
 
 Using common globbing rules:
@@ -255,16 +263,6 @@ restore:
 
 This expands the definition of matched tables in both backup/restore.
 
-### Config templating
-
-The following format specifiers have been implemented for referencing non-static
-data in config:
-
-| Name  | Example                                          | Description                                                                                                                            |
-| ----- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| table | query: select \* from {table}                    | Templates the referenced table name into "query"'s value                                                                               |
-| ref   | location: {ref:backup.tables[public.*].location} | Templates the value retrieved by following the config traversal from backup -> tables -> public.\* -> location into "location"'s value |
-
 ### Sentry
 
 Sentry configuration can optionally be included, so that any errors in uses of
@@ -276,6 +274,17 @@ sentry:
   sentry_dsn: sample@sentry.io/dsn
   version: abcedf
 ```
+
+## Upgrading from Version 1.x
+
+Databudgie v1 uses single-file backups per table instead of folders per table. Example:
+
+```
+v1: public.my_table --> s3://bucket/path/to/public.my_table.csv
+v2: public.my_table --> s3://bucket/path/to/public.my_table/<timestamp>.csv
+```
+
+Existing v1 backups should be safely ignored by v2.
 
 ## Contributing
 
