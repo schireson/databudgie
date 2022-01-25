@@ -119,7 +119,7 @@ def restore_cli(
     adapter: str = None,
     ddl: bool = None,
     clean: bool = None,
-    interactive: bool = True,
+    yes: bool = False,
 ):
     """Perform restore."""
     from databudgie.etl.restore import restore_all
@@ -130,7 +130,7 @@ def restore_cli(
     config = compose_value(config, "restore", "ddl", "enabled", value=ddl, default=False)
     config = compose_value(config, "restore", "ddl", "clean", value=clean, default=False)
 
-    if interactive and config.restore.ddl.clean:
+    if not yes and config.restore.ddl.clean:
         message = "About to delete the database! input 'y' if that's what you want: "
         if input(message) != "y":  # nosec
             return False
