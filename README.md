@@ -27,7 +27,6 @@ $ databudgie [--strict] backup
 
 The backup command will query a postgres database specified by the `backup.url` connection string. databudgie will then iterate over `backup.tables`, run the queries against the database, and save the results to CSVs and path defined by the `.location` options. For `public.product` below, the file `s3://my-s3-bucket/databudgie/dev/public.product/2021-04-26T09:00:00.csv` will be created (with the timestamp matching the current date and time).
 
-
 The `--strict` option will cause databudgie to exit if it encounters an error backing up a specific table, otherwise it will attempt to proceed to other tables.
 
 Sample backup configuration:
@@ -167,7 +166,7 @@ Both the `backup` and `restore` commands accept a `--backup-id` or `--restore-id
 
 ## Configuration
 
-The config is interpretted via [Configly](https://github.com/schireson/configly), so you can use env var interpolation like so:
+The config is interpreted via [Configly](https://github.com/schireson/configly), so you can use env var interpolation like so:
 
 ```yml
 environment: <% ENV[ENVIRONMENT, null] %>
@@ -197,6 +196,25 @@ restore: # configuration for CSV restore targets
     public.product:
       strategy: use_latest_filename
       location: s3://my-s3-bucket/databudgie/dev/public.product
+```
+
+### Tables
+
+The `tables` key above can be either a mapping or a list. The mapping version
+(as exemplified above), is equivalent to a supplied `name` key.
+
+```yaml
+backup:
+  tables:
+    - name: public.product
+      query: ...
+
+# is equivalent to
+
+backup:
+  tables:
+    public.product:
+      query: ...
 ```
 
 ### Paths

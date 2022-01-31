@@ -49,6 +49,34 @@ def test_backup_all_glob(pg, s3_resource):
     ]
 
 
+def test_backup_all_tables_list(pg, s3_resource):
+    config = Config(
+        {
+            "backup": {
+                "tables": [
+                    {
+                        "name": "public.product",
+                        "location": "s3://sample-bucket/databudgie/test/{table}_not_4",
+                        "query": "select * from {table} where id != 4",
+                    },
+                    {
+                        "name": "public.product",
+                        "location": "s3://sample-bucket/databudgie/test/{table}",
+                        "query": "select * from {table} where id = 4",
+                    },
+                ]
+            },
+        }
+    )
+    backup_all(pg, config=config, strict=True)
+
+    all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    assert all_object_keys == [
+        "databudgie/test/public.product/2021-04-26T09:00:00.csv",
+        "databudgie/test/public.product_not_4/2021-04-26T09:00:00.csv",
+    ]
+
+
 def test_backup_local_file(pg, mf, **extras):
     """Validate the upload for a single table contains the correct contents."""
     customer = mf.customer.new(external_id="cid_123")
