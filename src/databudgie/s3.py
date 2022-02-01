@@ -3,6 +3,8 @@ from typing import Optional, TYPE_CHECKING
 
 from configly import Config
 
+from databudgie.config import normalize_table_config
+
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3ServiceResource
 
@@ -38,7 +40,7 @@ def config_uses_s3(config: Config):
         if not namespace:
             continue
 
-        for _, table_config in namespace["tables"].items():
+        for _, table_config in normalize_table_config(namespace["tables"]):
             location = table_config["location"]
             if is_s3_path(location):
                 return True

@@ -1,4 +1,20 @@
+from typing import Dict, Iterable, List, Optional, Tuple, Union
+
 from configly import Config
+
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
+
+
+class TableConf(TypedDict, total=False):
+    location: str
+    name: Optional[str]
+    query: Optional[str]
+    exclude: Optional[List[str]]
+    strategy: Optional[str]
+    truncate: Optional[bool]
 
 
 def pretty_print(config: Config, indent: int = 0, increment: int = 2):
@@ -65,3 +81,14 @@ def compose_value(config: Config, *path, value=None, default=None) -> Config:
         context[final_key] = default
 
     return Config(raw_config)
+
+
+def normalize_table_config(tables: Union[Dict[str, TableConf], List[TableConf]]) -> Iterable[Tuple[str, TableConf]]:
+    if isinstance(tables, dict):
+        for name, table_conf in tables.items():
+            yield (name, table_conf)
+
+    else:
+        for table_conf in tables:
+            name = table_conf.get("name") or ""
+            yield (name, table_conf)

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databudgie"
-version = "2.2.4"
+version = "2.3.0"
 description = ""
 authors = ["Andrew Sosa <andrewso@known.is>", "Dan Cardin <ddcardin@gmail.com>"]
 packages = [

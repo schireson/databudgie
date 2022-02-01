@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from setuplog import log
 from sqlalchemy import inspect
 
+from databudgie.config import normalize_table_config, TableConf
 from databudgie.manifest.manager import Manifest
 from databudgie.match import collect_existing_tables, expand_table_globs
 
@@ -19,9 +20,9 @@ class TableOp:
     """
 
     table_name: str
-    raw_conf: Dict[str, Any]
+    raw_conf: TableConf
 
-    def location(self, ref):
+    def location(self, ref) -> str:
         return self.raw_conf["location"].format(table=self.table_name, ref=ref)
 
     def query(self, ref):
@@ -33,7 +34,11 @@ class TableOp:
 
 
 def expand_table_ops(
-    session, tables, *, manifest: Optional[Manifest] = None, existing_tables: Optional[List[str]] = None
+    session,
+    tables: Union[Dict[str, TableConf], List[TableConf]],
+    *,
+    manifest: Optional[Manifest] = None,
+    existing_tables: Optional[List[str]] = None,
 ) -> List[TableOp]:
     """Produce a full list of table operations to be performed.
 
@@ -51,8 +56,8 @@ def expand_table_ops(
     default_schema_name = insp.default_schema_name
 
     # expand table globs into fully qualified mappings to the config.
-    matching_tables = {}
-    for pattern, table_conf in tables.items():
+    matching_tables: Dict[str, List[TableConf]] = {}
+    for pattern, table_conf in normalize_table_config(tables):
         if "." not in pattern:
             pattern = f"{default_schema_name}.{pattern}"
 
@@ -61,7 +66,7 @@ def expand_table_ops(
                 log.info(f"Skipping {table_name}...")
                 continue
 
-            for exclusion_pattern in table_conf.get("exclude", []):
+            for exclusion_pattern in table_conf.get("exclude") or []:
                 exclusions = set(expand_table_globs(existing_tables, exclusion_pattern))
                 if table_name in exclusions:
                     break
@@ -70,17 +75,19 @@ def expand_table_ops(
                 # table should be excluded. Thus backup being gated on unbroken
                 # iteration of this loop.
             else:
-                matching_tables[table_name] = table_conf
+                matching_tables.setdefault(table_name, []).append(table_conf)
 
     # Notably, `existing_tables` is assumed to be sorted by table-fk dependencies,
     # which is why this collected separately from this loop, where we iterate
     # over unordered input tables.
     result = []
     for table in existing_tables:
-        table_conf = matching_tables.get(table)
-        if not table_conf:
+        table_confs = matching_tables.get(table)
+        if not table_confs:
             continue
 
-        table_op = TableOp(table, raw_conf=table_conf)
-        result.append(table_op)
+        for table_conf in table_confs:
+            table_op = TableOp(table, raw_conf=table_conf)
+            result.append(table_op)
+
     return result
