@@ -6,19 +6,23 @@ from typing import Tuple
 
 from setuplog import log
 
+from databudgie.compression import Compressor
 from databudgie.s3 import is_s3_path
 
 DATETIME_FORMAT = r"%Y-%m-%dT%H:%M:%S"
 FILENAME_FORMAT = "{DATETIME_FORMAT}.csv"
 
 
-def generate_filename(timestamp=None, filetype="csv"):
+def generate_filename(timestamp=None, *, filetype="csv", compression=None):
     if timestamp is None:
         timestamp = datetime.now()
+
+    filetype = Compressor.get_with_name(compression).compose_filetype(filetype)
     return timestamp.strftime(f"{DATETIME_FORMAT}.{filetype}")
 
 
-def restore_filename(timestamp, filetype="csv"):
+def restore_filename(timestamp, *, filetype="csv", compression=None):
+    filetype = Compressor.get_with_name(compression).compose_filetype(filetype)
     return datetime.strptime(timestamp, f"{DATETIME_FORMAT}.{filetype}")
 
 

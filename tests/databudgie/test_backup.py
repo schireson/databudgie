@@ -1,17 +1,18 @@
 import csv
+import gzip
 import io
 import tempfile
 from typing import Any, Dict, List
 from unittest.mock import patch
 
 import pytest
-from configly import Config
 
 from databudgie.adapter.base import Adapter
 from databudgie.etl.backup import backup, backup_all
 from databudgie.etl.base import TableOp
 from databudgie.s3 import is_s3_path, S3Location
 from tests.mockmodels.models import Customer
+from tests.utils import make_config
 
 
 def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
@@ -27,18 +28,16 @@ def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
 
 
 def test_backup_all_glob(pg, s3_resource):
-    config = Config(
-        {
-            "backup": {
-                "tables": {
-                    "public.*": {
-                        "location": "s3://sample-bucket/databudgie/test/{table}",
-                        "query": "select * from {table}",
-                        "exclude": ["public.databudgie_*", "public.product", "public.sales"],
-                    },
-                }
-            },
-        }
+    config = make_config(
+        backup={
+            "tables": {
+                "public.*": {
+                    "location": "s3://sample-bucket/databudgie/test/{table}",
+                    "query": "select * from {table}",
+                    "exclude": ["public.databudgie_*", "public.product", "public.sales"],
+                },
+            }
+        },
     )
     backup_all(pg, config=config, strict=True)
 
@@ -50,23 +49,21 @@ def test_backup_all_glob(pg, s3_resource):
 
 
 def test_backup_all_tables_list(pg, s3_resource):
-    config = Config(
-        {
-            "backup": {
-                "tables": [
-                    {
-                        "name": "public.product",
-                        "location": "s3://sample-bucket/databudgie/test/{table}_not_4",
-                        "query": "select * from {table} where id != 4",
-                    },
-                    {
-                        "name": "public.product",
-                        "location": "s3://sample-bucket/databudgie/test/{table}",
-                        "query": "select * from {table} where id = 4",
-                    },
-                ]
-            },
-        }
+    config = make_config(
+        backup={
+            "tables": [
+                {
+                    "name": "public.product",
+                    "location": "s3://sample-bucket/databudgie/test/{table}_not_4",
+                    "query": "select * from {table} where id != 4",
+                },
+                {
+                    "name": "public.product",
+                    "location": "s3://sample-bucket/databudgie/test/{table}",
+                    "query": "select * from {table} where id = 4",
+                },
+            ]
+        },
     )
     backup_all(pg, config=config, strict=True)
 
@@ -77,6 +74,42 @@ def test_backup_all_tables_list(pg, s3_resource):
     ]
 
 
+@pytest.mark.parametrize(
+    "config",
+    (
+        {
+            "compression": "gzip",
+            "tables": {
+                "public.product": {
+                    "location": "s3://sample-bucket/databudgie/test/{table}",
+                    "query": "select * from {table}",
+                },
+            },
+        },
+        {
+            "tables": {
+                "public.product": {
+                    "location": "s3://sample-bucket/databudgie/test/{table}",
+                    "query": "select * from {table}",
+                    "compression": "gzip",
+                },
+            },
+        },
+    ),
+)
+def test_compression(pg, s3_resource, config):
+    backup_all(pg, config=make_config(backup=config), strict=True)
+
+    all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    assert len(all_objects) == 1
+
+    obj = all_objects[0]
+    assert obj.key == "databudgie/test/public.product/2021-04-26T09:00:00.csv.gz"
+
+    content = obj.get()["Body"].read()
+    assert gzip.decompress(content) == b"id,store_id,external_id,external_name,external_status,active\n"
+
+
 def test_backup_local_file(pg, mf, **extras):
     """Validate the upload for a single table contains the correct contents."""
     customer = mf.customer.new(external_id="cid_123")
@@ -84,7 +117,7 @@ def test_backup_local_file(pg, mf, **extras):
     with tempfile.TemporaryDirectory() as dir_name:
         backup(
             pg,
-            config=None,
+            config=make_config(backup={}),
             adapter=Adapter.get_adapter(pg),
             table_op=TableOp(
                 "public.customer",
@@ -106,7 +139,7 @@ def test_backup_one(pg, mf, s3_resource, **extras):
     backup(
         pg,
         s3_resource=s3_resource,
-        config=None,
+        config=make_config(backup={}),
         adapter=Adapter.get_adapter(pg),
         table_op=TableOp(
             "public.customer",

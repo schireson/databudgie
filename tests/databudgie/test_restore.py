@@ -1,4 +1,5 @@
 import csv
+import gzip
 import io
 import os.path
 import tempfile
@@ -23,7 +24,7 @@ from tests.utils import make_config
 fake = faker.Faker()
 
 
-def mock_csv(data: List[dict]):
+def mock_csv(data: List[dict], gzipped=False):
     buffer = io.BytesIO()
 
     with wrap_buffer(buffer) as wrapper:
@@ -32,12 +33,15 @@ def mock_csv(data: List[dict]):
         writer.writerows(data)
 
     buffer.seek(0)
+
+    if gzipped:
+        return io.BytesIO(gzip.compress(buffer.read()))
     return buffer
 
 
-def mock_s3_csv(s3_resource: S3ServiceResource, key: str, data: List[dict]):
+def mock_s3_csv(s3_resource: S3ServiceResource, key: str, data: List[dict], gzipped=False):
     bucket = s3_resource.Bucket("sample-bucket")
-    buffer = mock_csv(data)
+    buffer = mock_csv(data, gzipped=gzipped)
     bucket.put_object(Key=key, Body=buffer)
 
 
@@ -102,7 +106,7 @@ def test_restore_one(pg, mf, s3_resource, **extras):
     restore(
         pg,
         adapter=Adapter.get_adapter(pg),
-        config=None,
+        config=make_config(restore={}),
         table_op=TableOp("product", dict(location="s3://sample-bucket/products")),
         s3_resource=s3_resource,
         **extras,
@@ -266,3 +270,38 @@ def test_reset_database(pg):
             conn.execute(text("SELECT * FROM foo"))
 
     assert '"foo" does not exist' in str(e)
+
+
+@pytest.mark.parametrize(
+    "config",
+    (
+        {
+            "compression": "gzip",
+            "tables": {
+                "public.store": {
+                    "location": "s3://sample-bucket/public.store",
+                    "strategy": "use_latest_filename",
+                },
+            },
+        },
+        {
+            "tables": {
+                "public.store": {
+                    "location": "s3://sample-bucket/public.store",
+                    "strategy": "use_latest_filename",
+                    "compression": "gzip",
+                },
+            },
+        },
+    ),
+)
+def test_compression(pg, s3_resource, config):
+    """Validate restore functionality with compression enabled."""
+    mock_store = dict(id=1, name=fake.name())
+
+    mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv", [mock_store], gzipped=True)
+
+    config = make_config(restore=config)
+    restore_all(pg, config, strict=True)
+
+    assert pg.query(Store).count() == 1
