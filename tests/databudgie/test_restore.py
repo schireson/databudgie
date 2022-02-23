@@ -299,7 +299,7 @@ def test_compression(pg, s3_resource, config):
     """Validate restore functionality with compression enabled."""
     mock_store = dict(id=1, name=fake.name())
 
-    mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv", [mock_store], gzipped=True)
+    mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv.gz", [mock_store], gzipped=True)
 
     config = make_config(restore=config)
     restore_all(pg, config, strict=True)

@@ -1,4 +1,5 @@
 import fnmatch
+import warnings
 from typing import Iterable
 
 from sqlalchemy import inspect, MetaData
@@ -33,6 +34,9 @@ def collect_existing_tables(session: Session):
         # Seems to be a generally cross-database compatible filter.
         if schema == "information_schema":
             continue
-        metadata.reflect(bind=connection, schema=schema)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            metadata.reflect(bind=connection, schema=schema)
 
     return [table.fullname for table in metadata.sorted_tables]

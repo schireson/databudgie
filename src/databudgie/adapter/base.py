@@ -20,6 +20,11 @@ class Adapter(metaclass=abc.ABCMeta):
 
     @staticmethod
     @abc.abstractmethod
+    def export_schema_ddl(session: Session, name: str):
+        raise NotImplementedError()  # pragma: no cover
+
+    @staticmethod
+    @abc.abstractmethod
     def export_table_ddl(session: Session, table_name: str):
         raise NotImplementedError()  # pragma: no cover
 
