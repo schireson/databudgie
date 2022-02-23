@@ -2,7 +2,7 @@ from sqlalchemy import Column, ForeignKey, MetaData, types, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-from databudgie.manifest import DatabudgieManifestMixin
+from databudgie.manifest import create_manifest_table
 
 metadata = MetaData()
 Base = declarative_base(metadata=metadata)
@@ -65,5 +65,5 @@ class Sale(Base):  # type: ignore
     active = Column(types.Boolean(), default=True, nullable=False, server_default="true")
 
 
-class DatabudgieManifest(Base, DatabudgieManifestMixin):  # type: ignore
-    __tablename__ = "databudgie_manifest"
+class DatabudgieManifest(Base):  # type: ignore
+    __table__ = create_manifest_table(Base.metadata, tablename="databudgie_manifest")
