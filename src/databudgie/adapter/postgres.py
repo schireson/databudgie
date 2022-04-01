@@ -35,7 +35,7 @@ class PostgresAdapter(Adapter):
         cursor: psycopg2.cursor = conn.cursor()
 
         # Reading the header line from the buffer removes it for the ingest
-        columns: List[str] = csv_file.readline().strip().split(",")
+        columns: List[str] = [f'"{c}"' for c in csv_file.readline().strip().split(",")]
 
         log.debug(f"Copying buffer to {table}...")
         copy = "COPY {table} ({columns}) FROM STDIN CSV".format(table=table, columns=",".join(columns))
@@ -45,18 +45,27 @@ class PostgresAdapter(Adapter):
         conn.close()
 
     @staticmethod
-    def export_table_ddl(session: Session, table_name: str):
+    def export_schema_ddl(session: Session, name: str) -> bytes:
         if not shutil.which("pg_dump"):
-            PythonAdapter.export_table_ddl(session, table_name)
-            return
+            log.warning("Could not find pg_dump, falling back to SQLAlchemy implementation.")
+            return PythonAdapter.export_schema_ddl(session, name)
 
         url = session.connection().engine.url
-        raw_command = f"pg_dump -h {url.host} -p {url.port} -U {url.username} -d {url.database} --no-password --schema-only -t {table_name} --no-comments"
-        command = shlex.split(raw_command)
-        result = subprocess.run(  # nosec
-            command, capture_output=True, env={**os.environ, "PGPASSWORD": url.password}, check=True
+        result = pg_dump(url, f"--schema-only --schema={name} --exclude-table={name}.*")
+        result = result.replace(
+            f"CREATE SCHEMA {name};".encode("utf-8"), f"CREATE SCHEMA IF NOT EXISTS {name};".encode("utf-8")
         )
-        return result.stdout
+        return result
+
+    @staticmethod
+    def export_table_ddl(session: Session, table_name: str):
+        if not shutil.which("pg_dump"):
+            log.warning("Could not find pg_dump, falling back to SQLAlchemy implementation.")
+            return PythonAdapter.export_table_ddl(session, table_name)
+
+        url = session.connection().engine.url
+
+        return pg_dump(url, f"--schema-only -t {table_name}")
 
     @staticmethod
     def reset_database(session: Session):
@@ -82,3 +91,25 @@ class PostgresAdapter(Adapter):
             connection.execute(text(f"CREATE DATABASE {database} template=template0"))
 
         session.invalidate()
+
+
+def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:
+    parts = [f"pg_dump -h {url.host} -p {url.port} -U {url.username} -d {url.database} --no-password"]
+
+    if no_comments:
+        parts.append("--no-comments")
+
+    parts.append(rest)
+
+    raw_command = " ".join(parts)
+
+    command = shlex.split(raw_command)
+
+    try:
+        result = subprocess.run(  # nosec
+            command, capture_output=True, env={**os.environ, "PGPASSWORD": url.password}, check=True
+        )
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(e.stderr)
+
+    return result.stdout

@@ -1,4 +1,6 @@
 import abc
+import functools
+from typing import Optional
 
 import sqlalchemy
 from sqlalchemy import MetaData, Table
@@ -13,37 +15,46 @@ class Manifest(metaclass=abc.ABCMeta):
         self.session = session
         self.action = action
 
-        schema, table = parse_table(table_name)
-        self.metadata = MetaData(bind=session.get_bind())
-        self.metadata.reflect(schema=schema, only=[table])
-        self.manifest_table = Table(table, self.metadata, autoload=True, schema=schema)
+        self._transaction_id: Optional[int] = None
 
-        self.transaction_id = self._get_transaction_id()
+    @functools.lru_cache()
+    def manifest_table(self):
+        schema, table = parse_table(self.table_name)
+        self.metadata = MetaData(bind=self.session.get_bind())
+        self.metadata.reflect(schema=schema, only=[table])
+        return Table(table, self.metadata, autoload=True, schema=schema)
+
+    @functools.lru_cache()
+    def transaction_id(self):
+        if self._transaction_id is None:
+            table = self.manifest_table()
+            last_transaction = self.session.query(sqlalchemy.func.max(table.c.transaction)).scalar()
+
+            if not last_transaction:
+                last_transaction = 0
+
+            return last_transaction + 1
+
+        return self._transaction_id
 
     def __contains__(self, object) -> bool:
         """Return true if the table_name has an entry for the corresponding transaction id."""
+        manifest_table = self.manifest_table()
         return bool(
-            self.session.query(self.manifest_table)
-            .filter(self.manifest_table.c.transaction == self.transaction_id, self.manifest_table.c.table == object)
+            self.session.query(manifest_table)
+            .filter(manifest_table.c.transaction == self.transaction_id(), manifest_table.c.table == object)
             .first()
         )
 
-    def _get_transaction_id(self) -> int:
-        last_transaction = self.session.query(sqlalchemy.func.max(self.manifest_table.c.transaction)).scalar()
-
-        if not last_transaction:
-            return 1
-        return last_transaction + 1
-
     def set_transaction_id(self, id: int):
-        self.transaction_id = id
+        self._transaction_id = id
 
     def record(self, table_name: str, location: str):
         self.session.execute(
-            self.manifest_table.insert(),
+            self.manifest_table().insert(),
             [
                 {
-                    "transaction": self.transaction_id,
+                    "transaction": self.transaction_id(),
                     "action": self.action,
                     "table": table_name,
                     "file_path": location,

@@ -82,26 +82,43 @@ def restore_all_ddl(
         tables = json.load(buffer)
 
     table_ops = expand_table_ops(session, restore_config._value["tables"], existing_tables=tables)
+
+    schemas = set()
     for table_op in table_ops:
-        location = table_op.location(ref=config)
-        strategy = table_op.raw_conf.get("strategy", "use_latest_filename")
+        schema_op = table_op.schema_op()
+        if schema_op.name in schemas:
+            continue
 
-        path = join_paths(ddl_path, location)
-        with get_file_contents(path, strategy, s3_resource=s3_resource) as (buffer, path):
-            query = buffer.read().decode("utf-8")
+        schemas.add(schema_op.name)
 
-        query = "\n".join(
-            line
-            for line in query.splitlines()
-            if not line.startswith("--")
-            and not line.startswith("SET")
-            and not line.startswith("SELECT pg_catalog")
-            and line
-        )
-        session.execute(sqlalchemy.text(query))
-        session.commit()
+        path = restore_ddl(session, schema_op, ddl_path, config, s3_resource)
+        log.debug(f"Restored {schema_op.name} schema from {path}...")
 
+    for table_op in table_ops:
+        restore_ddl(session, table_op, ddl_path, config, s3_resource)
         log.info(f"Restored {table_op.table_name} DDL from {path}")
+
+
+def restore_ddl(session: Session, op, ddl_path: str, config: Config, s3_resource: Optional["S3ServiceResource"] = None):
+    location = op.location(ref=config)
+    strategy = op.raw_conf.get("strategy", "use_latest_filename")
+
+    path = join_paths(ddl_path, location)
+    with get_file_contents(path, strategy, s3_resource=s3_resource) as (buffer, path):
+        query = buffer.read().decode("utf-8")
+
+    query = "\n".join(
+        line
+        for line in query.splitlines()
+        # XXX: These should be being omitted at the backup stage, it's not the restore process' responsibility!
+        if not line.startswith("--")
+        and not line.startswith("SET")
+        and not line.startswith("SELECT pg_catalog")
+        and line
+    )
+    session.execute(sqlalchemy.text(query))
+    session.commit()
+    return path
 
 
 def truncate_tables(session: Session, table_ops: List[TableOp], adapter: Adapter):
@@ -175,7 +192,7 @@ def get_file_contents(
         object_generator = (
             ObjectSummary(o.key, o.last_modified) for o in s3_bucket.objects.filter(Prefix=s3_location.key)
         )
-        target_object: ObjectSummary = concrete_strategy(object_generator, filetype=filetype)
+        target_object: ObjectSummary = concrete_strategy(object_generator, filetype=filetype, compression=compression)
 
         s3_bucket.download_fileobj(target_object.key, buffer)
         path = f"s3://{s3_location.bucket}/{target_object.key}"
@@ -185,7 +202,7 @@ def get_file_contents(
             for dir_entry in os.scandir(location)
             if dir_entry.is_file()
         )
-        target_object = concrete_strategy(object_generator, filetype=filetype)
+        target_object = concrete_strategy(object_generator, filetype=filetype, compression=compression)
 
         with open(target_object.key, "rb") as f:
             buffer.write(f.read())
@@ -201,16 +218,22 @@ def get_file_contents(
     buffer.close()
 
 
-def _use_filename_strategy(available_objects: Iterable[ObjectSummary], filetype="csv") -> ObjectSummary:
+def _use_filename_strategy(
+    available_objects: Iterable[ObjectSummary], filetype="csv", compression=None
+) -> ObjectSummary:
     objects_by_filename = {obj.path.name: obj for obj in available_objects}
     ordered_filenames = sorted(
-        objects_by_filename.keys(), key=lambda x: restore_filename(x, filetype=filetype), reverse=True
+        objects_by_filename.keys(),
+        key=lambda x: restore_filename(x, filetype=filetype, compression=compression),
+        reverse=True,
     )
 
     return objects_by_filename[ordered_filenames[0]]
 
 
-def _use_metadata_strategy(available_objects: Iterable[ObjectSummary], filetype="csv") -> ObjectSummary:
+def _use_metadata_strategy(
+    available_objects: Iterable[ObjectSummary], filetype="csv", compression=None
+) -> ObjectSummary:
     objects_by_last_modified_date = {s3_object.last_modified: s3_object for s3_object in available_objects}
     ordered_last_modified_dates = sorted(objects_by_last_modified_date.keys(), reverse=True)
 

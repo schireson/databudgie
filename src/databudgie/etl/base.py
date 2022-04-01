@@ -7,6 +7,21 @@ from sqlalchemy import inspect
 from databudgie.config import normalize_table_config, TableConf
 from databudgie.manifest.manager import Manifest
 from databudgie.match import collect_existing_tables, expand_table_globs
+from databudgie.utils import parse_table
+
+
+@dataclass
+class SchemaOp:
+    name: str
+    raw_conf: TableConf
+
+    @classmethod
+    def from_table_op(cls, table_op: "TableOp") -> "SchemaOp":
+        schema, _ = parse_table(table_op.table_name)
+        return cls(schema, table_op.raw_conf)
+
+    def location(self, ref) -> str:
+        return self.raw_conf["location"].format(table=self.name, ref=ref)
 
 
 @dataclass
@@ -31,6 +46,9 @@ class TableOp:
             return None
 
         return query.format(table=self.table_name, ref=ref)
+
+    def schema_op(self) -> SchemaOp:
+        return SchemaOp.from_table_op(self)
 
 
 def expand_table_ops(

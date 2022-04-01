@@ -89,6 +89,26 @@ def backup_ddl(
 
     ddl_path = ddl_config.get("location", "ddl")
 
+    # Backup schemas first
+    schemas = set()
+    for table_op in table_ops:
+        schema_op = table_op.schema_op()
+        if schema_op.name in schemas:
+            continue
+
+        schemas.add(schema_op.name)
+
+        log.debug(f"Backing up {schema_op.name} Schema DDL...")
+        result = adapter.export_schema_ddl(session, schema_op.name)
+
+        path = schema_op.location(config)
+        fully_qualified_path = join_paths(ddl_path, path, generate_filename(timestamp))
+
+        with io.BytesIO(result) as buffer:
+            persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
+
+        log.debug(f"Uploaded {schema_op.name} to {fully_qualified_path}")
+
     for table_op in table_ops:
         log.debug(f"Backing up {table_op.table_name} DDL...")
         result = adapter.export_table_ddl(session, table_op.table_name)

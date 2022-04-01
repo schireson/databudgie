@@ -64,6 +64,10 @@ class PythonAdapter(Adapter):
             yield row
 
     @staticmethod
+    def export_schema_ddl(session: Session, name: str) -> bytes:
+        raise NotImplementedError()
+
+    @staticmethod
     def export_table_ddl(session: Session, table_name: str):
         raise NotImplementedError()
 
