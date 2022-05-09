@@ -1,3 +1,6 @@
+from sqlalchemy import MetaData, Table
+from sqlalchemy.schema import CreateSchema
+
 from databudgie.adapter.base import Adapter
 from databudgie.etl.backup import backup
 from databudgie.etl.base import TableOp
@@ -47,3 +50,37 @@ def test_type_conversion(pg, mf, s3_resource):
         assert original_sale["sale_value"] == restored_sale.sale_value
         assert original_sale["sale_date"] == restored_sale.sale_date
         assert original_sale["active"] == restored_sale.active
+
+
+class Test_collect_existing_database_tables:
+    def test_skips_information_schema(self, pg):
+        result = Adapter.get_adapter(pg).collect_existing_tables(pg)
+        for table_name in result:
+            assert "information_schema" not in table_name
+            assert "pg_catalog" not in table_name
+
+    def test_collects_tables_from_schemas(self, pg):
+        metadata = MetaData()
+
+        Table("bar", metadata, schema="foo")
+        Table("bar", metadata, schema="bar")
+
+        connection = pg.connection()
+        connection.execute(CreateSchema("foo"))
+        connection.execute(CreateSchema("bar"))
+        metadata.create_all(connection)
+
+        result = Adapter.get_adapter(pg).collect_existing_tables(pg)
+        assert all(table in result for table in ["bar.bar", "foo.bar"])
+
+    def test_public_expanded(self, pg):
+        metadata = MetaData()
+
+        Table("bar", metadata)
+        Table("baz", metadata)
+
+        connection = pg.connection()
+        metadata.create_all(connection)
+
+        result = Adapter.get_adapter(pg).collect_existing_tables(pg)
+        assert all(table in result for table in ["public.bar", "public.baz"])
