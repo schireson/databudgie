@@ -1,9 +1,11 @@
 import abc
 import io
-from typing import Any, Union
+import warnings
+from typing import Any, List, Union
 
 import sqlalchemy
-from setuplog import log
+from setuplog import log, log_duration
+from sqlalchemy import inspect, MetaData
 from sqlalchemy.orm import Session
 
 
@@ -66,3 +68,22 @@ class Adapter(metaclass=abc.ABCMeta):
     @staticmethod
     def reset_database(session: Session):
         raise NotImplementedError()
+
+    @staticmethod
+    @log_duration("Collecting existing tables")
+    def collect_existing_tables(session: Session) -> List[str]:
+        """Find the set of all user-defined tables in a database."""
+        connection = session.connection()
+
+        metadata = MetaData()
+        insp = inspect(connection)
+        for schema in insp.get_schema_names():
+            # Seems to be a generally cross-database compatible filter.
+            if schema in ("information_schema", "pg_catalog"):
+                continue
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                metadata.reflect(bind=connection, schema=schema)
+
+        return [table.fullname for table in metadata.sorted_tables]

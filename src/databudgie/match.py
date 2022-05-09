@@ -1,9 +1,5 @@
 import fnmatch
-import warnings
 from typing import Iterable
-
-from sqlalchemy import inspect, MetaData
-from sqlalchemy.orm.session import Session
 
 
 def expand_table_globs(existing_tables: Iterable[str], pattern: str):
@@ -22,21 +18,3 @@ def expand_table_globs(existing_tables: Iterable[str], pattern: str):
         new_tables.append(fq_table_name)
 
     return sorted(new_tables)
-
-
-def collect_existing_tables(session: Session):
-    """Find the set of all user-defined tables in a database."""
-    connection = session.connection()
-
-    metadata = MetaData()
-    insp = inspect(connection)
-    for schema in insp.get_schema_names():
-        # Seems to be a generally cross-database compatible filter.
-        if schema == "information_schema":
-            continue
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            metadata.reflect(bind=connection, schema=schema)
-
-    return [table.fullname for table in metadata.sorted_tables]

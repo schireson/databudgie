@@ -46,7 +46,12 @@ def restore_all(
         concrete_adapter.reset_database(session)
     restore_all_ddl(session, config, s3_resource=s3_resource)
 
-    table_ops = expand_table_ops(session, config.restore._value["tables"], manifest=manifest)
+    table_ops = expand_table_ops(
+        session,
+        config.restore._value["tables"],
+        concrete_adapter.collect_existing_tables(session),
+        manifest=manifest,
+    )
 
     truncate_tables(session, table_ops, adapter=concrete_adapter)
 
@@ -81,7 +86,11 @@ def restore_all_ddl(
     with get_file_contents(manifest_path, strategy, s3_resource=s3_resource, filetype="json") as (buffer, _):
         tables = json.load(buffer)
 
-    table_ops = expand_table_ops(session, restore_config._value["tables"], existing_tables=tables)
+    table_ops = expand_table_ops(
+        session,
+        restore_config._value["tables"],
+        existing_tables=tables,
+    )
 
     schemas = set()
     for table_op in table_ops:

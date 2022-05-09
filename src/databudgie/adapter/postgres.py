@@ -6,7 +6,7 @@ import subprocess  # nosec
 from typing import List
 
 import psycopg2.errors
-from setuplog import log
+from setuplog import log, log_duration
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, create_engine, Engine
 from sqlalchemy.engine.url import URL
@@ -91,6 +91,53 @@ class PostgresAdapter(Adapter):
             connection.execute(text(f"CREATE DATABASE {database} template=template0"))
 
         session.invalidate()
+
+    @staticmethod
+    @log_duration("Collecting existing tables")
+    def collect_existing_tables(session: Session) -> List[str]:
+        """Find the set of all user-defined tables in a database."""
+
+        if "ENABLE_EXPERIMENTAL_TABLE_COLLECTION" not in os.environ:
+            log.info("Set ENABLE_EXPERIMENTAL_TABLE_COLLECTION to use faster experimental table collection.")
+            return Adapter.collect_existing_tables(session)
+
+        collect_tables = text(
+            """
+            WITH fkeys AS (
+            SELECT
+
+            c.conrelid AS table_id,
+            c_fromtablens.nspname AS schemaname,
+            c_fromtable.relname AS tablename,
+
+            c.confrelid AS parent_id,
+            c_totablens.nspname AS parent_schemaname,
+            c_totable.relname AS parent_tablename
+
+            FROM pg_constraint c
+            JOIN pg_namespace n ON n.oid = c.connamespace
+
+            JOIN pg_class c_fromtable ON c_fromtable.oid = c.conrelid
+            JOIN pg_namespace c_fromtablens ON c_fromtablens.oid = c_fromtable.relnamespace
+
+            JOIN pg_class c_totable ON c_totable.oid = c.confrelid
+            JOIN pg_namespace c_totablens ON c_totablens.oid = c_totable.relnamespace
+            WHERE
+            c.contype = 'f'
+            )
+
+            SELECT
+            t.schemaname || '.' ||  t.tablename as tablefullname
+
+            FROM pg_tables t
+            LEFT JOIN fkeys ON  t.schemaname = fkeys.schemaname AND
+                                t.tablename =  fkeys.tablename
+            WHERE
+            t.schemaname NOT IN ('pg_catalog', 'information_schema');
+            """
+        )
+        results = session.execute(collect_tables)
+        return [row[0] for row in results]
 
 
 def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:

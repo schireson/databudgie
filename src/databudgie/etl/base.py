@@ -3,10 +3,11 @@ from typing import Dict, List, Optional, Union
 
 from setuplog import log
 from sqlalchemy import inspect
+from sqlalchemy.orm import Session
 
 from databudgie.config import normalize_table_config, TableConf
 from databudgie.manifest.manager import Manifest
-from databudgie.match import collect_existing_tables, expand_table_globs
+from databudgie.match import expand_table_globs
 from databudgie.utils import parse_table
 
 
@@ -52,11 +53,11 @@ class TableOp:
 
 
 def expand_table_ops(
-    session,
+    session: Session,
     tables: Union[Dict[str, TableConf], List[TableConf]],
+    existing_tables: List[str],
     *,
     manifest: Optional[Manifest] = None,
-    existing_tables: Optional[List[str]] = None,
 ) -> List[TableOp]:
     """Produce a full list of table operations to be performed.
 
@@ -66,7 +67,6 @@ def expand_table_ops(
     Additionally, tables may be filtered, either by the pre-existence of
     manifest data or explicit table exclusions.
     """
-    existing_tables = existing_tables or collect_existing_tables(session)
 
     # Avoid hardcoding things like "public", we hardcode this elsewhere, this
     # should probably be moved upstream.
