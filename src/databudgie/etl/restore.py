@@ -46,10 +46,11 @@ def restore_all(
         concrete_adapter.reset_database(session)
     restore_all_ddl(session, config, s3_resource=s3_resource)
 
+    existing_tables = concrete_adapter.collect_existing_tables(session)
     table_ops = expand_table_ops(
         session,
         config.restore._value["tables"],
-        concrete_adapter.collect_existing_tables(session),
+        existing_tables,
         manifest=manifest,
     )
 

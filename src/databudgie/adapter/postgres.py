@@ -101,43 +101,55 @@ class PostgresAdapter(Adapter):
             log.info("Set ENABLE_EXPERIMENTAL_TABLE_COLLECTION to use faster experimental table collection.")
             return Adapter.collect_existing_tables(session)
 
+        # from https://stackoverflow.com/questions/51279588/sort-tables-in-order-of-dependency-postgres
         collect_tables = text(
             """
-            WITH fkeys AS (
-            SELECT
+            with recursive fk_tree as (
+                -- All tables not referencing anything else
+                select t.oid      as reloid,
+                    t.relname  as table_name,
+                    s.nspname  as schema_name,
+                    null::text as referenced_table_name,
+                    null::text as referenced_schema_name,
+                    1          as level
+                from pg_class t
+                join pg_namespace s on s.oid = t.relnamespace
+                where relkind = 'r'
+                and not exists(select * from pg_constraint where contype = 'f' and conrelid = t.oid)
+                and s.nspname not in ('pg_catalog', 'information_schema')
 
-            c.conrelid AS table_id,
-            c_fromtablens.nspname AS schemaname,
-            c_fromtable.relname AS tablename,
+                union all
 
-            c.confrelid AS parent_id,
-            c_totablens.nspname AS parent_schemaname,
-            c_totable.relname AS parent_tablename
-
-            FROM pg_constraint c
-            JOIN pg_namespace n ON n.oid = c.connamespace
-
-            JOIN pg_class c_fromtable ON c_fromtable.oid = c.conrelid
-            JOIN pg_namespace c_fromtablens ON c_fromtablens.oid = c_fromtable.relnamespace
-
-            JOIN pg_class c_totable ON c_totable.oid = c.confrelid
-            JOIN pg_namespace c_totablens ON c_totablens.oid = c_totable.relnamespace
-            WHERE
-            c.contype = 'f'
+                select ref.oid,
+                    ref.relname,
+                    rs.nspname,
+                    p.table_name,
+                    p.schema_name,
+                    p.level + 1
+                from pg_class ref
+                join pg_namespace rs on rs.oid = ref.relnamespace
+                join pg_constraint c on c.contype = 'f' and c.conrelid = ref.oid
+                join fk_tree p on p.reloid = c.confrelid
+                where ref.oid != p.reloid -- do not enter to tables referencing theirselves.
+            ),
+            all_tables as (
+                -- this picks the highest level for each table
+                select
+                    schema_name,
+                    table_name,
+                    level,
+                    row_number() over (partition by schema_name, table_name order by level desc) as last_table_row
+                from fk_tree
             )
-
-            SELECT
-            t.schemaname || '.' ||  t.tablename as tablefullname
-
-            FROM pg_tables t
-            LEFT JOIN fkeys ON  t.schemaname = fkeys.schemaname AND
-                                t.tablename =  fkeys.tablename
-            WHERE
-            t.schemaname NOT IN ('pg_catalog', 'information_schema');
+            select schema_name || '.' || table_name, level
+            from all_tables at
+            where last_table_row = 1
+            order by level;
             """
         )
         results = session.execute(collect_tables)
-        return [row[0] for row in results]
+        table_full_names = [row[0] for row in results]
+        return table_full_names
 
 
 def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:

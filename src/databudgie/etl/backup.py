@@ -53,10 +53,11 @@ def backup_all(
     s3_resource = optional_s3_resource(config)
     timestamp = datetime.now()
 
+    existing_tables = concrete_adapter.collect_existing_tables(session)
     table_ops = expand_table_ops(
         session,
         config.backup._value["tables"],
-        concrete_adapter.collect_existing_tables(session),
+        existing_tables,
         manifest=manifest,
     )
 
