@@ -41,10 +41,10 @@ class TableOp:
     def location(self, ref) -> str:
         return self.raw_conf["location"].format(table=self.table_name, ref=ref)
 
-    def query(self, ref):
+    def query(self, ref) -> str:
         query = self.raw_conf.get("query")
-        if not query:
-            return None
+        if query is None:
+            query = "SELECT * FROM {table}"
 
         return query.format(table=self.table_name, ref=ref)
 
