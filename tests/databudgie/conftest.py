@@ -1,10 +1,10 @@
 import boto3
 import pytest
-from configly import Config
 from freezegun import freeze_time
 from moto import mock_s3
 from pytest_mock_resources import create_postgres_fixture, PostgresConfig
 
+from databudgie.config.models import RootConfig
 from tests.mockmodels.models import Base
 
 
@@ -26,6 +26,17 @@ def mf_session(pg):
     return pg
 
 
+@pytest.fixture
+def s3_config():
+    yield {
+        "s3": {
+            "aws_access_key_id": "foo",
+            "aws_secret_access_key": "foo",
+            "region": "foo",
+        }
+    }
+
+
 @pytest.fixture()
 def s3_resource():
     with mock_s3():
@@ -42,8 +53,9 @@ def fixed_time():
 
 @pytest.fixture()
 def sample_config():
-    yield Config(
+    yield RootConfig.from_dict(
         {
+            "s3": {},
             "backup": {
                 "tables": {
                     "public.store": {
@@ -58,7 +70,10 @@ def sample_config():
             },
             "restore": {
                 "tables": {
-                    "public.store": {"location": "s3://sample-bucket/public.store", "strategy": "use_latest_filename"},
+                    "public.store": {
+                        "location": "s3://sample-bucket/public.store",
+                        "strategy": "use_latest_filename",
+                    },
                     "public.product": {
                         "location": "s3://sample-bucket/public.product",
                         "strategy": "use_latest_metadata",

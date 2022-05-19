@@ -1,35 +1,19 @@
-from typing import Dict, Iterable, List, Mapping, Optional, Tuple, Union
+import sys
+from typing import Mapping
 
 from configly import Config
+from ruamel.yaml import YAML
 
-try:
-    from typing import TypedDict
-except ImportError:
-    from typing_extensions import TypedDict
+from databudgie.config.models import Config as DatabudgieConfig
 
 
-class TableConf(TypedDict, total=False):
-    location: str
-    name: Optional[str]
-    query: Optional[str]
-    exclude: Optional[List[str]]
-    strategy: Optional[str]
-    truncate: Optional[bool]
+def pretty_print(config: DatabudgieConfig):
+    """Pretty print a config model."""
 
-
-def pretty_print(config: Config, indent: int = 0, increment: int = 2):
-    """Pretty print a config object."""
-
-    current_indent = " " * indent
-    for key, value in config:
-        if isinstance(value, Config):
-            print(f"{current_indent}{key}:")
-            pretty_print(value, indent + increment, increment)
-        else:
-            if isinstance(value, str):
-                value = value.strip()
-                value = value.replace("\n", "")
-            print(f"{current_indent}{key}: {value}")
+    config_as_dict = config.to_dict()
+    yaml = YAML()
+    yaml.default_flow_style = False
+    yaml.dump(config_as_dict, sys.stdout)
 
 
 def compose_value(config: Config, *path, value=None, default=None) -> Config:
@@ -81,17 +65,6 @@ def compose_value(config: Config, *path, value=None, default=None) -> Config:
         context[final_key] = default
 
     return Config(raw_config)
-
-
-def normalize_table_config(tables: Union[Dict[str, TableConf], List[TableConf]]) -> Iterable[Tuple[str, TableConf]]:
-    if isinstance(tables, dict):
-        for name, table_conf in tables.items():
-            yield (name, table_conf)
-
-    else:
-        for table_conf in tables:
-            name = table_conf.get("name") or ""
-            yield (name, table_conf)
 
 
 def fallback_config_value(*configs: Mapping, key: str, default=None):

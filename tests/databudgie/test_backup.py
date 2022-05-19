@@ -8,17 +8,27 @@ from unittest.mock import patch
 import pytest
 
 from databudgie.adapter.base import Adapter
+from databudgie.config.models import BackupTableConfig, RootConfig
 from databudgie.etl.backup import backup, backup_all
 from databudgie.etl.base import TableOp
 from databudgie.s3 import is_s3_path, S3Location
 from tests.mockmodels.models import Customer
-from tests.utils import make_config
+from tests.utils import s3_config
 
 
-def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
+def test_backup_all(pg, s3_resource, **extras):
     """Validate the backup_all performs backup for all tables in the backup config."""
 
-    backup_all(pg, config=sample_config, strict=True, **extras)
+    config = RootConfig.from_dict(
+        {
+            "location": "s3://sample-bucket/databudgie/test/{table}",
+            "query": "select * from {table}",
+            "tables": ["public.customer", "public.store"],
+            **s3_config,
+        }
+    )
+
+    backup_all(pg, config.backup, strict=True, **extras)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -28,18 +38,21 @@ def test_backup_all(pg, mf, sample_config, s3_resource, **extras):
 
 
 def test_backup_all_glob(pg, s3_resource):
-    config = make_config(
-        backup={
+
+    config = RootConfig.from_dict(
+        {
             "tables": {
                 "public.*": {
                     "location": "s3://sample-bucket/databudgie/test/{table}",
                     "query": "select * from {table}",
                     "exclude": ["public.databudgie_*", "public.product", "public.sales"],
-                },
-            }
-        },
+                }
+            },
+            **s3_config,
+        }
     )
-    backup_all(pg, config=config, strict=True)
+
+    backup_all(pg, backup_config=config.backup, strict=True)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -49,23 +62,27 @@ def test_backup_all_glob(pg, s3_resource):
 
 
 def test_backup_all_tables_list(pg, s3_resource):
-    config = make_config(
-        backup={
-            "tables": [
-                {
-                    "name": "public.product",
-                    "location": "s3://sample-bucket/databudgie/test/{table}_not_4",
-                    "query": "select * from {table} where id != 4",
-                },
-                {
-                    "name": "public.product",
-                    "location": "s3://sample-bucket/databudgie/test/{table}",
-                    "query": "select * from {table} where id = 4",
-                },
-            ]
-        },
+    config = RootConfig.from_dict(
+        {
+            **s3_config,
+            "backup": {
+                "tables": [
+                    {
+                        "name": "public.product",
+                        "location": "s3://sample-bucket/databudgie/test/{table}_not_4",
+                        "query": "select * from {table} where id != 4",
+                    },
+                    {
+                        "name": "public.product",
+                        "location": "s3://sample-bucket/databudgie/test/{table}",
+                        "query": "select * from {table} where id = 4",
+                    },
+                ],
+            },
+        }
     )
-    backup_all(pg, config=config, strict=True)
+
+    backup_all(pg, backup_config=config.backup, strict=True)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -98,7 +115,8 @@ def test_backup_all_tables_list(pg, s3_resource):
     ),
 )
 def test_compression(pg, s3_resource, config):
-    backup_all(pg, config=make_config(backup=config), strict=True)
+    config = RootConfig.from_dict({"backup": config, **s3_config})
+    backup_all(pg, backup_config=config.backup, strict=True)
 
     all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert len(all_objects) == 1
@@ -117,11 +135,11 @@ def test_backup_local_file(pg, mf, **extras):
     with tempfile.TemporaryDirectory() as dir_name:
         backup(
             pg,
-            config=make_config(backup={}),
             adapter=Adapter.get_adapter(pg),
             table_op=TableOp(
                 "public.customer",
-                dict(
+                BackupTableConfig(
+                    name="public.customer",
                     query="select * from public.customer",
                     location=f"{dir_name}/public.customer",
                 ),
@@ -139,11 +157,11 @@ def test_backup_one(pg, mf, s3_resource, **extras):
     backup(
         pg,
         s3_resource=s3_resource,
-        config=make_config(backup={}),
         adapter=Adapter.get_adapter(pg),
         table_op=TableOp(
             "public.customer",
-            dict(
+            BackupTableConfig(
+                name="public.customer",
                 query="select * from public.customer",
                 location="s3://sample-bucket/databudgie/test/public.customer",
             ),
@@ -156,17 +174,26 @@ def test_backup_one(pg, mf, s3_resource, **extras):
     )
 
 
-def test_backup_failure(pg, sample_config):
+def test_backup_failure(pg):
     """Validate alternative behavior of the `strict` flag."""
+
+    config = RootConfig.from_dict(
+        {
+            "location": "s3://sample-bucket/databudgie/test/{table}",
+            "query": "select * from {table}",
+            "tables": ["public.customer", "public.store"],
+            **s3_config,
+        }
+    )
 
     with patch("databudgie.etl.backup.backup", side_effect=RuntimeError("Dummy error")):
         # With strict on, the backup should raise an exception.
         with pytest.raises(RuntimeError):
-            backup_all(pg, config=sample_config, strict=True)
+            backup_all(pg, backup_config=config.backup, strict=True)
 
         # With strict off, the backup should produce log messages.
         with patch("databudgie.utils.log") as mock_log:
-            backup_all(pg, config=sample_config, strict=False)
+            backup_all(pg, backup_config=config.backup, strict=False)
             assert mock_log.info.call_count == 2
 
 
