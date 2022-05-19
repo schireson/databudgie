@@ -19,12 +19,12 @@ def test_manifest_backup(pg, mf, s3_resource):
 
 def test_manifest_backup_resume_transaction(pg, mf, s3_resource, sample_config):
     manifest = BackupManifest(pg, DatabudgieManifest.__table__.name)
-    test_backup_all(pg, mf, sample_config, s3_resource, manifest=manifest)
+    test_backup_all(pg, s3_resource, manifest=manifest)
 
     with patch("databudgie.etl.base.log") as mock_log:
-        test_backup_all(pg, mf, sample_config, s3_resource, manifest=manifest)
+        test_backup_all(pg, s3_resource, manifest=manifest)
         assert mock_log.info.call_count == 2
-        mock_log.info.assert_has_calls([call("Skipping public.store..."), call("Skipping public.customer...")])
+        mock_log.info.assert_has_calls([call("Skipping public.customer..."), call("Skipping public.store...")])
 
 
 def test_manifest_restore(pg, mf, s3_resource):

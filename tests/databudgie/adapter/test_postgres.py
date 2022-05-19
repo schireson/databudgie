@@ -2,11 +2,12 @@ from sqlalchemy import MetaData, Table
 from sqlalchemy.schema import CreateSchema
 
 from databudgie.adapter.base import Adapter
+from databudgie.config.models import BackupTableConfig, RootConfig
 from databudgie.etl.backup import backup
 from databudgie.etl.base import TableOp
 from databudgie.etl.restore import restore_all
 from tests.mockmodels.models import Sale
-from tests.utils import make_config
+from tests.utils import s3_config
 
 
 def test_type_conversion(pg, mf, s3_resource):
@@ -30,14 +31,19 @@ def test_type_conversion(pg, mf, s3_resource):
         pg,
         s3_resource=s3_resource,
         adapter=Adapter.get_adapter(pg),
-        config=make_config(backup={}),
-        table_op=TableOp("sales", dict(location=location, query="select * from public.sales")),
+        table_op=TableOp(
+            "sales", BackupTableConfig(name="sales", location=location, query="select * from public.sales")
+        ),
     )
 
-    restore_all(
-        pg,
-        config=make_config(restore={"tables": {"public.sales": {"truncate": True, "location": location}}}),
+    config = RootConfig.from_dict(
+        {
+            "restore": {"tables": {"public.sales": {"truncate": True, "location": location}}},
+            **s3_config,
+        }
     )
+
+    restore_all(pg, restore_config=config.restore)
 
     restored_sales = {s.id: s for s in pg.query(Sale).all()}
 

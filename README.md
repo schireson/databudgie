@@ -2,7 +2,7 @@
 
 # databudgie
 
-standalone library/cli tool for database backup/restore
+standalone cli & library for database backup/restore
 
 ## Installation
 
@@ -36,13 +36,14 @@ backup:
   url: postgresql://postgres:postgres@localhost:5432/postgres
   manifest: public.databudgie_manifest
   tables:
-    public.product:
-      location: s3://my-s3-bucket/databudgie/public.product
+    - name: public.product
       query: "select * from public.product where store_id = 4"
-    public.sales:
-      location: s3://my-s3-bucket/databudgie/public.sales
+      location: s3://my-s3-bucket/databudgie/public.product
+    - name: public.sales
       query: "select * from public.sales where store_id = 4"
+      location: s3://my-s3-bucket/databudgie/public.sales
 ```
+
 
 ### DDL
 
@@ -210,37 +211,69 @@ class DatabudgieManifest(Base):  # type: ignore
 
 ## Configuration
 
+
+Consider the following configuration:
+
+
+```yaml
+backup:
+  url: postgresql://postgres:postgres@localhost:5432/postgres
+  tables:
+    - name: public.product
+      query: "select * from public.product where store_id = 4"
+      location: s3://my-s3-bucket/databudgie/public.product
+    - name: public.sales
+      query: "select * from public.sales where store_id = 4"
+      location: s3://my-s3-bucket/databudgie/public.sales
+```
+
+You can use templating via `{table}` to simplify this config to the following:
+
+```yaml
+backup:
+  url: postgresql://postgres:postgres@localhost:5432/postgres
+  tables:
+    - name: public.product
+      query: "select * from {table} where store_id = 4"
+      location: s3://my-s3-bucket/databudgie/{table}
+    - name: public.sales
+      query: "select * from {table} where store_id = 4"
+      location: s3://my-s3-bucket/databudgie/{table}
+```
+
+Additionally, you can declare some keys higher in the config heirarchy to have them cascade to keys below. For the tables, you can even provide names as simply a list of strings. This is equivalent to the above:
+
+```yaml
+backup:
+  url: postgresql://postgres:postgres@localhost:5432/postgres
+  query: "select * from {table} where store_id = 4"
+  location: s3://my-s3-bucket/databudgie/{table}
+  tables:
+    - public.product
+    - public.sales
+```
+Lastly, you can even omit the `backup` header so long as you have `tables` defined at the root level. The following config would use the same `url` for both backup and restore commands, using the default values for any required yet undefined settings.
+
+```yaml
+url: postgresql://postgres:postgres@localhost:5432/postgres
+query: "select * from {table} where store_id = 4"
+location: s3://my-s3-bucket/databudgie/{table}
+tables:
+  - public.product
+  - public.sales
+```
+
+
+### Environment Interpolation
+
 The config is interpreted via [Configly](https://github.com/schireson/configly), so you can use env var interpolation like so:
 
 ```yaml
-environment: <% ENV[ENVIRONMENT, null] %>
+sentry:
+  environment: <% ENV[ENVIRONMENT, null] %>
 ```
 
-This is a complete sample configuration:
 
-```yaml
-environment: production
-
-logging:
-  enabled: true
-  level: INFO
-
-backup: # configuration for CSV sources
-  url: postgresql://postgres:postgres@localhost:5432/postgres
-  manifest: public.databudgie_manifest
-  tables:
-    public.product:
-      query: "select * from public.product where store_id = 4"
-      location: s3://my-s3-bucket/databudgie/dev/public.product
-
-restore: # configuration for CSV restore targets
-  url: postgresql://postgres:postgres@localhost:5432/postgres
-  manifest: public.databudgie_manifest
-  tables:
-    public.product:
-      strategy: use_latest_filename
-      location: s3://my-s3-bucket/databudgie/dev/public.product
-```
 
 ### Tables
 
@@ -310,17 +343,21 @@ Using common globbing rules:
 | [seq]   | matches any character in seq     |
 | [!seq]  | matches any character not in seq |
 
+Globbing also supports the `exclude` key to prevent matching some tables.
+
 ```yml
 backup:
   tables:
     public.*:
       query: "select * from {table}"
       location: s3://my-s3-bucket/databudgie/dev/{table}
+      exclude: ["databudgie_*"]
 restore:
   tables:
     public.*:
       query: "select * from {table}"
       location: s3://my-s3-bucket/databudgie/dev/{table}
+      exclude: ["databudgie_*"]
 ```
 
 This expands the definition of matched tables in both backup/restore.
@@ -334,6 +371,7 @@ as a library (where you should instead set up sentry in your application).
 ```yaml
 sentry:
   sentry_dsn: sample@sentry.io/dsn
+  environment: prod
   version: abcedf
 ```
 

@@ -1,7 +1,9 @@
 import logging
+from typing import Optional
 
 import strapp.logging
-from configly import Config
+
+from databudgie.config.models import LoggingConfig, SentryConfig
 
 package_verbosity = strapp.logging.package_verbosity_factory(
     ("urllib3", logging.INFO, logging.INFO, logging.INFO, logging.DEBUG),
@@ -15,21 +17,21 @@ package_verbosity = strapp.logging.package_verbosity_factory(
 )
 
 
-def setup(config: Config, verbosity: int):
-    setup_logging(config.get("logging", {}).get("level", "INFO"), verbosity)
-    setup_sentry(config)
+def setup(sentry: Optional[SentryConfig], logging: Optional[LoggingConfig], verbosity: int):
+    if logging:
+        setup_logging(logging.level, verbosity)
+
+    if sentry:
+        setup_sentry(sentry)
 
 
-def setup_sentry(config: Config):
+def setup_sentry(config: SentryConfig):
     import strapp.sentry
 
-    if not config.get("sentry"):
-        return
-
     strapp.sentry.setup_sentry(
-        dsn=config.sentry.sentry_dsn,
-        release=config.sentry.version,
-        environment=config.get("environment"),
+        dsn=config.dsn,
+        release=config.version,
+        environment=config.environment,
         service_name="databudgie",
         level="WARNING",
         breadcrumb_level="INFO",
