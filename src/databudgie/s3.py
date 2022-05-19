@@ -1,21 +1,19 @@
 import urllib.parse
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING, Union
 
-from configly import Config
-
-from databudgie.config import normalize_table_config
+from databudgie.config.models import BackupConfig, RestoreConfig, S3Config
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3ServiceResource
 
 
-def optional_s3_resource(config: Config) -> Optional["S3ServiceResource"]:
-    if config_uses_s3(config):
-        return s3_resource(config)
+def optional_s3_resource(config: Union[BackupConfig, RestoreConfig]) -> Optional["S3ServiceResource"]:
+    if config_uses_s3(config) and config.s3:
+        return s3_resource(config.s3)
     return None
 
 
-def s3_resource(config) -> "S3ServiceResource":
+def s3_resource(config: S3Config) -> "S3ServiceResource":
     try:
         import boto3
     except ImportError:
@@ -23,28 +21,21 @@ def s3_resource(config) -> "S3ServiceResource":
 
     # Boto loads all config as environment variables by default, this config
     # section can be entirely optional.
-    s3_config = config.get("s3", {})
     session = boto3.session.Session(
-        aws_access_key_id=s3_config.get("aws_access_key_id"),
-        aws_secret_access_key=s3_config.get("aws_secret_access_key"),
-        profile_name=s3_config.get("profile"),
-        region_name=s3_config.get("region"),
+        aws_access_key_id=config.aws_access_key_id,
+        aws_secret_access_key=config.aws_secret_access_key,
+        profile_name=config.profile,
+        region_name=config.region,
     )
 
     s3: "S3ServiceResource" = session.resource("s3")
     return s3
 
 
-def config_uses_s3(config: Config):
-    for namespace in [config.get("backup"), config.get("restore")]:
-        if not namespace:
-            continue
-
-        for _, table_config in normalize_table_config(namespace["tables"]):
-            location = table_config["location"]
-            if is_s3_path(location):
-                return True
-
+def config_uses_s3(config: Union[BackupConfig, RestoreConfig]):
+    for table_config in config.tables:
+        if is_s3_path(table_config.location):
+            return True
     return False
 
 

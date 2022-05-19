@@ -15,11 +15,12 @@ from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm.session import sessionmaker
 
 from databudgie.adapter.base import Adapter
+from databudgie.config.models import RestoreTableConfig, RootConfig
 from databudgie.etl.base import TableOp
 from databudgie.etl.restore import restore, restore_all
 from databudgie.utils import wrap_buffer
 from tests.mockmodels.models import Product, Store
-from tests.utils import make_config
+from tests.utils import s3_config
 
 fake = faker.Faker()
 
@@ -60,18 +61,21 @@ def test_restore_all(pg, s3_resource, **extras):
     mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv", [mock_store])
     mock_s3_csv(s3_resource, "public.product/2021-04-26T09:00:00.csv", [mock_product])
 
-    config = make_config(
-        restore={
-            "tables": {
-                "public.store": {"location": "s3://sample-bucket/public.store", "strategy": "use_latest_filename"},
-                "public.product": {
-                    "location": "s3://sample-bucket/public.product",
-                    "strategy": "use_latest_metadata",
+    config = RootConfig.from_dict(
+        {
+            **s3_config,
+            "restore": {
+                "tables": {
+                    "public.store": {"location": "s3://sample-bucket/public.store", "strategy": "use_latest_filename"},
+                    "public.product": {
+                        "location": "s3://sample-bucket/public.product",
+                        "strategy": "use_latest_metadata",
+                    },
                 },
             },
         }
     )
-    restore_all(pg, config, strict=True, **extras)
+    restore_all(pg, config.restore, strict=True, **extras)
 
     assert pg.query(Store).count() == 1
     assert pg.query(Product).count() == 1
@@ -106,8 +110,7 @@ def test_restore_one(pg, mf, s3_resource, **extras):
     restore(
         pg,
         adapter=Adapter.get_adapter(pg),
-        config=make_config(restore={}),
-        table_op=TableOp("product", dict(location="s3://sample-bucket/products")),
+        table_op=TableOp("product", RestoreTableConfig(name="product", location="s3://sample-bucket/products")),
         s3_resource=s3_resource,
         **extras,
     )
@@ -140,12 +143,15 @@ def test_restore_all_overwrite_cascade(pg, mf, s3_resource):
 
     mock_s3_csv(s3_resource, "products/2021-04-26T09:00:00.csv", [mock_product])
 
-    restore_all(
-        pg,
-        config=make_config(
-            restore={"tables": {"product": {"truncate": True, "location": "s3://sample-bucket/products"}}},
-        ),
+    config = RootConfig.from_dict(
+        {
+            "restore": {
+                **s3_config,
+                "tables": {"product": {"truncate": True, "location": "s3://sample-bucket/products"}},
+            },
+        }
     )
+    restore_all(pg, restore_config=config.restore)
 
     stores = pg.query(Product).all()
     assert len(stores) == 1
@@ -173,20 +179,8 @@ def test_restore_all_local_files(pg, mf):
         with open(os.path.sep.join([dir_name, f"{now}.csv"]), "wb") as f:
             f.write(fake_file_data)
 
-        restore_all(
-            pg,
-            config=make_config(
-                restore={
-                    "tables": {
-                        "product": {
-                            "truncate": True,
-                            "location": dir_name,
-                        }
-                    }
-                },
-            ),
-            strict=True,
-        )
+        config = RootConfig.from_dict({"restore": {"tables": {"product": {"truncate": True, "location": dir_name}}}})
+        restore_all(pg, restore_config=config.restore, strict=True)
 
     stores = pg.query(Product).all()
     assert len(stores) == 1
@@ -223,9 +217,14 @@ def test_restore_glob(pg, mf, s3_resource):
         ],
     )
 
-    config = make_config(restore={"tables": {"public.*": {"location": "s3://sample-bucket/{table}", "truncate": True}}})
+    config = RootConfig.from_dict(
+        {
+            **s3_config,
+            "restore": {"tables": {"public.*": {"location": "s3://sample-bucket/{table}", "truncate": True}}},
+        }
+    )
 
-    restore_all(pg, config)
+    restore_all(pg, config.restore, strict=True)
 
     stores = pg.query(Store).all()
     assert len(stores) == 2
@@ -250,19 +249,21 @@ def test_reset_database(pg):
         conn.execute(text("CREATE TABLE foo ();"))
         conn.execute(text("CREATE TABLE bar ();"))
 
-    config = make_config(
-        restore={
-            "url": str(url),
-            "ddl": {
-                "clean": True,
-            },
-            "tables": {},
+    config = RootConfig.from_dict(
+        {
+            "restore": {
+                "url": str(url),
+                "ddl": {
+                    "clean": True,
+                },
+                "tables": {},
+            }
         }
     )
 
     Session = sessionmaker()
     session = Session(bind=engine)
-    restore_all(session, config)
+    restore_all(session, config.restore)
     session.close()
 
     with pytest.raises(ProgrammingError) as e:
@@ -301,7 +302,7 @@ def test_compression(pg, s3_resource, config):
 
     mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv.gz", [mock_store], gzipped=True)
 
-    config = make_config(restore=config)
-    restore_all(pg, config, strict=True)
+    config = RootConfig.from_dict({"restore": config, **s3_config})
+    restore_all(pg, config.restore, strict=True)
 
     assert pg.query(Store).count() == 1

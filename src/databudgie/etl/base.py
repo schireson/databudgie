@@ -1,14 +1,16 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Sequence, Union
 
 from setuplog import log
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
-from databudgie.config import normalize_table_config, TableConf
+from databudgie.config.models import BackupTableConfig, RestoreTableConfig
 from databudgie.manifest.manager import Manifest
 from databudgie.match import expand_table_globs
 from databudgie.utils import parse_table
+
+TableConf = Union[BackupTableConfig, RestoreTableConfig]
 
 
 @dataclass
@@ -21,8 +23,8 @@ class SchemaOp:
         schema, _ = parse_table(table_op.table_name)
         return cls(schema, table_op.raw_conf)
 
-    def location(self, ref) -> str:
-        return self.raw_conf["location"].format(table=self.name, ref=ref)
+    def location(self) -> str:
+        return self.raw_conf.location.format(table=self.name)
 
 
 @dataclass
@@ -38,15 +40,15 @@ class TableOp:
     table_name: str
     raw_conf: TableConf
 
-    def location(self, ref) -> str:
-        return self.raw_conf["location"].format(table=self.table_name, ref=ref)
+    def location(self) -> str:
+        return self.raw_conf.location.format(table=self.table_name)
 
-    def query(self, ref) -> str:
-        query = self.raw_conf.get("query")
+    def query(self) -> str:
+        query = getattr(self.raw_conf, "query")  # RestoreTableConfig has no query attribute
         if query is None:
             query = "SELECT * FROM {table}"
 
-        return query.format(table=self.table_name, ref=ref)
+        return query.format(table=self.table_name)
 
     def schema_op(self) -> SchemaOp:
         return SchemaOp.from_table_op(self)
@@ -54,7 +56,7 @@ class TableOp:
 
 def expand_table_ops(
     session: Session,
-    tables: Union[Dict[str, TableConf], List[TableConf]],
+    tables: Sequence[TableConf],
     existing_tables: List[str],
     *,
     manifest: Optional[Manifest] = None,
@@ -75,7 +77,8 @@ def expand_table_ops(
 
     # expand table globs into fully qualified mappings to the config.
     matching_tables: Dict[str, List[TableConf]] = {}
-    for pattern, table_conf in normalize_table_config(tables):
+    for table_conf in tables:
+        pattern = table_conf.name
         if "." not in pattern:
             pattern = f"{default_schema_name}.{pattern}"
 
@@ -84,7 +87,7 @@ def expand_table_ops(
                 log.info(f"Skipping {table_name}...")
                 continue
 
-            for exclusion_pattern in table_conf.get("exclude") or []:
+            for exclusion_pattern in getattr(table_conf, "exclude", []):
                 exclusions = set(expand_table_globs(existing_tables, exclusion_pattern))
                 if table_name in exclusions:
                     break

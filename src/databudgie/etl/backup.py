@@ -8,14 +8,12 @@ from datetime import datetime
 from os import path
 from typing import List, Optional, TYPE_CHECKING
 
-from configly import Config
 from setuplog import log
 from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
-from databudgie.compat import TypedDict
 from databudgie.compression import Compressor
-from databudgie.config import fallback_config_value
+from databudgie.config.models import BackupConfig
 from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
@@ -25,15 +23,9 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
 
 
-class BackupConfig(TypedDict):
-    query: str
-    location: str
-    exclude: Optional[str]
-
-
 def backup_all(
     session: Session,
-    config: Config,
+    backup_config: BackupConfig,
     manifest: Optional[Manifest] = None,
     strict=False,
     adapter=None,
@@ -43,26 +35,26 @@ def backup_all(
 
     Arguments:
         session: A SQLAlchemy session with the PostgreSQL database from which to query data.
-        config: config object mapping table names to their query and location.
+        backup_config: config object mapping table names to their query and location.
         strict: terminate backup after failing one table.
         manifest: optional manifest to record the backup location.
         adapter: optional adapter
         s3_resource: optional boto S3 resource from an authenticated session.
     """
     concrete_adapter = Adapter.get_adapter(adapter or session)
-    s3_resource = optional_s3_resource(config)
+    s3_resource = optional_s3_resource(backup_config)
     timestamp = datetime.now()
 
     existing_tables = concrete_adapter.collect_existing_tables(session)
     table_ops = expand_table_ops(
         session,
-        config.backup._value["tables"],
+        backup_config.tables,
         existing_tables,
         manifest=manifest,
     )
 
     backup_ddl(
-        session, config.backup, table_ops, timestamp=timestamp, adapter=concrete_adapter, s3_resource=s3_resource
+        session, backup_config, table_ops, timestamp=timestamp, adapter=concrete_adapter, s3_resource=s3_resource
     )
 
     for table_op in table_ops:
@@ -71,7 +63,6 @@ def backup_all(
         with capture_failures(strict=strict):
             backup(
                 session,
-                config=config,
                 table_op=table_op,
                 manifest=manifest,
                 timestamp=timestamp,
@@ -82,18 +73,18 @@ def backup_all(
 
 def backup_ddl(
     session: Session,
-    config: Config,
+    backup_config: BackupConfig,
     table_ops: List[TableOp],
     *,
     timestamp: datetime,
     adapter=Adapter,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
-    ddl_config = config.get("ddl", {})
-    if not ddl_config.get("enabled", False):
+    ddl_config = backup_config.ddl
+    if not (ddl_config and ddl_config.enabled):
         return
 
-    ddl_path = ddl_config.get("location", "ddl")
+    ddl_path = ddl_config.location
 
     # Backup schemas first
     schemas = set()
@@ -107,7 +98,7 @@ def backup_ddl(
         log.debug(f"Backing up {schema_op.name} Schema DDL...")
         result = adapter.export_schema_ddl(session, schema_op.name)
 
-        path = schema_op.location(config)
+        path = schema_op.location()
         fully_qualified_path = join_paths(ddl_path, path, generate_filename(timestamp))
 
         with io.BytesIO(result) as buffer:
@@ -119,7 +110,7 @@ def backup_ddl(
         log.debug(f"Backing up {table_op.table_name} DDL...")
         result = adapter.export_table_ddl(session, table_op.table_name)
 
-        full_table_path = table_op.location(config)
+        full_table_path = table_op.location()
         fully_qualified_path = join_paths(ddl_path, full_table_path, generate_filename(timestamp))
 
         with io.BytesIO(result) as buffer:
@@ -136,7 +127,6 @@ def backup_ddl(
 def backup(
     session: Session,
     *,
-    config: Config,
     table_op: TableOp,
     adapter: Adapter,
     timestamp: Optional[datetime] = None,
@@ -156,11 +146,11 @@ def backup(
     """
     buffer = io.BytesIO()
     with wrap_buffer(buffer) as wrapper:
-        adapter.export_query(session, table_op.query(config), wrapper)
+        adapter.export_query(session, table_op.query(), wrapper)
 
     # path.join will handle optionally trailing slashes in the location
-    compression = fallback_config_value(config.backup, table_op.raw_conf, key="compression")
-    fully_qualified_path = path.join(table_op.location(config), generate_filename(timestamp, compression=compression))
+    compression = table_op.raw_conf.compression
+    fully_qualified_path = path.join(table_op.location(), generate_filename(timestamp, compression=compression))
 
     persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource, compression=compression)
     buffer.close()
