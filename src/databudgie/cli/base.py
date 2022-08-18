@@ -1,6 +1,8 @@
-from typing import Optional
+from typing import Optional, Union
 
 import click
+import sqlalchemy
+import sqlalchemy.engine.url
 import sqlalchemy.orm
 import strapp.click
 import strapp.logging
@@ -11,8 +13,17 @@ from sqlalchemy.orm import Session
 from databudgie.config.models import BackupConfig, RestoreConfig, RootConfig
 from databudgie.manifest.manager import Manifest
 
+version = getattr(sqlalchemy, "__version__", "")
+if version.startswith("1.4") or version.startswith("2."):
+    create_url = sqlalchemy.engine.url.URL.create
+else:
+    create_url = sqlalchemy.engine.url.URL
 
-def _create_postgres_session(url):
+
+def _create_postgres_session(url: Union[str, dict]):
+    if isinstance(url, dict):
+        url = create_url(**url)
+
     engine = sqlalchemy.create_engine(url)
     session = sqlalchemy.orm.scoping.scoped_session(sqlalchemy.orm.session.sessionmaker(bind=engine))()
     return session
