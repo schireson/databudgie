@@ -4,7 +4,6 @@ from typing import Any, Dict, Generator, List
 
 from setuplog import log
 from sqlalchemy import MetaData, Table, text
-from sqlalchemy.engine.cursor import CursorResult
 from sqlalchemy.orm import Session
 
 from databudgie.adapter.base import Adapter
@@ -54,7 +53,7 @@ class PythonAdapter(Adapter):
         log.info(f"Inserted {len(prepared_rows)} rows into {table}")
 
     def _query_database(self, session: Session, query: str, chunk_size: int = 1000) -> Generator[List[Any], None, None]:
-        cursor: CursorResult = session.execute(text(query))
+        cursor = session.execute(text(query))
 
         columns: List[str] = list(cursor.keys())
         yield columns
