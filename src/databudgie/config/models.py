@@ -83,7 +83,7 @@ class RootConfig(Config):
 
 @dataclass  # type: ignore
 class TableParentConfig(typing.Generic[T], Config):
-    url: str
+    url: typing.Union[str, dict]
     tables: typing.List[T]
 
     ddl: DDLConfig
