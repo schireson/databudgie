@@ -1,5 +1,6 @@
 import datetime
 import logging
+from typing import Optional
 
 from faker import Faker
 from sqlalchemy_model_factory import autoincrement, register_at
@@ -18,14 +19,12 @@ def create_store(autoincrement: int, name: str = None):
 
 
 @register_at("product")
-@autoincrement
 def create_product(
-    autoincrement: int,
-    external_id: int = None,
-    external_name: str = None,
-    external_status: str = "ACTIVE",
-    active: bool = True,
-    store: Store = None,
+    external_id: Optional[int] = None,
+    external_name: Optional[str] = None,
+    external_status: Optional[str] = "ACTIVE",
+    active: Optional[bool] = True,
+    store: Optional[Store] = None,
 ):
     if not store:
         store = create_store()
@@ -34,7 +33,6 @@ def create_product(
     external_name = external_name or fake.name()
 
     return Product(
-        id=autoincrement,
         external_id=external_id,
         external_name=external_name,
         external_status=external_status,
@@ -47,13 +45,13 @@ def create_product(
 @autoincrement
 def create_customer(
     autoincrement: int,
-    external_id: int = None,
-    external_name: str = None,
+    external_id: Optional[int] = None,
+    external_name: Optional[str] = None,
     type: str = "new",
     active: bool = True,
     external_status: str = "ACTIVE",
-    store: Store = None,
-    product: Product = None,
+    store: Optional[Store] = None,
+    product: Optional[Product] = None,
 ):
 
     if not store:
@@ -81,12 +79,12 @@ def create_customer(
 @autoincrement
 def create_sale(
     autoincrement: int,
-    external_id: str = None,
-    store_id: int = None,
-    product_id: int = None,
-    sale_value: float = None,
-    sale_date: datetime.date = None,
-    active: bool = None,
+    external_id: Optional[str] = None,
+    store_id: Optional[int] = None,
+    product_id: Optional[int] = None,
+    sale_value: Optional[float] = None,
+    sale_date: Optional[datetime.date] = None,
+    active: Optional[bool] = None,
 ):
     return Sale(
         id=autoincrement,
@@ -101,10 +99,10 @@ def create_sale(
 
 @register_at("manifest", name="backup")
 def create_manifest_row(
-    transaction: int = None,
-    table: str = None,
-    file_path: str = None,
-    timestamp: str = None,
+    transaction: Optional[int] = None,
+    table: Optional[str] = None,
+    file_path: Optional[str] = None,
+    timestamp: Optional[str] = None,
 ):
     return DatabudgieManifest(
         transaction=transaction or fake.pyint(),

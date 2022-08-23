@@ -5,7 +5,7 @@ import os
 import pathlib
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Generator, Iterable, Optional, Sequence, Tuple, TYPE_CHECKING, Union
+from typing import Generator, Iterable, Optional, Sequence, TYPE_CHECKING, Union
 
 import sqlalchemy
 from setuplog import log
@@ -36,6 +36,7 @@ def restore_all(
 
     if restore_config.ddl.clean:
         concrete_adapter.reset_database(session)
+
     restore_all_ddl(session, restore_config, s3_resource=s3_resource)
 
     existing_tables = concrete_adapter.collect_existing_tables(session)
@@ -46,22 +47,21 @@ def restore_all(
         manifest=manifest,
     )
 
-    # restrict table ops to tables which we can actually restore:
-    table_ops = list(filter(lambda op: check_location_exists(op.location(), s3_resource), table_ops))
+    restore_sequences(session, restore_config, table_ops, adapter=concrete_adapter, s3_resource=s3_resource)
 
-    truncate_tables(session, list(reversed(table_ops)), adapter=concrete_adapter)
+    if restore_config.data:
+        truncate_tables(session, list(reversed(table_ops)), adapter=concrete_adapter)
+        for table_op in table_ops:
+            log.info(f"Restoring {table_op.table_name}...")
 
-    for table_op in table_ops:
-        log.info(f"Restoring {table_op.table_name}...")
-
-        with capture_failures(strict=strict):
-            restore(
-                session,
-                table_op=table_op,
-                manifest=manifest,
-                adapter=concrete_adapter,
-                s3_resource=s3_resource,
-            )
+            with capture_failures(strict=strict):
+                restore(
+                    session,
+                    table_op=table_op,
+                    manifest=manifest,
+                    adapter=concrete_adapter,
+                    s3_resource=s3_resource,
+                )
 
 
 def restore_all_ddl(
@@ -78,8 +78,12 @@ def restore_all_ddl(
     strategy = ddl_config.strategy
 
     manifest_path = os.path.join(ddl_path)
-    with get_file_contents(manifest_path, strategy, s3_resource=s3_resource, filetype="json") as (buffer, _):
-        tables = json.load(buffer)
+    with get_file_contents(manifest_path, strategy, s3_resource=s3_resource, filetype="json") as file_object:
+        if not file_object:
+            log.info("Found no DDL manifest to restore.")
+            return
+
+        tables = json.load(file_object.content)
 
     table_ops = expand_table_ops(session, restore_config.tables, existing_tables=tables)
 
@@ -96,7 +100,7 @@ def restore_all_ddl(
 
     for table_op in table_ops:
         restore_ddl(session, table_op, ddl_path, s3_resource)
-        log.info(f"Restored {table_op.table_name} DDL from {path}")
+        log.info(f"Restored {table_op.table_name} DDL from {file_object.path}")
 
 
 def restore_ddl(
@@ -109,8 +113,12 @@ def restore_ddl(
     strategy: str = op.raw_conf.strategy  # type: ignore
 
     path = join_paths(ddl_path, location)
-    with get_file_contents(path, strategy, s3_resource=s3_resource) as (buffer, path):
-        query = buffer.read().decode("utf-8")
+    with get_file_contents(path, strategy, s3_resource=s3_resource) as file_object:
+        if not file_object:
+            log.info(f"Found no DDL backups under {path} to restore")
+            return
+
+        query = file_object.content.read().decode("utf-8")
 
     query = "\n".join(
         line
@@ -135,6 +143,33 @@ def truncate_tables(session: Session, table_ops: Sequence[TableOp], adapter: Ada
         adapter.truncate_table(session, table_op.table_name)
 
 
+def restore_sequences(
+    session: Session,
+    restore_config: RestoreConfig,
+    table_ops: Iterable[TableOp],
+    adapter: Adapter,
+    s3_resource: Optional["S3ServiceResource"] = None,
+):
+    if not restore_config.sequences:
+        return
+
+    for table_op in table_ops:
+        location = table_op.location()
+        strategy: str = table_op.raw_conf.strategy  # type: ignore
+
+        path = join_paths(location, "sequences")
+        with get_file_contents(path, strategy, filetype="json", s3_resource=s3_resource) as file_object:
+            if not file_object:
+                return
+
+            sequences = json.load(file_object.content)
+
+        for sequence, value in sequences.items():
+            adapter.restore_sequence_value(session, sequence, value)
+
+    session.commit()
+
+
 def restore(
     session: Session,
     *,
@@ -144,7 +179,6 @@ def restore(
     s3_resource: Optional["S3ServiceResource"] = None,
 ) -> None:
     """Restore a CSV file from S3 to the database."""
-
     # Force table_name to be fully qualified
     schema, table = parse_table(table_op.table_name)
     table_name = f"{schema}.{table}"
@@ -152,22 +186,25 @@ def restore(
     strategy: str = table_op.raw_conf.strategy  # type: ignore
     compression = table_op.raw_conf.compression
 
-    file_contents = get_file_contents(
+    with get_file_contents(
         table_op.location(),
         strategy,
         s3_resource=s3_resource,
         compression=compression,
-    )
-    with file_contents as (buffer, path):
-        with wrap_buffer(buffer) as wrapper:
+    ) as file_object:
+        if not file_object:
+            log.info(f"Found no backups for {table_name} to restore")
+            return
+
+        with wrap_buffer(file_object.content) as wrapper:
             with session:
                 adapter.import_csv(session, wrapper, table_op.table_name)
                 session.commit()
 
         if manifest:
-            manifest.record(table_name, path)
+            manifest.record(table_name, file_object.path)
 
-    log.info(f"Restored {table_name} from {path}")
+    log.info(f"Restored {table_name} from {file_object.path}")
 
 
 def check_location_exists(
@@ -202,6 +239,19 @@ class ObjectSummary:
         return cls(name, datetime.fromtimestamp(stat.st_mtime))
 
 
+@dataclass(frozen=True)
+class FileObject:
+    path: str
+    content: io.BytesIO
+
+
+def generate_s3_object_summaries(s3_bucket, s3_location):
+    for o in s3_bucket.objects.filter(Prefix=s3_location.key):
+        object_summary = ObjectSummary(o.key, o.last_modified)
+        if str(object_summary.path.parent) == s3_location.key:
+            yield object_summary
+
+
 @contextlib.contextmanager
 def get_file_contents(
     location: str,
@@ -209,21 +259,21 @@ def get_file_contents(
     s3_resource: Optional["S3ServiceResource"] = None,
     filetype="csv",
     compression=None,
-) -> Generator[Tuple[io.BytesIO, str], None, None]:
+) -> Generator[Optional[FileObject], None, None]:
     concrete_strategy = VALID_STRATEGIES[strategy]
 
     buffer = io.BytesIO()
 
-    target_object: ObjectSummary
     if is_s3_path(location):
         # this location.key should be a folder
         s3_location = S3Location(location)
         s3_bucket: "Bucket" = s3_resource.Bucket(s3_location.bucket)  # type: ignore
 
-        object_generator = (
-            ObjectSummary(o.key, o.last_modified) for o in s3_bucket.objects.filter(Prefix=s3_location.key)
-        )
+        object_generator = generate_s3_object_summaries(s3_bucket, s3_location)
         target_object = concrete_strategy(object_generator, filetype=filetype, compression=compression)
+        if not target_object:
+            yield None
+            return
 
         s3_bucket.download_fileobj(target_object.key, buffer)
         path = f"s3://{s3_location.bucket}/{target_object.key}"
@@ -234,6 +284,9 @@ def get_file_contents(
             if dir_entry.is_file()
         )
         target_object = concrete_strategy(object_generator, filetype=filetype, compression=compression)
+        if not target_object:
+            yield None
+            return
 
         with open(target_object.key, "rb") as f:
             buffer.write(f.read())
@@ -245,13 +298,13 @@ def get_file_contents(
 
     cbuffer = Compressor.get_with_name(compression).extract(buffer)
 
-    yield cbuffer, path
+    yield FileObject(path=path, content=cbuffer)
     buffer.close()
 
 
 def _use_filename_strategy(
     available_objects: Iterable[ObjectSummary], filetype="csv", compression=None
-) -> ObjectSummary:
+) -> Optional[ObjectSummary]:
     objects_by_filename = {obj.path.name: obj for obj in available_objects}
     ordered_filenames = sorted(
         objects_by_filename.keys(),
@@ -259,16 +312,20 @@ def _use_filename_strategy(
         reverse=True,
     )
 
-    return objects_by_filename[ordered_filenames[0]]
+    if ordered_filenames:
+        return objects_by_filename[ordered_filenames[0]]
+    return None
 
 
 def _use_metadata_strategy(
     available_objects: Iterable[ObjectSummary], filetype="csv", compression=None
-) -> ObjectSummary:
+) -> Optional[ObjectSummary]:
     objects_by_last_modified_date = {s3_object.last_modified: s3_object for s3_object in available_objects}
     ordered_last_modified_dates = sorted(objects_by_last_modified_date.keys(), reverse=True)
 
-    return objects_by_last_modified_date[ordered_last_modified_dates[0]]
+    if ordered_last_modified_dates:
+        return objects_by_last_modified_date[ordered_last_modified_dates[0]]
+    return None
 
 
 VALID_STRATEGIES = {

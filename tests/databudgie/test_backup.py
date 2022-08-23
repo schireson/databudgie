@@ -22,8 +22,8 @@ def test_backup_all(pg, s3_resource, **extras):
     config = RootConfig.from_dict(
         {
             "location": "s3://sample-bucket/databudgie/test/{table}",
-            "query": "select * from {table}",
             "tables": ["public.customer", "public.store"],
+            "sequences": False,
             **s3_config,
         }
     )
@@ -44,10 +44,10 @@ def test_backup_all_glob(pg, s3_resource):
             "tables": {
                 "public.*": {
                     "location": "s3://sample-bucket/databudgie/test/{table}",
-                    "query": "select * from {table}",
                     "exclude": ["public.databudgie_*", "public.product", "public.sales"],
                 }
             },
+            "sequences": False,
             **s3_config,
         }
     )
@@ -65,6 +65,7 @@ def test_backup_all_tables_list(pg, s3_resource):
     config = RootConfig.from_dict(
         {
             **s3_config,
+            "sequences": False,
             "backup": {
                 "tables": [
                     {
@@ -99,7 +100,6 @@ def test_backup_all_tables_list(pg, s3_resource):
             "tables": {
                 "public.product": {
                     "location": "s3://sample-bucket/databudgie/test/{table}",
-                    "query": "select * from {table}",
                 },
             },
         },
@@ -107,7 +107,6 @@ def test_backup_all_tables_list(pg, s3_resource):
             "tables": {
                 "public.product": {
                     "location": "s3://sample-bucket/databudgie/test/{table}",
-                    "query": "select * from {table}",
                     "compression": "gzip",
                 },
             },
@@ -115,7 +114,7 @@ def test_backup_all_tables_list(pg, s3_resource):
     ),
 )
 def test_compression(pg, s3_resource, config):
-    config = RootConfig.from_dict({"backup": config, **s3_config})
+    config = RootConfig.from_dict({"backup": config, "sequences": False, **s3_config})
     backup_all(pg, backup_config=config.backup, strict=True)
 
     all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
@@ -180,8 +179,8 @@ def test_backup_failure(pg):
     config = RootConfig.from_dict(
         {
             "location": "s3://sample-bucket/databudgie/test/{table}",
-            "query": "select * from {table}",
             "tables": ["public.customer", "public.store"],
+            "sequences": False,
             **s3_config,
         }
     )
