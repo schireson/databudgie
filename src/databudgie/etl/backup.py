@@ -56,6 +56,9 @@ def backup_all(
     backup_ddl(
         session, backup_config, table_ops, timestamp=timestamp, adapter=concrete_adapter, s3_resource=s3_resource
     )
+    backup_sequences(
+        session, backup_config, table_ops, timestamp=timestamp, adapter=concrete_adapter, s3_resource=s3_resource
+    )
 
     for table_op in table_ops:
         log.info(f"Backing up {table_op.table_name}...")
@@ -122,6 +125,39 @@ def backup_ddl(
     with io.BytesIO(manifest_data) as buffer:
         manifest_path = join_paths(ddl_path, generate_filename(timestamp, filetype="json"))
         persist_backup(manifest_path, buffer, s3_resource=s3_resource)
+
+
+def backup_sequences(
+    session: Session,
+    backup_config: BackupConfig,
+    table_ops: List[TableOp],
+    *,
+    timestamp: datetime,
+    adapter=Adapter,
+    s3_resource: Optional["S3ServiceResource"] = None,
+):
+    if not backup_config.sequences:
+        return
+
+    table_sequences = adapter.collect_table_sequences(session)
+    for table_op in table_ops:
+        sequences = table_sequences.get(table_op.table_name)
+        if not sequences:
+            continue
+
+        sequence_values = {}
+        for sequence in sequences:
+            sequence_values[sequence] = adapter.collect_sequence_value(session, sequence)
+
+        result = json.dumps(sequence_values).encode("utf-8")
+
+        path = table_op.location()
+        fully_qualified_path = join_paths(path, "sequences", generate_filename(timestamp, filetype="json"))
+
+        with io.BytesIO(result) as buffer:
+            persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
+
+        log.debug(f"Wrote {table_op.table_name} sequences to {fully_qualified_path}")
 
 
 def backup(

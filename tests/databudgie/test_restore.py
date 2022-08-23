@@ -179,7 +179,9 @@ def test_restore_all_local_files(pg, mf):
         with open(os.path.sep.join([dir_name, f"{now}.csv"]), "wb") as f:
             f.write(fake_file_data)
 
-        config = RootConfig.from_dict({"restore": {"tables": {"product": {"truncate": True, "location": dir_name}}}})
+        config = RootConfig.from_dict(
+            {"restore": {"tables": {"product": {"truncate": True, "location": dir_name}}}, "sequences": False}
+        )
         restore_all(pg, restore_config=config.restore, strict=True)
 
     stores = pg.query(Product).all()

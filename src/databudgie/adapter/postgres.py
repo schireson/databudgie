@@ -3,7 +3,7 @@ import os
 import shlex
 import shutil
 import subprocess  # nosec
-from typing import List
+from typing import Dict, List
 
 import psycopg2.errors
 from setuplog import log, log_duration
@@ -29,7 +29,7 @@ class PostgresAdapter(Adapter):
         cursor.close()
         conn.close()
 
-    def import_csv(self, session: Session, csv_file: io.StringIO, table: str):
+    def import_csv(self, session: Session, csv_file: io.TextIOBase, table: str):
         engine: Engine = session.get_bind()
         conn: Connection = engine.raw_connection()
         cursor: psycopg2.cursor = conn.cursor()
@@ -150,6 +150,39 @@ class PostgresAdapter(Adapter):
         results = session.execute(collect_tables)
         table_full_names = [row[0] for row in results]
         return table_full_names
+
+    @staticmethod
+    def collect_table_sequences(session: Session) -> Dict[str, List[str]]:
+        sequences = session.execute(
+            text(
+                """
+                SELECT
+                    CASE
+                        WHEN seq_ns.nspname = 'public' THEN seq.relname
+                        ELSE concat(seq_ns.nspname, '.', seq.relname)
+                    END AS fq_sequence_name,
+                    concat(tab_ns.nspname, '.', tab.relname) AS fq_table_name
+                FROM pg_class seq
+                JOIN pg_namespace seq_ns ON seq.relnamespace = seq_ns.oid
+                JOIN pg_depend d ON d.objid = seq.oid AND d.deptype = 'a'
+                JOIN pg_class tab ON d.objid = seq.oid AND d.refobjid = tab.oid
+                JOIN pg_namespace tab_ns on tab.relnamespace = tab_ns.oid
+                WHERE seq.relkind = 'S'
+                """
+            )
+        )
+        result: Dict = {}
+        for sequence in sequences:
+            result.setdefault(sequence.fq_table_name, []).append(sequence.fq_sequence_name)
+        return result
+
+    @staticmethod
+    def collect_sequence_value(session: Session, sequence_name: str) -> int:
+        return session.execute(text(f"SELECT last_value from {sequence_name}")).scalar()  # nosec
+
+    @staticmethod
+    def restore_sequence_value(session: Session, sequence_name: str, value: int) -> int:
+        return session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar()
 
 
 def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:

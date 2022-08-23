@@ -1,7 +1,7 @@
 import abc
 import io
 import warnings
-from typing import Any, List, Union
+from typing import Any, Dict, List, Union
 
 import sqlalchemy
 from setuplog import log, log_duration
@@ -17,7 +17,7 @@ class Adapter(metaclass=abc.ABCMeta):
         raise NotImplementedError()  # pragma: no cover
 
     @abc.abstractmethod
-    def import_csv(self, session: Session, csv_file: io.StringIO, table: str):
+    def import_csv(self, session: Session, csv_file: io.TextIOBase, table: str):
         raise NotImplementedError()  # pragma: no cover
 
     @staticmethod
@@ -87,3 +87,15 @@ class Adapter(metaclass=abc.ABCMeta):
                 metadata.reflect(bind=connection, schema=schema)
 
         return [table.fullname for table in metadata.sorted_tables]
+
+    @staticmethod
+    def collect_table_sequences(session: Session) -> Dict[str, List[str]]:
+        raise NotImplementedError()
+
+    @staticmethod
+    def collect_sequence_value(session: Session, sequence_name: str) -> int:
+        raise NotImplementedError()
+
+    @staticmethod
+    def restore_sequence_value(session: Session, sequence_name: str, value: int) -> int:
+        raise NotImplementedError()

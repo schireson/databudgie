@@ -24,7 +24,7 @@ class PythonAdapter(Adapter):
             if i % 1000 == 0:
                 log.info(f"Writing {i} rows...")
 
-    def import_csv(self, session: Session, csv_file: io.StringIO, table: str):
+    def import_csv(self, session: Session, csv_file: io.TextIOBase, table: str):
         reader = csv.DictReader(csv_file, quoting=csv.QUOTE_MINIMAL)
 
         prepared_rows: List[dict] = []
