@@ -17,7 +17,13 @@ class ConfigStack:
         for config in self.configs:
             if config and key in config:
                 return config[key]
-        return None  # TODO: maybe error
+        raise KeyError(key)
+
+    def get(self, key, default=None):
+        try:
+            return self[key]
+        except KeyError:
+            return default
 
     def __contains__(self, key):
         for config in self.configs:
@@ -65,11 +71,11 @@ class RootConfig(Config):
         backup, restore = None, None
 
         if "backup" in stack or "tables" in stack:
-            backup_config = stack["backup"]
+            backup_config = stack.get("backup")
             backup = BackupConfig.from_stack(stack.push(backup_config))
 
         if "restore" in stack or "tables" in stack:
-            restore_config = stack["restore"]
+            restore_config = stack.get("restore")
             restore = RestoreConfig.from_stack(stack.push(restore_config))
 
         return cls(backup=backup, restore=restore)
@@ -88,6 +94,8 @@ class TableParentConfig(typing.Generic[T], Config):
 
     ddl: DDLConfig
     logging: LoggingConfig
+    sequences: bool = True
+    data: bool = True
     manifest: Optional[str] = None
 
     s3: Optional[S3Config] = None
@@ -100,9 +108,11 @@ class TableParentConfig(typing.Generic[T], Config):
 
     @classmethod
     def from_stack(cls, stack: ConfigStack):
-        url: str = stack["url"]
+        url: str = stack.get("url")
 
-        tables_config: list = normalize_table_config(stack["tables"])
+        sequences: bool = stack.get("sequences", True)
+
+        tables_config: list = normalize_table_config(stack.get("tables"))
         table_class = cls.get_child_class()
         try:
             tables = [table_class.from_stack(stack.push(tbl_conf)) for tbl_conf in tables_config]
@@ -110,15 +120,15 @@ class TableParentConfig(typing.Generic[T], Config):
             raise ValueError("Must include a `tables` section in the config.") from err
 
         # manifest defauls to None
-        manifest: Optional[str] = stack["manifest"]
+        manifest: Optional[str] = stack.get("manifest")
 
         # DDL and Logging have global defaults; also, from_dict requires a non-null dict
-        ddl = DDLConfig.from_dict(stack["ddl"] or {})
-        logging = LoggingConfig.from_dict(stack["logging"] or {})
+        ddl = DDLConfig.from_dict(stack.get("ddl", {}))
+        logging = LoggingConfig.from_dict(stack.get("logging", {}))
 
         # Optional integration configs
-        s3 = S3Config.from_dict(stack["s3"]) if stack["s3"] else None
-        sentry = SentryConfig.from_dict(stack["sentry"]) if stack["sentry"] else None
+        s3 = S3Config.from_dict(stack.get("s3"))
+        sentry = SentryConfig.from_dict(stack.get("sentry"))
 
         return cls(
             url=url,
@@ -128,6 +138,7 @@ class TableParentConfig(typing.Generic[T], Config):
             s3=s3,
             sentry=sentry,
             logging=logging,
+            sequences=sequences,
         )
 
     def to_dict(self) -> dict:
@@ -139,6 +150,7 @@ class TableParentConfig(typing.Generic[T], Config):
             "logging": self.logging.to_dict(),
             "s3": self.s3.to_dict() if self.s3 else None,
             "sentry": self.sentry.to_dict() if self.sentry else None,
+            "sequences": self.sequences,
         }
 
 
@@ -154,11 +166,11 @@ class BackupTableConfig(Config):
     def from_stack(cls, stack: ConfigStack):
         return from_partial(
             cls,
-            name=stack["name"],
-            location=stack["location"],
-            query=stack["query"],
-            compression=stack["compression"],
-            exclude=stack["exclude"],
+            name=stack.get("name"),
+            location=stack.get("location"),
+            query=stack.get("query"),
+            compression=stack.get("compression"),
+            exclude=stack.get("exclude"),
         )
 
 
@@ -182,12 +194,12 @@ class RestoreTableConfig(Config):
     def from_stack(cls, stack: ConfigStack):
         return from_partial(
             cls,
-            name=stack["name"],
-            location=stack["location"],
-            strategy=stack["strategy"],
-            truncate=stack["truncate"],
-            compression=stack["compression"],
-            exclude=stack["exclude"],
+            name=stack.get("name"),
+            location=stack.get("location"),
+            strategy=stack.get("strategy"),
+            truncate=stack.get("truncate"),
+            compression=stack.get("compression"),
+            exclude=stack.get("exclude"),
         )
 
 
@@ -255,31 +267,36 @@ class SentryConfig(Config):
     SentryConfig does not inherit keys from the root config.
     """
 
-    dsn: str
-    environment: str
+    dsn: Optional[str] = None
+    environment: Optional[str] = None
     version: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, sentry_config: dict):
+    def from_dict(cls, sentry_config: Optional[dict]) -> Optional[SentryConfig]:
+        if sentry_config is None:
+            return None
+
         return cls(
-            dsn=sentry_config["dsn"],
-            environment=sentry_config["environment"],
+            dsn=sentry_config.get("dsn"),
+            environment=sentry_config.get("environment"),
             version=sentry_config.get("version"),
         )
 
 
 @dataclass
 class S3Config(Config):
-    aws_access_key_id: str
-    aws_secret_access_key: str
-    region: str
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+    region: Optional[str] = None
     profile: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, s3_config: dict):
+    def from_dict(cls, s3_config: Optional[dict]) -> Optional[S3Config]:
+        if s3_config is None:
+            return None
         return cls(
-            aws_access_key_id=s3_config["aws_access_key_id"],
-            aws_secret_access_key=s3_config["aws_secret_access_key"],
-            region=s3_config["region"],
+            aws_access_key_id=s3_config.get("aws_access_key_id"),
+            aws_secret_access_key=s3_config.get("aws_secret_access_key"),
+            region=s3_config.get("region"),
             profile=s3_config.get("profile"),
         )
