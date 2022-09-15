@@ -278,9 +278,15 @@ def get_file_contents(
         s3_bucket.download_fileobj(target_object.key, buffer)
         path = f"s3://{s3_location.bucket}/{target_object.key}"
     else:
+        try:
+            files = os.scandir(location)
+        except FileNotFoundError:
+            yield None
+            return
+
         object_generator = (
             ObjectSummary.from_stat(os.path.sep.join([location, dir_entry.name]), dir_entry.stat())
-            for dir_entry in os.scandir(location)
+            for dir_entry in files
             if dir_entry.is_file()
         )
         target_object = concrete_strategy(object_generator, filetype=filetype, compression=compression)
