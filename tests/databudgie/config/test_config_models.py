@@ -1,6 +1,4 @@
-import pytest
-
-from databudgie.config.models import RootConfig
+from databudgie.config.models import ConfigStack, RootConfig
 
 
 def test_only_leaf_values():
@@ -189,19 +187,40 @@ def test_tables_mixed_str_dict():
 
 
 def test_no_tables():
-    with pytest.raises(ValueError):
-        RootConfig.from_dict(
-            {
-                "url": "root_url",
-                "query": "root_query",
-                "location": "root_location",
-                "strategy": "root_strategy",
-                "truncate": True,
-                "backup": {
-                    "url": "backup_url",
-                },
-                "restore": {
-                    "url": "restore_url",
-                },
-            }
-        )
+    config = RootConfig.from_dict(
+        {
+            "url": "root_url",
+            "query": "root_query",
+            "location": "root_location",
+            "strategy": "root_strategy",
+            "truncate": True,
+            "backup": {
+                "url": "backup_url",
+            },
+            "restore": {
+                "url": "restore_url",
+            },
+        }
+    )
+    assert config.backup.tables == []
+    assert config.restore.tables == []
+
+
+def test_configs_stack():
+    """Assert a stack of configs gracefully fall back to settings further up the stack."""
+
+    config_stack = ConfigStack(
+        {"url": "root_url"},
+        {"query": "foo", "restore": {"url": "restore url"}},
+        {"tables": [{"name": "1", "query": "bar"}, {"name": "2"}]},
+    )
+    config = RootConfig.from_stack(config_stack)
+
+    assert config.backup.url == "root_url"
+    assert config.restore.url == "restore url"
+
+    assert config.backup.tables[0].name == "1"
+    assert config.backup.tables[0].query == "bar"
+
+    assert config.backup.tables[1].name == "2"
+    assert config.backup.tables[1].query == "foo"
