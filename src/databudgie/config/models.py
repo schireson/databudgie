@@ -51,6 +51,33 @@ def from_partial(cls: typing.Callable[..., F], **kwargs) -> F:
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# Optional Configs which have default values built-in
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+
+
+@dataclass
+class LoggingConfig(Config):
+    enabled: bool = False
+    level: str = "INFO"
+
+    @classmethod
+    def from_dict(cls, logging_config: dict):
+        return from_partial(cls, **logging_config)
+
+
+@dataclass
+class DDLConfig(Config):
+    enabled: bool = False
+    location: str = "ddl"
+    clean: bool = False
+    strategy: str = "use_latest_filename"
+
+    @classmethod
+    def from_dict(cls, ddl_config: dict):
+        return from_partial(cls, **ddl_config)
+
+
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Core configuration models
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
@@ -86,10 +113,8 @@ class TableParentConfig(typing.Generic[T], Config):
     url: typing.Union[str, dict]
     tables: typing.List[T]
 
-    ddl: DDLConfig
     logging: LoggingConfig
-    sequences: bool = True
-    data: bool = True
+    ddl: DDLConfig
     manifest: Optional[str] = None
 
     s3: Optional[S3Config] = None
@@ -104,8 +129,6 @@ class TableParentConfig(typing.Generic[T], Config):
     def from_stack(cls, stack: ConfigStack):
         url: str = stack.get("url")
 
-        sequences: bool = stack.get("sequences", True)
-
         tables_config: list = normalize_table_config(stack.get("tables", []))
         table_class = cls.get_child_class()
         tables = [table_class.from_stack(stack.push(tbl_conf)) for tbl_conf in tables_config]
@@ -113,7 +136,6 @@ class TableParentConfig(typing.Generic[T], Config):
         # manifest defauls to None
         manifest: Optional[str] = stack.get("manifest")
 
-        # DDL and Logging have global defaults; also, from_dict requires a non-null dict
         ddl = DDLConfig.from_dict(stack.get("ddl", {}))
         logging = LoggingConfig.from_dict(stack.get("logging", {}))
 
@@ -125,11 +147,10 @@ class TableParentConfig(typing.Generic[T], Config):
             url=url,
             tables=tables,
             manifest=manifest,
-            ddl=ddl,
             s3=s3,
             sentry=sentry,
             logging=logging,
-            sequences=sequences,
+            ddl=ddl,
         )
 
     def to_dict(self) -> dict:
@@ -137,11 +158,10 @@ class TableParentConfig(typing.Generic[T], Config):
             "url": self.url,
             "tables": [table.to_dict() for table in self.tables],
             "manifest": self.manifest,
-            "ddl": self.ddl.to_dict(),
             "logging": self.logging.to_dict(),
+            "ddl": self.ddl.to_dict(),
             "s3": self.s3.to_dict() if self.s3 else None,
             "sentry": self.sentry.to_dict() if self.sentry else None,
-            "sequences": self.sequences,
         }
 
 
@@ -152,9 +172,16 @@ class BackupTableConfig(Config):
     query: str = "select * from {table}"
     compression: Optional[str] = None
     exclude: list = field(default_factory=list)
+    ddl: bool = True
+    sequences: bool = True
+    data: bool = True
 
     @classmethod
     def from_stack(cls, stack: ConfigStack):
+        ddl = stack.get("ddl", True)
+        if isinstance(ddl, dict):
+            ddl = ddl["enabled"]
+
         return from_partial(
             cls,
             name=stack.get("name"),
@@ -162,6 +189,9 @@ class BackupTableConfig(Config):
             query=stack.get("query"),
             compression=stack.get("compression"),
             exclude=stack.get("exclude"),
+            sequences=stack.get("sequences", True),
+            data=stack.get("data", True),
+            ddl=stack.get("ddl", True),
         )
 
 
@@ -177,12 +207,19 @@ class RestoreTableConfig(Config):
     name: str
     location: str = "backups/{table}"
     strategy: str = "use_latest_filename"
-    truncate: bool = False
     compression: Optional[str] = None
     exclude: list = field(default_factory=list)
+    ddl: bool = True
+    sequences: bool = True
+    truncate: bool = False
+    data: bool = True
 
     @classmethod
     def from_stack(cls, stack: ConfigStack):
+        ddl = stack.get("ddl", True)
+        if isinstance(ddl, dict):
+            ddl = ddl["enabled"]
+
         return from_partial(
             cls,
             name=stack.get("name"),
@@ -191,6 +228,9 @@ class RestoreTableConfig(Config):
             truncate=stack.get("truncate"),
             compression=stack.get("compression"),
             exclude=stack.get("exclude"),
+            sequences=stack.get("sequences", True),
+            data=stack.get("data", True),
+            ddl=stack.get("ddl", True),
         )
 
 
@@ -217,33 +257,6 @@ def normalize_table_config(tables_config: typing.Union[list, dict]) -> list:
         tables_config = [{"name": c} if isinstance(c, str) else c for c in tables_config]
 
     return tables_config
-
-
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# Optional Configs which have default values built-in
-# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-
-@dataclass
-class DDLConfig(Config):
-    enabled: bool = False
-    location: str = "ddl"
-    clean: bool = False
-    strategy: str = "use_latest_filename"
-
-    @classmethod
-    def from_dict(cls, ddl_config: dict):
-        return from_partial(cls, **ddl_config)
-
-
-@dataclass
-class LoggingConfig(Config):
-    enabled: bool = False
-    level: str = "INFO"
-
-    @classmethod
-    def from_dict(cls, logging_config: dict):
-        return from_partial(cls, **logging_config)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #

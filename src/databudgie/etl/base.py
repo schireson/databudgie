@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, Generic, List, Optional, Sequence, TypeVar
 
 from setuplog import log
 from sqlalchemy import inspect
@@ -10,13 +10,13 @@ from databudgie.manifest.manager import Manifest
 from databudgie.match import expand_table_globs
 from databudgie.utils import parse_table
 
-TableConf = Union[BackupTableConfig, RestoreTableConfig]
+T = TypeVar("T", BackupTableConfig, RestoreTableConfig)
 
 
 @dataclass
-class SchemaOp:
+class SchemaOp(Generic[T]):
     name: str
-    raw_conf: TableConf
+    raw_conf: T
 
     @classmethod
     def from_table_op(cls, table_op: "TableOp") -> "SchemaOp":
@@ -28,7 +28,7 @@ class SchemaOp:
 
 
 @dataclass
-class TableOp:
+class TableOp(Generic[T]):
     """Represents an operation (backup/restore) being performed on a table.
 
     * `table_name` is the expanded (fully qualified, globbed) name of the
@@ -38,7 +38,7 @@ class TableOp:
     """
 
     table_name: str
-    raw_conf: TableConf
+    raw_conf: T
 
     def location(self) -> str:
         return self.raw_conf.location.format(table=self.table_name)
@@ -56,11 +56,11 @@ class TableOp:
 
 def expand_table_ops(
     session: Session,
-    tables: Sequence[TableConf],
+    tables: Sequence[T],
     existing_tables: List[str],
     *,
     manifest: Optional[Manifest] = None,
-) -> List[TableOp]:
+) -> List[TableOp[T]]:
     """Produce a full list of table operations to be performed.
 
     tables in the set of `tables` may be globbed and produce more concrete
@@ -76,7 +76,7 @@ def expand_table_ops(
     default_schema_name = insp.default_schema_name
 
     # expand table globs into fully qualified mappings to the config.
-    matching_tables: Dict[str, List[TableConf]] = {}
+    matching_tables: Dict[str, List[T]] = {}
     for table_conf in tables:
         pattern = table_conf.name
         if "." not in pattern:
@@ -87,7 +87,7 @@ def expand_table_ops(
                 log.info(f"Skipping {table_name}...")
                 continue
 
-            for exclusion_pattern in getattr(table_conf, "exclude", []):
+            for exclusion_pattern in table_conf.exclude:
                 exclusions = set(expand_table_globs(existing_tables, exclusion_pattern))
                 if table_name in exclusions:
                     break
