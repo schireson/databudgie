@@ -67,17 +67,11 @@ class RootConfig(Config):
 
     @classmethod
     def from_stack(cls, stack: ConfigStack):
-        # Create a Backup/Restore config only if the config has a backup/restore section OR tables are declared at the root level.
-        backup, restore = None, None
+        backup_config = stack.get("backup", {})
+        backup = BackupConfig.from_stack(stack.push(backup_config))
 
-        if "backup" in stack or "tables" in stack:
-            backup_config = stack.get("backup")
-            backup = BackupConfig.from_stack(stack.push(backup_config))
-
-        if "restore" in stack or "tables" in stack:
-            restore_config = stack.get("restore")
-            restore = RestoreConfig.from_stack(stack.push(restore_config))
-
+        restore_config = stack.get("restore", {})
+        restore = RestoreConfig.from_stack(stack.push(restore_config))
         return cls(backup=backup, restore=restore)
 
     def to_dict(self) -> dict:
@@ -112,12 +106,9 @@ class TableParentConfig(typing.Generic[T], Config):
 
         sequences: bool = stack.get("sequences", True)
 
-        tables_config: list = normalize_table_config(stack.get("tables"))
+        tables_config: list = normalize_table_config(stack.get("tables", []))
         table_class = cls.get_child_class()
-        try:
-            tables = [table_class.from_stack(stack.push(tbl_conf)) for tbl_conf in tables_config]
-        except TypeError as err:
-            raise ValueError("Must include a `tables` section in the config.") from err
+        tables = [table_class.from_stack(stack.push(tbl_conf)) for tbl_conf in tables_config]
 
         # manifest defauls to None
         manifest: Optional[str] = stack.get("manifest")

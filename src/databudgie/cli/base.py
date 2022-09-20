@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Iterable, Optional, Union
 
 import click
 import sqlalchemy
@@ -10,7 +10,7 @@ from configly import Config
 from setuplog import log
 from sqlalchemy.orm import Session
 
-from databudgie.config.models import BackupConfig, RestoreConfig, RootConfig
+from databudgie.config.models import BackupConfig, ConfigStack, RestoreConfig, RootConfig
 from databudgie.manifest.manager import Manifest
 
 version = getattr(sqlalchemy, "__version__", "")
@@ -82,10 +82,12 @@ resolver = strapp.click.Resolver(
 @resolver.group()
 @click.option("--strict/--no-strict", is_flag=True, default=False)  # TODO: consider pre-check functionality
 @click.option("-a", "--adapter", default=None, help="postgres, python, etc.")
-@click.option("-c", "--config", default="config.databudgie.yml", help="config file")
+@click.option("-c", "--config", default=["config.databudgie.yml"], help="config file", multiple=True)
 @click.option("-v", "--verbose", count=True, default=0)
-def cli(strict: bool, adapter: str, config: str, verbose: int):
-    root_config = RootConfig.from_dict(Config.from_yaml(config).to_dict())
+def cli(strict: bool, adapter: str, config: Iterable[str], verbose: int):
+    configs = [Config.from_yaml(c).to_dict() for c in config]
+    config_stack = ConfigStack(*configs)
+    root_config = RootConfig.from_stack(config_stack)
     resolver.register_values(
         adapter=adapter,
         root_config=root_config,

@@ -19,6 +19,13 @@ databudgie has two primary functions:
 1. Dumping postgres query results to a CSV file (optionally in an S3 bucket).
 1. Restoring a CSV file (optionally from an S3 bucket) into a postgres table.
 
+In both cases, you will require a config. By default databudgie looks for a file named `config.databudgie.yml`,
+but you can supply one or more alternative yaml files with the `-c` flag.
+
+Note, when supplying more than one config (`-c base.yml -c tables.yml`, for example),
+the files' contents will be applied on top of one another in the order given. This means that in
+the above example, values for `tables.yml` will be prioritized over those of `base.yml`.
+
 ## Backup
 
 ```bash
@@ -43,7 +50,6 @@ backup:
       query: "select * from public.sales where store_id = 4"
       location: s3://my-s3-bucket/databudgie/public.sales
 ```
-
 
 ### DDL
 
@@ -211,9 +217,7 @@ class DatabudgieManifest(Base):  # type: ignore
 
 ## Configuration
 
-
 Consider the following configuration:
-
 
 ```yaml
 backup:
@@ -252,6 +256,7 @@ backup:
     - public.product
     - public.sales
 ```
+
 Lastly, you can even omit the `backup` header so long as you have `tables` defined at the root level. The following config would use the same `url` for both backup and restore commands, using the default values for any required yet undefined settings.
 
 ```yaml
@@ -263,7 +268,6 @@ tables:
   - public.sales
 ```
 
-
 ### Environment Interpolation
 
 The config is interpreted via [Configly](https://github.com/schireson/configly), so you can use env var interpolation like so:
@@ -272,8 +276,6 @@ The config is interpreted via [Configly](https://github.com/schireson/configly),
 sentry:
   environment: <% ENV[ENVIRONMENT, null] %>
 ```
-
-
 
 ### Tables
 
