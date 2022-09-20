@@ -1,0 +1,5 @@
+sphinx
+myst_parser
+furo
+sphinx-copybutton
+linkify-it-py
