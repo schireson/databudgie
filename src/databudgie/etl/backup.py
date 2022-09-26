@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
 from databudgie.compression import Compressor
-from databudgie.config.models import BackupConfig
+from databudgie.config.models import BackupConfig, BackupTableConfig
 from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
@@ -77,23 +77,25 @@ def backup_all(
 def backup_ddl(
     session: Session,
     backup_config: BackupConfig,
-    table_ops: List[TableOp],
+    table_ops: List[TableOp[BackupTableConfig]],
     *,
     timestamp: datetime,
     adapter=Adapter,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
-    ddl_config = backup_config.ddl
-    if not (ddl_config and ddl_config.enabled):
+    if not backup_config.ddl.enabled:
         return
 
-    ddl_path = ddl_config.location
+    ddl_path = backup_config.ddl.location
 
     # Backup schemas first
     schemas = set()
     for table_op in table_ops:
         schema_op = table_op.schema_op()
         if schema_op.name in schemas:
+            continue
+
+        if not table_op.raw_conf.ddl:
             continue
 
         schemas.add(schema_op.name)
@@ -109,7 +111,11 @@ def backup_ddl(
 
         log.debug(f"Uploaded {schema_op.name} to {fully_qualified_path}")
 
+    table_names = []
     for table_op in table_ops:
+        if not table_op.raw_conf.ddl:
+            continue
+
         log.debug(f"Backing up {table_op.table_name} DDL...")
         result = adapter.export_table_ddl(session, table_op.table_name)
 
@@ -121,7 +127,12 @@ def backup_ddl(
 
         log.debug(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
 
-    manifest_data = json.dumps([op.table_name for op in table_ops]).encode("utf-8")
+        table_names.append(table_op.table_name)
+
+    # On the restore-side, the tables may not already exist (at the extreme, you
+    # might start with an empty database), so we need to record the set of tables
+    # being backed up.
+    manifest_data = json.dumps(table_names).encode("utf-8")
     with io.BytesIO(manifest_data) as buffer:
         manifest_path = join_paths(ddl_path, generate_filename(timestamp, filetype="json"))
         persist_backup(manifest_path, buffer, s3_resource=s3_resource)
@@ -130,17 +141,21 @@ def backup_ddl(
 def backup_sequences(
     session: Session,
     backup_config: BackupConfig,
-    table_ops: List[TableOp],
+    table_ops: List[TableOp[BackupTableConfig]],
     *,
     timestamp: datetime,
     adapter=Adapter,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
-    if not backup_config.sequences:
+    has_sequences = any(o.raw_conf.sequences for o in table_ops)
+    if not has_sequences:
         return
 
     table_sequences = adapter.collect_table_sequences(session)
     for table_op in table_ops:
+        if not table_op.raw_conf.sequences:
+            continue
+
         sequences = table_sequences.get(table_op.table_name)
         if not sequences:
             continue
@@ -163,7 +178,7 @@ def backup_sequences(
 def backup(
     session: Session,
     *,
-    table_op: TableOp,
+    table_op: TableOp[BackupTableConfig],
     adapter: Adapter,
     timestamp: Optional[datetime] = None,
     manifest: Optional[Manifest] = None,

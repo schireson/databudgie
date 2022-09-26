@@ -47,21 +47,11 @@ def restore_all(
         manifest=manifest,
     )
 
-    restore_sequences(session, restore_config, table_ops, adapter=concrete_adapter, s3_resource=s3_resource)
-
-    if restore_config.data:
-        truncate_tables(session, list(reversed(table_ops)), adapter=concrete_adapter)
-        for table_op in table_ops:
-            log.info(f"Restoring {table_op.table_name}...")
-
-            with capture_failures(strict=strict):
-                restore(
-                    session,
-                    table_op=table_op,
-                    manifest=manifest,
-                    adapter=concrete_adapter,
-                    s3_resource=s3_resource,
-                )
+    restore_sequences(session, table_ops, adapter=concrete_adapter, s3_resource=s3_resource)
+    truncate_tables(session, list(reversed(table_ops)), adapter=concrete_adapter)
+    restore_tables(
+        session, table_ops, manifest=manifest, adapter=concrete_adapter, s3_resource=s3_resource, strict=strict
+    )
 
 
 def restore_all_ddl(
@@ -69,13 +59,11 @@ def restore_all_ddl(
     restore_config: RestoreConfig,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
-
-    ddl_config = restore_config.ddl
-    if not ddl_config.enabled:
+    if not restore_config.ddl.enabled:
         return
 
-    ddl_path = ddl_config.location
-    strategy = ddl_config.strategy
+    ddl_path = restore_config.ddl.location
+    strategy = restore_config.ddl.strategy
 
     manifest_path = os.path.join(ddl_path)
     with get_file_contents(manifest_path, strategy, s3_resource=s3_resource, filetype="json") as file_object:
@@ -91,6 +79,9 @@ def restore_all_ddl(
     for table_op in table_ops:
         schema_op = table_op.schema_op()
         if schema_op.name in schemas:
+            continue
+
+        if not table_op.raw_conf.ddl:
             continue
 
         schemas.add(schema_op.name)
@@ -110,7 +101,7 @@ def restore_ddl(
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
     location = op.location()
-    strategy: str = op.raw_conf.strategy  # type: ignore
+    strategy: str = op.raw_conf.strategy
 
     path = join_paths(ddl_path, location)
     with get_file_contents(path, strategy, s3_resource=s3_resource) as file_object:
@@ -136,8 +127,9 @@ def restore_ddl(
 
 def truncate_tables(session: Session, table_ops: Sequence[TableOp], adapter: Adapter):
     for table_op in table_ops:
-        truncate = getattr(table_op.raw_conf, "truncate") or False
-        if not truncate:
+        data = table_op.raw_conf.data
+        truncate = table_op.raw_conf.truncate
+        if not data or not truncate:
             continue
 
         adapter.truncate_table(session, table_op.table_name)
@@ -145,22 +137,21 @@ def truncate_tables(session: Session, table_ops: Sequence[TableOp], adapter: Ada
 
 def restore_sequences(
     session: Session,
-    restore_config: RestoreConfig,
     table_ops: Iterable[TableOp],
     adapter: Adapter,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
-    if not restore_config.sequences:
-        return
-
     for table_op in table_ops:
+        if not table_op.raw_conf.sequences:
+            continue
+
         location = table_op.location()
-        strategy: str = table_op.raw_conf.strategy  # type: ignore
+        strategy: str = table_op.raw_conf.strategy
 
         path = join_paths(location, "sequences")
         with get_file_contents(path, strategy, filetype="json", s3_resource=s3_resource) as file_object:
             if not file_object:
-                return
+                continue
 
             sequences = json.load(file_object.content)
 
@@ -168,6 +159,25 @@ def restore_sequences(
             adapter.restore_sequence_value(session, sequence, value)
 
     session.commit()
+
+
+def restore_tables(
+    session: Session,
+    table_ops: Sequence[TableOp],
+    *,
+    strict=False,
+    adapter: Adapter,
+    manifest: Optional[Manifest] = None,
+    s3_resource: Optional["S3ServiceResource"] = None,
+) -> None:
+    for table_op in table_ops:
+        if not table_op.raw_conf.data:
+            continue
+
+        log.info(f"Restoring {table_op.table_name}...")
+
+        with capture_failures(strict=strict):
+            restore(session, table_op=table_op, manifest=manifest, adapter=adapter, s3_resource=s3_resource)
 
 
 def restore(
@@ -183,7 +193,7 @@ def restore(
     schema, table = parse_table(table_op.table_name)
     table_name = f"{schema}.{table}"
 
-    strategy: str = table_op.raw_conf.strategy  # type: ignore
+    strategy: str = table_op.raw_conf.strategy
     compression = table_op.raw_conf.compression
 
     with get_file_contents(
