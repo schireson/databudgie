@@ -97,8 +97,8 @@ class PostgresAdapter(Adapter):
     def collect_existing_tables(session: Session) -> List[str]:
         """Find the set of all user-defined tables in a database."""
 
-        if "ENABLE_EXPERIMENTAL_TABLE_COLLECTION" not in os.environ:
-            log.info("Set ENABLE_EXPERIMENTAL_TABLE_COLLECTION to use faster experimental table collection.")
+        if "FALLBACK_SQLALCHEMY_TABLE_COLLECTION" in os.environ:
+            log.info("Using SQLAlchemy to collect tables.")
             return Adapter.collect_existing_tables(session)
 
         # from https://stackoverflow.com/questions/51279588/sort-tables-in-order-of-dependency-postgres
