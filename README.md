@@ -1,6 +1,6 @@
 # Databudgie
 
-[![Docs](http://docs.schireson.com/packages/databudgie/latest/index.html)](https://assets.readthedocs.org/static/projects/badges/passing-flat.svg)
+[![Docs](https://assets.readthedocs.org/static/projects/badges/passing-flat.svg)](http://docs.schireson.com/packages/databudgie/latest/index.html)
 
 ![](docs/source/_static/databudgie.png)
 
