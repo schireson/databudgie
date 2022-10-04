@@ -27,6 +27,7 @@ from databudgie.manifest.manager import Manifest
     multiple=True,
     help="The set of tables to backup or restore. Note that this overrides any table section in config.",
 )
+@click.version_option()
 def cli(
     strict: bool,
     adapter: str,
