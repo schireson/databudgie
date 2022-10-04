@@ -3,10 +3,14 @@ from __future__ import annotations
 import abc
 import typing
 from dataclasses import asdict, dataclass, field
-from typing import Optional
+from typing import Optional, Union
 
 T = typing.TypeVar("T", "BackupTableConfig", "RestoreTableConfig")
 F = typing.TypeVar("F")
+
+
+class ConfigError(ValueError):
+    """Raise for invalid or incomplete config."""
 
 
 class ConfigStack:
@@ -73,7 +77,9 @@ class DDLConfig(Config):
     strategy: str = "use_latest_filename"
 
     @classmethod
-    def from_dict(cls, ddl_config: dict):
+    def from_dict(cls, ddl_config: Union[dict, bool]):
+        if isinstance(ddl_config, bool):
+            ddl_config = {"enabled": ddl_config}
         return from_partial(cls, **ddl_config)
 
 
@@ -93,12 +99,12 @@ class RootConfig(Config):
         return cls.from_stack(config)
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack):
+    def from_stack(cls, stack: ConfigStack, require_url=False):
         backup_config = stack.get("backup", {})
-        backup = BackupConfig.from_stack(stack.push(backup_config))
+        backup = BackupConfig.from_stack(stack.push(backup_config), require_url=require_url)
 
         restore_config = stack.get("restore", {})
-        restore = RestoreConfig.from_stack(stack.push(restore_config))
+        restore = RestoreConfig.from_stack(stack.push(restore_config), require_url=require_url)
         return cls(backup=backup, restore=restore)
 
     def to_dict(self) -> dict:
@@ -126,8 +132,14 @@ class TableParentConfig(typing.Generic[T], Config):
         pass
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack):
-        url: str = stack.get("url")
+    def from_stack(cls, stack: ConfigStack, require_url=False):
+        try:
+            url: str = stack["url"]
+        except KeyError:
+            if require_url:
+                raise ConfigError("Config field 'url' is required at some level of specificity but was not found.")
+            else:
+                url = ""
 
         tables_config: list = normalize_table_config(stack.get("tables", []))
         table_class = cls.get_child_class()

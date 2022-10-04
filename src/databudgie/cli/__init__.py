@@ -1,6 +1,11 @@
 # flake8: noqa
-from databudgie.cli import base
+from databudgie.cli.commands import cli
 
 
 def run():
-    base.cli()
+    cli()
+
+
+__all__ = [
+    "cli",
+]
