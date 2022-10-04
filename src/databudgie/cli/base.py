@@ -1,17 +1,13 @@
-from typing import Iterable, Optional, Union
+from typing import Optional, Union
 
-import click
 import sqlalchemy
 import sqlalchemy.engine.url
 import sqlalchemy.orm
 import strapp.click
 import strapp.logging
-from configly import Config
 from setuplog import log
-from sqlalchemy.orm import Session
 
-from databudgie.config.models import BackupConfig, ConfigStack, RestoreConfig, RootConfig
-from databudgie.manifest.manager import Manifest
+from databudgie.config.models import BackupConfig, RestoreConfig, RootConfig
 
 version = getattr(sqlalchemy, "__version__", "")
 if version.startswith("1.4") or version.startswith("2."):
@@ -77,111 +73,3 @@ resolver = strapp.click.Resolver(
     restore_db=restore_db,
     restore_manifest=restore_manifest,
 )
-
-
-@resolver.group()
-@click.option("--strict/--no-strict", is_flag=True, default=False)  # TODO: consider pre-check functionality
-@click.option("-a", "--adapter", default=None, help="postgres, python, etc.")
-@click.option("-c", "--config", default=["config.databudgie.yml"], help="config file", multiple=True)
-@click.option("-v", "--verbose", count=True, default=0)
-def cli(strict: bool, adapter: str, config: Iterable[str], verbose: int):
-    configs = [Config.from_yaml(c).to_dict() for c in config]
-    config_stack = ConfigStack(*configs)
-    root_config = RootConfig.from_stack(config_stack)
-    resolver.register_values(
-        adapter=adapter,
-        root_config=root_config,
-        strict=strict,
-        verbosity=verbose,
-    )
-
-
-@resolver.command(cli, "backup")
-@click.option("--backup-id", default=None, help="Restore manifest id.")
-@click.option(
-    "--ddl", default=None, is_flag=True, help="Whether to backup the DDL. Overrides the config option, if set"
-)
-def backup_cli(
-    backup_config: BackupConfig,
-    backup_db: Session,
-    strict: bool,
-    adapter: str,
-    verbosity: int,
-    backup_manifest: Optional[Manifest] = None,
-    backup_id: Optional[int] = None,
-    ddl: Optional[bool] = None,
-):
-    """Perform backup."""
-    from databudgie.cli.setup import setup
-    from databudgie.etl.backup import backup_all
-
-    setup(backup_config.sentry, backup_config.logging, verbosity=verbosity)
-
-    if backup_manifest and backup_id:
-        backup_manifest.set_transaction_id(backup_id)
-
-    backup_config.ddl.enabled = ddl or backup_config.ddl.enabled
-
-    log.info("Performing backup!")
-    backup_all(backup_db, backup_config, manifest=backup_manifest, strict=strict, adapter=adapter)
-
-
-@resolver.command(cli, "restore")
-@click.option("--restore-id", default=None, help="Restore manifest id.")
-@click.option(
-    "--ddl", default=None, is_flag=True, help="Whether to backup the DDL. Overrides the config option, if set"
-)
-@click.option(
-    "--clean/--no-clean",
-    is_flag=True,
-    default=None,
-    help="Drops and recreates the target database before performing the restore",
-)
-@click.option(
-    "--yes",
-    "-y",
-    is_flag=True,
-    default=False,
-    help="Dont ask for confirmation",
-)
-def restore_cli(
-    restore_config: RestoreConfig,
-    restore_db: Session,
-    strict: bool,
-    verbosity: int,
-    restore_manifest: Optional[Manifest] = None,
-    restore_id: Optional[int] = None,
-    adapter: Optional[str] = None,
-    ddl: Optional[bool] = None,
-    clean: Optional[bool] = None,
-    yes: bool = False,
-):
-    """Perform restore."""
-    from databudgie.cli.setup import setup
-    from databudgie.etl.restore import restore_all
-
-    setup(restore_config.sentry, restore_config.logging, verbosity=verbosity)
-
-    if restore_manifest and restore_id:
-        restore_manifest.set_transaction_id(restore_id)
-
-    restore_config.ddl.enabled = ddl or restore_config.ddl.enabled
-    restore_config.ddl.clean = clean or restore_config.ddl.clean
-
-    if not yes and restore_config.ddl.clean:
-        message = "About to delete the database! input 'y' if that's what you want: "
-        if input(message) != "y":  # nosec
-            return False
-
-    log.info("Performing restore!")
-
-    restore_all(restore_db, restore_config=restore_config, manifest=restore_manifest, strict=strict, adapter=adapter)
-
-
-@resolver.command(cli, "config")
-def config_cli(root_config: RootConfig):
-    """Print dereferenced and populated config."""
-
-    from databudgie.config import pretty_print
-
-    pretty_print(root_config)
