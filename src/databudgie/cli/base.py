@@ -1,11 +1,11 @@
 from typing import Optional, Union
 
+import click
 import sqlalchemy
 import sqlalchemy.engine.url
 import sqlalchemy.orm
 import strapp.click
 import strapp.logging
-from setuplog import log
 
 from databudgie.config.models import BackupConfig, RestoreConfig, RootConfig
 
@@ -26,16 +26,24 @@ def _create_postgres_session(url: Union[str, dict]):
 
 
 def backup_config(root_config: RootConfig):
-    if not root_config.backup:
-        log.error("No backup config found. Run 'databudgie config' to see your current configuration.")
-        exit(1)
+    if root_config.backup is None:
+        raise click.UsageError("No backup config found. Run 'databudgie config' to see your current configuration.")
+
+    if root_config.backup.url is None:
+        raise click.UsageError(
+            "No config found for 'url' field. Run 'databudgie config' to see your current configuration."
+        )
     return root_config.backup
 
 
 def restore_config(root_config: RootConfig):
     if not root_config.restore:
-        log.error("No restore config found. Run 'databudgie config' to see your current configuration.")
-        exit(1)
+        raise click.UsageError("No restore config found. Run 'databudgie config' to see your current configuration.")
+
+    if not root_config.restore.url:
+        raise click.UsageError(
+            "No config found for 'url' field. Run 'databudgie config' to see your current configuration."
+        )
     return root_config.restore
 
 
