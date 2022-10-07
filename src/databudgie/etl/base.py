@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from typing import Dict, Generic, List, Optional, Sequence, TypeVar
 
-from setuplog import log
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from databudgie.config.models import BackupTableConfig, RestoreTableConfig
 from databudgie.manifest.manager import Manifest
 from databudgie.match import expand_table_globs
+from databudgie.output import Console, default_console
 from databudgie.utils import parse_table
 
 T = TypeVar("T", BackupTableConfig, RestoreTableConfig)
@@ -59,6 +59,7 @@ def expand_table_ops(
     tables: Sequence[T],
     existing_tables: List[str],
     *,
+    console: Console = default_console,
     manifest: Optional[Manifest] = None,
 ) -> List[TableOp[T]]:
     """Produce a full list of table operations to be performed.
@@ -84,7 +85,7 @@ def expand_table_ops(
 
         for table_name in expand_table_globs(existing_tables, pattern):
             if manifest and table_name in manifest:
-                log.info(f"Skipping {table_name}...")
+                console.trace(f"Skipping {table_name}...")
                 continue
 
             for exclusion_pattern in table_conf.exclude:
