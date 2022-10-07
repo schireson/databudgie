@@ -1,3 +1,4 @@
+import pytest
 from click.testing import CliRunner
 from ruamel.yaml import YAML
 
@@ -6,11 +7,19 @@ from databudgie.cli import cli
 yaml = YAML()
 
 
-def test_no_default_file_warns_of_no_url():
+@pytest.mark.parametrize("command", ("backup", "restore"))
+def test_no_default_file_warns_of_no_url(command):
+    runner = CliRunner()
+    result = runner.invoke(cli, [command])
+    assert "No config found for 'url' field" in result.output
+    assert result.exit_code == 2
+
+
+def test_config_command_works_without_url():
     runner = CliRunner()
     result = runner.invoke(cli, ["config"])
-    assert "field 'url' is required" in result.output
-    assert result.exit_code == 2
+    assert "url:\n" in result.output
+    assert result.exit_code == 0
 
 
 def test_cli_args_pass_through_to_config():

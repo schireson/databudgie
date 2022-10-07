@@ -49,7 +49,7 @@ def cli(
     config_stack = ConfigStack(cli_config.to_dict(), *configs)
 
     try:
-        root_config = RootConfig.from_stack(config_stack, require_url=True)
+        root_config = RootConfig.from_stack(config_stack)
     except ConfigError as e:
         raise click.UsageError(*e.args)
 
