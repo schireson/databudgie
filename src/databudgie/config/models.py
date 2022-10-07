@@ -99,12 +99,12 @@ class RootConfig(Config):
         return cls.from_stack(config)
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack, require_url=False):
+    def from_stack(cls, stack: ConfigStack):
         backup_config = stack.get("backup", {})
-        backup = BackupConfig.from_stack(stack.push(backup_config), require_url=require_url)
+        backup = BackupConfig.from_stack(stack.push(backup_config))
 
         restore_config = stack.get("restore", {})
-        restore = RestoreConfig.from_stack(stack.push(restore_config), require_url=require_url)
+        restore = RestoreConfig.from_stack(stack.push(restore_config))
         return cls(backup=backup, restore=restore)
 
     def to_dict(self) -> dict:
@@ -132,14 +132,8 @@ class TableParentConfig(typing.Generic[T], Config):
         pass
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack, require_url=False):
-        try:
-            url: str = stack["url"]
-        except KeyError:
-            if require_url:
-                raise ConfigError("Config field 'url' is required at some level of specificity but was not found.")
-            else:
-                url = ""
+    def from_stack(cls, stack: ConfigStack):
+        url: str = stack.get("url")
 
         tables_config: list = normalize_table_config(stack.get("tables", []))
         table_class = cls.get_child_class()
