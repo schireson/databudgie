@@ -1,7 +1,9 @@
-import sys
+import io
 from typing import Mapping
 
 from configly import Config
+from rich.console import Console
+from rich.syntax import Syntax
 from ruamel.yaml import YAML
 
 from databudgie.config.models import Config as DatabudgieConfig
@@ -9,11 +11,18 @@ from databudgie.config.models import Config as DatabudgieConfig
 
 def pretty_print(config: DatabudgieConfig):
     """Pretty print a config model."""
+    console = Console()
+    buffer = io.StringIO()
 
     config_as_dict = config.to_dict()
     yaml = YAML()
     yaml.default_flow_style = False
-    yaml.dump(config_as_dict, sys.stdout)
+    yaml.dump(config_as_dict, buffer)
+
+    buffer.seek(0)
+    data = buffer.read()
+    syntax = Syntax(data, "yaml")
+    console.print(syntax)
 
 
 def compose_value(config: Config, *path, value=None, default=None) -> Config:

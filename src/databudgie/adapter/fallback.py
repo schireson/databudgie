@@ -2,7 +2,6 @@ import csv
 import io
 from typing import Any, Dict, Generator, List
 
-from setuplog import log
 from sqlalchemy import MetaData, Table, text
 from sqlalchemy.orm import Session
 
@@ -21,9 +20,6 @@ class PythonAdapter(Adapter):
         for i, row in enumerate(self._query_database(session, query), start=1):
             writer.writerow(row)
 
-            if i % 1000 == 0:
-                log.info(f"Writing {i} rows...")
-
     def import_csv(self, session: Session, csv_file: io.TextIOBase, table: str):
         reader = csv.DictReader(csv_file, quoting=csv.QUOTE_MINIMAL)
 
@@ -39,8 +35,6 @@ class PythonAdapter(Adapter):
                     new_row[key] = None
 
             prepared_rows.append(new_row)
-            if i % 1000 == 0:
-                log.info(f"Preparing {i} rows for {table}...")
 
         schema, table_name = parse_table(table)
 
@@ -50,7 +44,6 @@ class PythonAdapter(Adapter):
         table_ref = Table(table_name, metadata, autoload=True, autoload_with=engine, schema=schema)
 
         engine.execute(table_ref.insert(), prepared_rows)
-        log.info(f"Inserted {len(prepared_rows)} rows into {table}")
 
     def _query_database(self, session: Session, query: str) -> Generator[List[Any], None, None]:
         cursor = session.execute(text(query))

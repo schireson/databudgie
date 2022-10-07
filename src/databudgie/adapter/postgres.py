@@ -6,7 +6,6 @@ import subprocess  # nosec
 from typing import Dict, List
 
 import psycopg2.errors
-from setuplog import log, log_duration
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, create_engine, Engine
 from sqlalchemy.engine.url import URL
@@ -14,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from databudgie.adapter.base import Adapter
 from databudgie.adapter.fallback import PythonAdapter
+from databudgie.output import Console, default_console
 
 
 def update_url(url, database=None):
@@ -37,7 +37,6 @@ class PostgresAdapter(Adapter):
         conn: Connection = engine.raw_connection()
         cursor: psycopg2.cursor = conn.cursor()
 
-        log.debug("Exporting PostgreSQL query to buffer...")
         copy = "COPY ({}) TO STDOUT CSV HEADER".format(query)
         cursor.copy_expert(copy, dest)
         cursor.close()
@@ -51,7 +50,6 @@ class PostgresAdapter(Adapter):
         # Reading the header line from the buffer removes it for the ingest
         columns: List[str] = [f'"{c}"' for c in csv_file.readline().strip().split(",")]
 
-        log.debug(f"Copying buffer to {table}...")
         copy = "COPY {table} ({columns}) FROM STDIN CSV".format(table=table, columns=",".join(columns))
         cursor.copy_expert(copy, csv_file)
         cursor.close()
@@ -59,9 +57,9 @@ class PostgresAdapter(Adapter):
         conn.close()
 
     @staticmethod
-    def export_schema_ddl(session: Session, name: str) -> bytes:
+    def export_schema_ddl(session: Session, name: str, console: Console = default_console) -> bytes:
         if not shutil.which("pg_dump"):
-            log.warning("Could not find pg_dump, falling back to SQLAlchemy implementation.")
+            console.warn("Could not find pg_dump, falling back to SQLAlchemy implementation.")
             return PythonAdapter.export_schema_ddl(session, name)
 
         url = session.connection().engine.url
@@ -72,9 +70,9 @@ class PostgresAdapter(Adapter):
         return result
 
     @staticmethod
-    def export_table_ddl(session: Session, table_name: str):
+    def export_table_ddl(session: Session, table_name: str, console: Console = default_console):
         if not shutil.which("pg_dump"):
-            log.warning("Could not find pg_dump, falling back to SQLAlchemy implementation.")
+            console.warn("Could not find pg_dump, falling back to SQLAlchemy implementation.")
             return PythonAdapter.export_table_ddl(session, table_name)
 
         url = session.connection().engine.url
@@ -107,12 +105,11 @@ class PostgresAdapter(Adapter):
         session.invalidate()
 
     @staticmethod
-    @log_duration("Collecting existing tables")
-    def collect_existing_tables(session: Session) -> List[str]:
+    def collect_existing_tables(session: Session, console: Console = default_console) -> List[str]:
         """Find the set of all user-defined tables in a database."""
 
         if "FALLBACK_SQLALCHEMY_TABLE_COLLECTION" in os.environ:
-            log.info("Using SQLAlchemy to collect tables.")
+            console.warn("Using SQLAlchemy to collect tables.")
             return Adapter.collect_existing_tables(session)
 
         # from https://stackoverflow.com/questions/51279588/sort-tables-in-order-of-dependency-postgres

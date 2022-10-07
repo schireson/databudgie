@@ -6,9 +6,8 @@ import os
 import pathlib
 from datetime import datetime
 from os import path
-from typing import List, Optional, TYPE_CHECKING
+from typing import List, Optional, Sequence, TYPE_CHECKING
 
-from setuplog import log
 from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
@@ -16,6 +15,7 @@ from databudgie.compression import Compressor
 from databudgie.config.models import BackupConfig, BackupTableConfig
 from databudgie.etl.base import expand_table_ops, TableOp
 from databudgie.manifest.manager import Manifest
+from databudgie.output import Console, default_console, Progress
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
 from databudgie.utils import capture_failures, generate_filename, join_paths, wrap_buffer
 
@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 def backup_all(
     session: Session,
     backup_config: BackupConfig,
+    console: Console = default_console,
     manifest: Optional[Manifest] = None,
     strict=False,
     adapter=None,
@@ -40,6 +41,7 @@ def backup_all(
         manifest: optional manifest to record the backup location.
         adapter: optional adapter
         s3_resource: optional boto S3 resource from an authenticated session.
+        console: Console used for output
     """
     concrete_adapter = Adapter.get_adapter(adapter or session)
     s3_resource = optional_s3_resource(backup_config)
@@ -51,27 +53,35 @@ def backup_all(
         backup_config.tables,
         existing_tables,
         manifest=manifest,
+        console=console,
     )
 
     backup_ddl(
-        session, backup_config, table_ops, timestamp=timestamp, adapter=concrete_adapter, s3_resource=s3_resource
+        session,
+        backup_config,
+        table_ops,
+        timestamp=timestamp,
+        adapter=concrete_adapter,
+        s3_resource=s3_resource,
+        console=console,
     )
     backup_sequences(
-        session, backup_config, table_ops, timestamp=timestamp, adapter=concrete_adapter, s3_resource=s3_resource
+        session,
+        table_ops,
+        timestamp=timestamp,
+        adapter=concrete_adapter,
+        s3_resource=s3_resource,
+        console=console,
     )
-
-    for table_op in table_ops:
-        log.info(f"Backing up {table_op.table_name}...")
-
-        with capture_failures(strict=strict):
-            backup(
-                session,
-                table_op=table_op,
-                manifest=manifest,
-                timestamp=timestamp,
-                adapter=concrete_adapter,
-                s3_resource=s3_resource,
-            )
+    backup_tables(
+        session,
+        table_ops=table_ops,
+        manifest=manifest,
+        strict=strict,
+        adapter=concrete_adapter,
+        s3_resource=s3_resource,
+        console=console,
+    )
 
 
 def backup_ddl(
@@ -81,6 +91,7 @@ def backup_ddl(
     *,
     timestamp: datetime,
     adapter=Adapter,
+    console: Console = default_console,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
     if not backup_config.ddl.enabled:
@@ -89,7 +100,9 @@ def backup_ddl(
     ddl_path = backup_config.ddl.location
 
     # Backup schemas first
-    schemas = set()
+    schema_names = set()
+    schemas = []
+
     for table_op in table_ops:
         schema_op = table_op.schema_op()
         if schema_op.name in schemas:
@@ -98,36 +111,47 @@ def backup_ddl(
         if not table_op.raw_conf.ddl:
             continue
 
-        schemas.add(schema_op.name)
+        schema_names.add(schema_op.name)
+        schemas.append(schema_op)
 
-        log.debug(f"Backing up {schema_op.name} Schema DDL...")
-        result = adapter.export_schema_ddl(session, schema_op.name)
+    with Progress(console) as progress:
+        table_names = []
 
-        path = schema_op.location()
-        fully_qualified_path = join_paths(ddl_path, path, generate_filename(timestamp))
+        total = len(schemas) + len(table_ops)
+        task = progress.add_task("Backing up schema DDL", total=total)
 
-        with io.BytesIO(result) as buffer:
-            persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
+        for schema_op in schemas:
+            progress.update(task, description=f"Backing up schema DDL: {schema_op.name}")
 
-        log.debug(f"Uploaded {schema_op.name} to {fully_qualified_path}")
+            result = adapter.export_schema_ddl(session, schema_op.name)
 
-    table_names = []
-    for table_op in table_ops:
-        if not table_op.raw_conf.ddl:
-            continue
+            path = schema_op.location()
+            fully_qualified_path = join_paths(ddl_path, path, generate_filename(timestamp))
 
-        log.debug(f"Backing up {table_op.table_name} DDL...")
-        result = adapter.export_table_ddl(session, table_op.table_name)
+            with io.BytesIO(result) as buffer:
+                persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
 
-        full_table_path = table_op.location()
-        fully_qualified_path = join_paths(ddl_path, full_table_path, generate_filename(timestamp))
+            console.trace(f"Uploaded {schema_op.name} to {fully_qualified_path}")
 
-        with io.BytesIO(result) as buffer:
-            persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
+        console.info("Finished backing up schema DDL")
 
-        log.debug(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
+        for table_op in table_ops:
+            if not table_op.raw_conf.ddl:
+                continue
 
-        table_names.append(table_op.table_name)
+            progress.update(task, description=f"Backing up DDL: {table_op.table_name}")
+            result = adapter.export_table_ddl(session, table_op.table_name)
+
+            full_table_path = table_op.location()
+            fully_qualified_path = join_paths(ddl_path, full_table_path, generate_filename(timestamp))
+
+            with io.BytesIO(result) as buffer:
+                persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
+
+            console.trace(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
+            table_names.append(table_op.table_name)
+
+    console.info("Finished backing up DDL")
 
     # On the restore-side, the tables may not already exist (at the extreme, you
     # might start with an empty database), so we need to record the set of tables
@@ -140,11 +164,11 @@ def backup_ddl(
 
 def backup_sequences(
     session: Session,
-    backup_config: BackupConfig,
     table_ops: List[TableOp[BackupTableConfig]],
     *,
     timestamp: datetime,
     adapter=Adapter,
+    console: Console = default_console,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
     has_sequences = any(o.raw_conf.sequences for o in table_ops)
@@ -152,27 +176,67 @@ def backup_sequences(
         return
 
     table_sequences = adapter.collect_table_sequences(session)
-    for table_op in table_ops:
-        if not table_op.raw_conf.sequences:
-            continue
 
-        sequences = table_sequences.get(table_op.table_name)
-        if not sequences:
-            continue
+    with Progress(console) as progress:
+        task = progress.add_task("Backing up sequence positions", total=len(table_ops))
 
-        sequence_values = {}
-        for sequence in sequences:
-            sequence_values[sequence] = adapter.collect_sequence_value(session, sequence)
+        for table_op in table_ops:
+            progress.update(task, description=f"Backing up sequence position: {table_op.table_name}")
 
-        result = json.dumps(sequence_values).encode("utf-8")
+            if not table_op.raw_conf.sequences:
+                continue
 
-        path = table_op.location()
-        fully_qualified_path = join_paths(path, "sequences", generate_filename(timestamp, filetype="json"))
+            sequences = table_sequences.get(table_op.table_name)
+            if not sequences:
+                continue
 
-        with io.BytesIO(result) as buffer:
-            persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
+            sequence_values = {}
+            for sequence in sequences:
+                sequence_values[sequence] = adapter.collect_sequence_value(session, sequence)
 
-        log.debug(f"Wrote {table_op.table_name} sequences to {fully_qualified_path}")
+            result = json.dumps(sequence_values).encode("utf-8")
+
+            path = table_op.location()
+            fully_qualified_path = join_paths(path, "sequences", generate_filename(timestamp, filetype="json"))
+
+            with io.BytesIO(result) as buffer:
+                persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
+
+            console.trace(f"Wrote {table_op.table_name} sequences to {fully_qualified_path}")
+
+    console.info("Finished backing up sequence positions")
+
+
+def backup_tables(
+    session: Session,
+    table_ops: Sequence[TableOp],
+    *,
+    strict=False,
+    adapter: Adapter,
+    console: Console = default_console,
+    manifest: Optional[Manifest] = None,
+    s3_resource: Optional["S3ServiceResource"] = None,
+) -> None:
+    with Progress(console) as progress:
+        task = progress.add_task("Backing up tables", total=len(table_ops))
+
+        for table_op in table_ops:
+            progress.update(task, description=f"Backing up table: {table_op.table_name}")
+
+            if not table_op.raw_conf.data:
+                continue
+
+            with capture_failures(strict=strict):
+                backup(
+                    session,
+                    table_op=table_op,
+                    manifest=manifest,
+                    adapter=adapter,
+                    s3_resource=s3_resource,
+                    console=console,
+                )
+
+    console.info("Finished Backing up tables")
 
 
 def backup(
@@ -180,6 +244,7 @@ def backup(
     *,
     table_op: TableOp[BackupTableConfig],
     adapter: Adapter,
+    console: Console = default_console,
     timestamp: Optional[datetime] = None,
     manifest: Optional[Manifest] = None,
     s3_resource: Optional["S3ServiceResource"] = None,
@@ -194,6 +259,7 @@ def backup(
         adapter: the selected behavior adapter
         manifest: optional manifest to record the backup location.
         s3_resource: optional boto S3 resource from an authenticated session.
+        console: Console used for output
     """
     buffer = io.BytesIO()
     with wrap_buffer(buffer) as wrapper:
@@ -209,7 +275,7 @@ def backup(
     if manifest:
         manifest.record(table_op.table_name, fully_qualified_path)
 
-    log.info(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
+    console.trace(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
 
 
 def persist_backup(path: str, buffer: io.BytesIO, s3_resource: Optional["S3ServiceResource"] = None, compression=None):

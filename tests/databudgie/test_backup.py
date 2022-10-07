@@ -191,9 +191,9 @@ def test_backup_failure(pg):
             backup_all(pg, backup_config=config.backup, strict=True)
 
         # With strict off, the backup should produce log messages.
-        with patch("databudgie.utils.log") as mock_log:
+        with patch("databudgie.output.Console.exception") as console:
             backup_all(pg, backup_config=config.backup, strict=False)
-            assert mock_log.info.call_count == 2
+            assert console.call_count == 2
 
 
 def _get_file_buffer(filename, s3_resource=None):
