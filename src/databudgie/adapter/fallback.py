@@ -52,14 +52,14 @@ class PythonAdapter(Adapter):
         engine.execute(table_ref.insert(), prepared_rows)
         log.info(f"Inserted {len(prepared_rows)} rows into {table}")
 
-    def _query_database(self, session: Session, query: str, chunk_size: int = 1000) -> Generator[List[Any], None, None]:
+    def _query_database(self, session: Session, query: str) -> Generator[List[Any], None, None]:
         cursor = session.execute(text(query))
 
         columns: List[str] = list(cursor.keys())
         yield columns
 
         row: List[Any]
-        for row in cursor.yield_per(chunk_size):
+        for row in cursor:
             yield row
 
     @staticmethod

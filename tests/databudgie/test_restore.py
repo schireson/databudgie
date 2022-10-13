@@ -244,7 +244,8 @@ def test_reset_database(pg):
         database = f"foo_{random}"
         conn.execute(text(f"CREATE DATABASE {database}"))
 
-    url = url.set(database=database)
+    pmr_credentials.database = database
+    url = pmr_credentials.as_sqlalchemy_url()
 
     engine = create_engine(url)
     with engine.begin() as conn:

@@ -16,6 +16,20 @@ from databudgie.adapter.base import Adapter
 from databudgie.adapter.fallback import PythonAdapter
 
 
+def update_url(url, database=None):
+    try:
+        URL.set(database=database)
+    except AttributeError:
+        return URL(
+            drivername=url.drivername,
+            username=url.username,
+            password=url.password,
+            host=url.host,
+            port=url.port,
+            database=database or url.database,
+        )
+
+
 # XXX: see if we can count rows in the transactions
 class PostgresAdapter(Adapter):
     def export_query(self, session: Session, query: str, dest: io.StringIO):
@@ -77,7 +91,7 @@ class PostgresAdapter(Adapter):
         # "template1" is a *special* internal postgres database that we can be guaranteed
         # to connect to after having dropped (potentially) all other available databases.
         # "template0", used below is not allowed to be connected to.
-        template_url = url.set(database="template1")
+        template_url = update_url(url, database="template1")
 
         template_engine = create_engine(template_url)
         with template_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
