@@ -18,7 +18,7 @@ from databudgie.adapter.fallback import PythonAdapter
 
 def update_url(url, database=None):
     try:
-        URL.set(database=database)
+        return url.set(database=database)
     except AttributeError:
         return URL(
             drivername=url.drivername,
@@ -123,8 +123,8 @@ class PostgresAdapter(Adapter):
                 select t.oid      as reloid,
                     t.relname  as table_name,
                     s.nspname  as schema_name,
-                    null::text as referenced_table_name,
-                    null::text as referenced_schema_name,
+                    null::text COLLATE "C" as referenced_table_name,
+                    null::text COLLATE "C" as referenced_schema_name,
                     1          as level
                 from pg_class t
                 join pg_namespace s on s.oid = t.relnamespace

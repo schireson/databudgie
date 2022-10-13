@@ -9,6 +9,7 @@ from typing import Generator, Iterable, Optional, Sequence, TYPE_CHECKING, Union
 
 import sqlalchemy
 from setuplog import log
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
@@ -207,11 +208,15 @@ def restore(
             return
 
         with wrap_buffer(file_object.content) as wrapper:
-            adapter.import_csv(session, wrapper, table_op.table_name)
-            session.commit()
+            try:
+                adapter.import_csv(session, wrapper, table_op.table_name)
+            except SQLAlchemyError:
+                session.rollback()
+            else:
+                session.commit()
 
-        if manifest:
-            manifest.record(table_name, file_object.path)
+                if manifest:
+                    manifest.record(table_name, file_object.path)
 
     log.info(f"Restored {table_name} from {file_object.path}")
 
