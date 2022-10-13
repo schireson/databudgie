@@ -207,9 +207,8 @@ def restore(
             return
 
         with wrap_buffer(file_object.content) as wrapper:
-            with session:
-                adapter.import_csv(session, wrapper, table_op.table_name)
-                session.commit()
+            adapter.import_csv(session, wrapper, table_op.table_name)
+            session.commit()
 
         if manifest:
             manifest.record(table_name, file_object.path)
