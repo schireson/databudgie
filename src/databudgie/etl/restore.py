@@ -55,6 +55,7 @@ def restore_all(
         existing_tables,
         manifest=manifest,
         console=console,
+        warn_for_unused_tables=True,
     )
 
     restore_sequences(

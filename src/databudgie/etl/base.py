@@ -61,6 +61,7 @@ def expand_table_ops(
     *,
     console: Console = default_console,
     manifest: Optional[Manifest] = None,
+    warn_for_unused_tables: bool = False,
 ) -> List[TableOp[T]]:
     """Produce a full list of table operations to be performed.
 
@@ -83,7 +84,11 @@ def expand_table_ops(
         if "." not in pattern:
             pattern = f"{default_schema_name}.{pattern}"
 
-        for table_name in expand_table_globs(existing_tables, pattern):
+        expanded_tables = expand_table_globs(existing_tables, pattern)
+        if warn_for_unused_tables and not expanded_tables:
+            console.warn(f"Skipping table definition `{pattern}` which did not match any tables.")
+
+        for table_name in expanded_tables:
             if manifest and table_name in manifest:
                 console.trace(f"Skipping {table_name}...")
                 continue
