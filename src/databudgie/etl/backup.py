@@ -54,6 +54,7 @@ def backup_all(
         existing_tables,
         manifest=manifest,
         console=console,
+        warn_for_unused_tables=True,
     )
 
     backup_ddl(
