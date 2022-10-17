@@ -8,6 +8,7 @@ import strapp.click
 import strapp.logging
 
 from databudgie.config.models import BackupConfig, RestoreConfig, RootConfig
+from databudgie.output import Console
 
 version = getattr(sqlalchemy, "__version__", "")
 if version.startswith("1.4") or version.startswith("2."):
@@ -36,7 +37,7 @@ def backup_config(root_config: RootConfig):
     return root_config.backup
 
 
-def restore_config(root_config: RootConfig):
+def restore_config(root_config: RootConfig, console: Console):
     if not root_config.restore:
         raise click.UsageError("No restore config found. Run 'databudgie config' to see your current configuration.")
 

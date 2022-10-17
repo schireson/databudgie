@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import Generator, Iterable, Optional, Sequence, TYPE_CHECKING, Union
 
 import sqlalchemy
-from setuplog import log
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -17,6 +16,7 @@ from databudgie.compression import Compressor
 from databudgie.config.models import RestoreConfig
 from databudgie.etl.base import expand_table_ops, SchemaOp, TableOp
 from databudgie.manifest.manager import Manifest
+from databudgie.output import Console, default_console, Progress
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
 from databudgie.utils import capture_failures, join_paths, parse_table, restore_filename, wrap_buffer
 
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 def restore_all(
     session: Session,
     restore_config: RestoreConfig,
+    console: Console = default_console,
     manifest: Optional[Manifest] = None,
     adapter: Optional[str] = None,
     strict=False,
@@ -36,28 +37,54 @@ def restore_all(
     s3_resource = optional_s3_resource(restore_config)
 
     if restore_config.ddl.clean:
+        console.warn("Cleaning database")
         concrete_adapter.reset_database(session)
 
-    restore_all_ddl(session, restore_config, s3_resource=s3_resource)
+    restore_all_ddl(
+        session,
+        restore_config,
+        s3_resource=s3_resource,
+        console=console,
+    )
 
+    console.trace("Collecting existing tables")
     existing_tables = concrete_adapter.collect_existing_tables(session)
     table_ops = expand_table_ops(
         session,
         restore_config.tables,
         existing_tables,
         manifest=manifest,
+        console=console,
     )
 
-    restore_sequences(session, table_ops, adapter=concrete_adapter, s3_resource=s3_resource)
-    truncate_tables(session, list(reversed(table_ops)), adapter=concrete_adapter)
+    restore_sequences(
+        session,
+        table_ops,
+        adapter=concrete_adapter,
+        s3_resource=s3_resource,
+        console=console,
+    )
+    truncate_tables(
+        session,
+        list(reversed(table_ops)),
+        adapter=concrete_adapter,
+        console=console,
+    )
     restore_tables(
-        session, table_ops, manifest=manifest, adapter=concrete_adapter, s3_resource=s3_resource, strict=strict
+        session,
+        table_ops,
+        manifest=manifest,
+        adapter=concrete_adapter,
+        s3_resource=s3_resource,
+        strict=strict,
+        console=console,
     )
 
 
 def restore_all_ddl(
     session: Session,
     restore_config: RestoreConfig,
+    console: Console = default_console,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
     if not restore_config.ddl.enabled:
@@ -69,36 +96,49 @@ def restore_all_ddl(
     manifest_path = os.path.join(ddl_path)
     with get_file_contents(manifest_path, strategy, s3_resource=s3_resource, filetype="json") as file_object:
         if not file_object:
-            log.info("Found no DDL manifest to restore.")
+            console.info("Found no DDL manifest to restore")
             return
 
         tables = json.load(file_object.content)
 
-    table_ops = expand_table_ops(session, restore_config.tables, existing_tables=tables)
+    table_ops = expand_table_ops(session, restore_config.tables, existing_tables=tables, console=console)
 
-    schemas = set()
+    schema_names = set()
+    schema_ops = []
+
     for table_op in table_ops:
         schema_op = table_op.schema_op()
-        if schema_op.name in schemas:
+        if schema_op.name in schema_names:
             continue
 
         if not table_op.raw_conf.ddl:
             continue
 
-        schemas.add(schema_op.name)
+        schema_names.add(schema_op.name)
+        schema_ops.append(schema_op)
 
-        path = restore_ddl(session, schema_op, ddl_path, s3_resource)
-        log.debug(f"Restored {schema_op.name} schema from {path}...")
+    with Progress(console) as progress:
+        total = len(schema_ops) + len(table_ops)
+        task = progress.add_task("Restoring DDL", total=total)
 
-    for table_op in table_ops:
-        restore_ddl(session, table_op, ddl_path, s3_resource)
-        log.info(f"Restored {table_op.table_name} DDL from {file_object.path}")
+        for schema_op in schema_ops:
+            progress.update(task, description=f"Restoring schema DDL: {schema_op.name}")
+
+            restore_ddl(session, schema_op, ddl_path, s3_resource=s3_resource, console=console)
+
+        for table_op in table_ops:
+            progress.update(task, description=f"Restoring DDL: {table_op.table_name}")
+
+            restore_ddl(session, table_op, ddl_path, s3_resource=s3_resource, console=console)
+
+    console.info("Finished Restoring DDL")
 
 
 def restore_ddl(
     session: Session,
     op: Union[TableOp, SchemaOp],
     ddl_path: str,
+    console: Console = default_console,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
     location = op.location()
@@ -107,7 +147,7 @@ def restore_ddl(
     path = join_paths(ddl_path, location)
     with get_file_contents(path, strategy, s3_resource=s3_resource) as file_object:
         if not file_object:
-            log.info(f"Found no DDL backups under {path} to restore")
+            console.warn(f"Found no DDL backups under {path} to restore")
             return
 
         query = file_object.content.read().decode("utf-8")
@@ -126,40 +166,52 @@ def restore_ddl(
     return path
 
 
-def truncate_tables(session: Session, table_ops: Sequence[TableOp], adapter: Adapter):
-    for table_op in table_ops:
-        data = table_op.raw_conf.data
-        truncate = table_op.raw_conf.truncate
-        if not data or not truncate:
-            continue
-
-        adapter.truncate_table(session, table_op.table_name)
-
-
 def restore_sequences(
     session: Session,
-    table_ops: Iterable[TableOp],
+    table_ops: Sequence[TableOp],
     adapter: Adapter,
+    console: Console = default_console,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
-    for table_op in table_ops:
-        if not table_op.raw_conf.sequences:
-            continue
+    with Progress(console) as progress:
+        task = progress.add_task("Restoring sequence positions", total=len(table_ops))
 
-        location = table_op.location()
-        strategy: str = table_op.raw_conf.strategy
-
-        path = join_paths(location, "sequences")
-        with get_file_contents(path, strategy, filetype="json", s3_resource=s3_resource) as file_object:
-            if not file_object:
+        for table_op in table_ops:
+            progress.update(task, description=f"Restoring sequence position: {table_op.table_name}")
+            if not table_op.raw_conf.sequences:
                 continue
 
-            sequences = json.load(file_object.content)
+            location = table_op.location()
+            strategy: str = table_op.raw_conf.strategy
 
-        for sequence, value in sequences.items():
-            adapter.restore_sequence_value(session, sequence, value)
+            path = join_paths(location, "sequences")
+            with get_file_contents(path, strategy, filetype="json", s3_resource=s3_resource) as file_object:
+                if not file_object:
+                    continue
 
+                sequences = json.load(file_object.content)
+
+            for sequence, value in sequences.items():
+                adapter.restore_sequence_value(session, sequence, value)
+
+    console.info("Finished restoring sequence positions")
     session.commit()
+
+
+def truncate_tables(session: Session, table_ops: Sequence[TableOp], adapter: Adapter, console: Console):
+    with Progress(console) as progress:
+        task = progress.add_task("Truncating Tables", total=len(table_ops))
+
+        for table_op in table_ops:
+            data = table_op.raw_conf.data
+            truncate = table_op.raw_conf.truncate
+            if not data or not truncate:
+                continue
+
+            progress.update(task, description=f"[trace]Truncating {table_op.table_name}[/trace]", advance=1)
+            adapter.truncate_table(session, table_op.table_name)
+
+    console.info("Finished truncating tables")
 
 
 def restore_tables(
@@ -168,17 +220,30 @@ def restore_tables(
     *,
     strict=False,
     adapter: Adapter,
+    console: Console = default_console,
     manifest: Optional[Manifest] = None,
     s3_resource: Optional["S3ServiceResource"] = None,
 ) -> None:
-    for table_op in table_ops:
-        if not table_op.raw_conf.data:
-            continue
+    with Progress(console) as progress:
+        task = progress.add_task("Restoring tables", total=len(table_ops))
 
-        log.info(f"Restoring {table_op.table_name}...")
+        for table_op in table_ops:
+            if not table_op.raw_conf.data:
+                continue
 
-        with capture_failures(strict=strict):
-            restore(session, table_op=table_op, manifest=manifest, adapter=adapter, s3_resource=s3_resource)
+            progress.update(task, description=f"Restoring table: {table_op.table_name}")
+
+            with capture_failures(strict=strict):
+                restore(
+                    session,
+                    table_op=table_op,
+                    manifest=manifest,
+                    adapter=adapter,
+                    s3_resource=s3_resource,
+                    console=console,
+                )
+
+    console.info("Finished restoring tables")
 
 
 def restore(
@@ -186,6 +251,7 @@ def restore(
     *,
     adapter: Adapter,
     table_op: TableOp,
+    console: Console = default_console,
     manifest: Optional[Manifest] = None,
     s3_resource: Optional["S3ServiceResource"] = None,
 ) -> None:
@@ -204,7 +270,7 @@ def restore(
         compression=compression,
     ) as file_object:
         if not file_object:
-            log.info(f"Found no backups for {table_name} to restore")
+            console.warn(f"Found no backups for {table_name} to restore")
             return
 
         with wrap_buffer(file_object.content) as wrapper:
@@ -218,7 +284,7 @@ def restore(
                 if manifest:
                     manifest.record(table_name, file_object.path)
 
-    log.info(f"Restored {table_name} from {file_object.path}")
+    console.trace(f"Restored {table_name} from {file_object.path}")
 
 
 def check_location_exists(
@@ -311,8 +377,6 @@ def get_file_contents(
         with open(target_object.key, "rb") as f:
             buffer.write(f.read())
         path = target_object.key
-
-    log.info(f"Using {target_object.key}...")
 
     buffer.seek(0)
 

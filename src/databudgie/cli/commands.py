@@ -1,17 +1,19 @@
+import os
 from typing import Iterable, Optional, Tuple
 
 import click
-from setuplog import log
 from sqlalchemy.orm import Session
 
 from databudgie.cli.base import resolver
 from databudgie.cli.config import CliConfig, DEFAULT_CONFIG_FILE, load_configs
 from databudgie.config.models import BackupConfig, ConfigError, ConfigStack, RestoreConfig, RootConfig
 from databudgie.manifest.manager import Manifest
+from databudgie.output import Console
 
 
 @resolver.group()
-@click.option("--strict/--no-strict", is_flag=True, default=False)
+@click.option("--strict/--no-strict", is_flag=True, default=None)
+@click.option("--color/--no-color", is_flag=True, default=True)
 @click.option("-a", "--adapter", default=None, help="postgres, python, etc.")
 @click.option("-c", "--config", default=[DEFAULT_CONFIG_FILE], help="config file", multiple=True)
 @click.option("-v", "--verbose", count=True, default=0)
@@ -33,11 +35,15 @@ def cli(
     adapter: str,
     config: Iterable[str],
     verbose: int,
+    color: bool = True,
     ddl: Optional[bool] = None,
     url: Optional[str] = None,
     table: Optional[Tuple[str, ...]] = None,
     location: Optional[str] = None,
 ):
+    if color is False:
+        os.environ["NO_COLOR"] = "true"
+
     cli_config = CliConfig(
         ddl=ddl,
         tables=list(table) if table else None,
@@ -58,6 +64,7 @@ def cli(
         root_config=root_config,
         strict=strict,
         verbosity=verbose,
+        console=Console(verbosity=verbose),
     )
 
 
@@ -68,6 +75,7 @@ def backup_cli(
     backup_db: Session,
     strict: bool,
     adapter: str,
+    console: Console,
     verbosity: int,
     backup_manifest: Optional[Manifest] = None,
     backup_id: Optional[int] = None,
@@ -81,8 +89,7 @@ def backup_cli(
     if backup_manifest and backup_id:
         backup_manifest.set_transaction_id(backup_id)
 
-    log.info("Performing backup!")
-    backup_all(backup_db, backup_config, manifest=backup_manifest, strict=strict, adapter=adapter)
+    backup_all(backup_db, backup_config, manifest=backup_manifest, strict=strict, adapter=adapter, console=console)
 
 
 @resolver.command(cli, "restore")
@@ -105,6 +112,7 @@ def restore_cli(
     restore_db: Session,
     strict: bool,
     verbosity: int,
+    console: Console,
     restore_manifest: Optional[Manifest] = None,
     restore_id: Optional[int] = None,
     adapter: Optional[str] = None,
@@ -127,9 +135,14 @@ def restore_cli(
         if input(message) != "y":  # nosec
             return False
 
-    log.info("Performing restore!")
-
-    restore_all(restore_db, restore_config=restore_config, manifest=restore_manifest, strict=strict, adapter=adapter)
+    restore_all(
+        restore_db,
+        restore_config=restore_config,
+        manifest=restore_manifest,
+        strict=strict,
+        adapter=adapter,
+        console=console,
+    )
 
 
 @resolver.command(cli, "config")

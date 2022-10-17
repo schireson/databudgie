@@ -18,7 +18,7 @@ def test_no_default_file_warns_of_no_url(command):
 def test_config_command_works_without_url():
     runner = CliRunner()
     result = runner.invoke(cli, ["config"])
-    assert "url:\n" in result.output
+    assert "url:" in result.output
     assert result.exit_code == 0
 
 

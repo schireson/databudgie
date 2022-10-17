@@ -4,7 +4,6 @@ import warnings
 from typing import Any, Dict, List, Union
 
 import sqlalchemy
-from setuplog import log, log_duration
 from sqlalchemy import inspect, MetaData
 from sqlalchemy.orm import Session
 
@@ -31,7 +30,6 @@ class Adapter(metaclass=abc.ABCMeta):
         raise NotImplementedError()  # pragma: no cover
 
     def truncate_table(self, session, table: str):
-        log.info(f"Truncating {table}...")
         try:
             session.execute(f"TRUNCATE TABLE {table} CASCADE")
             session.commit()
@@ -70,7 +68,6 @@ class Adapter(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @staticmethod
-    @log_duration("Collecting existing tables")
     def collect_existing_tables(session: Session) -> List[str]:
         """Find the set of all user-defined tables in a database."""
         connection = session.connection()

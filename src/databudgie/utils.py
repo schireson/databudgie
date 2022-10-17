@@ -4,9 +4,8 @@ import os
 from datetime import datetime
 from typing import Tuple
 
-from setuplog import log
-
 from databudgie.compression import Compressor
+from databudgie.output import Console, default_console
 from databudgie.s3 import is_s3_path
 
 DATETIME_FORMAT = r"%Y-%m-%dT%H:%M:%S"
@@ -27,35 +26,34 @@ def restore_filename(timestamp, *, filetype="csv", compression=None):
 
 
 @contextlib.contextmanager
-def capture_failures(ignore=(), strict=False):
+def capture_failures(ignore=(), strict=False, console: Console = default_console):
     """Prevent exceptions from interrupting execution.
 
     Examples:
         This exception is captured and not propogated:
-        >>> with capture_failures():
+        >> with capture_failures():
         ...     raise Exception('foo')
 
         This exception is raised:
-        >>> with capture_failures(strict=True): # doctest: +IGNORE_EXCEPTION_DETAIL
+        >> with capture_failures(strict=True): # doctest: +IGNORE_EXCEPTION_DETAIL
         ...     raise Exception('foo')
         Traceback (most recent call last):
         Exception: foo
 
         This exception is also raised:
-        >>> with capture_failures(ignore=Exception): # doctest: +IGNORE_EXCEPTION_DETAIL
+        >> with capture_failures(ignore=Exception): # doctest: +IGNORE_EXCEPTION_DETAIL
         ...     raise Exception('foo')
-        Traceback (most recent call last):
-        Exception: foo
 
     """
     try:
         yield
     except ignore:
         raise
-    except Exception as err:
+    except Exception as e:
         if strict:
             raise
-        log.info(err, exc_info=True)
+
+        console.exception(e)
 
 
 @contextlib.contextmanager
