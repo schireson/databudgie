@@ -36,8 +36,8 @@ jobs:
 
       - name: Publish
         run: |
-          POETRY_REPOSITORIES_PUBLISH_URL=https://artifactory.schireson.com/artifactory/api/pypi/pypi \
-          poetry publish --build --repository publish -u "${ARTIFACTORY_USR}" -p "${ARTIFACTORY_PWD}" || exit 0
+          POETRY_REPOSITORIES_ARTIFACTORY_URL=https://artifactory.schireson.com/artifactory/api/pypi/pypi \
+          poetry publish --build --repository artifactory || exit 0
 
       - name: De-Whitelist Artifactory
         if: ${{ always() }}
