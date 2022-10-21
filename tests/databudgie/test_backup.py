@@ -135,7 +135,7 @@ def test_backup_local_file(pg, mf, **extras):
         backup(
             pg,
             adapter=Adapter.get_adapter(pg),
-            table_op=TableOp(
+            table_op=TableOp.from_name(
                 "public.customer",
                 BackupTableConfig(
                     name="public.customer",
@@ -157,7 +157,7 @@ def test_backup_one(pg, mf, s3_resource, **extras):
         pg,
         s3_resource=s3_resource,
         adapter=Adapter.get_adapter(pg),
-        table_op=TableOp(
+        table_op=TableOp.from_name(
             "public.customer",
             BackupTableConfig(
                 name="public.customer",

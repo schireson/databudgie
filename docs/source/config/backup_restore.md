@@ -19,6 +19,7 @@ backup:
   logging: ...
   sequences: true
   data: true
+  root_location: null
   s3: ...
   sentry: ...
 
@@ -29,6 +30,7 @@ restore:
   logging: ...
   sequences: true
   data: true
+  root_location: null
   s3: ...
   sentry: ...
 ```
@@ -103,6 +105,12 @@ When `true`, backs up or restores all sequences' positions associated with match
 Defaults to `true`.
 
 When `true`, records the data returned by `query` (`table`-level config) or restores the data.
+
+## `root_location`
+
+Defaults to `null`.
+
+When specified, all table-level `location` values will be made relative to the `root_location`.
 
 ## `manifest`
 

@@ -31,7 +31,7 @@ def test_type_conversion(pg, mf, s3_resource):
         pg,
         s3_resource=s3_resource,
         adapter=Adapter.get_adapter(pg),
-        table_op=TableOp(
+        table_op=TableOp.from_name(
             "sales", BackupTableConfig(name="sales", location=location, query="select * from public.sales")
         ),
     )

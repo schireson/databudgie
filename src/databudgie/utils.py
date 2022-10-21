@@ -2,7 +2,7 @@ import contextlib
 import io
 import os
 from datetime import datetime
-from typing import Tuple
+from typing import Optional, Tuple
 
 from databudgie.compression import Compressor
 from databudgie.output import Console, default_console
@@ -50,10 +50,9 @@ def capture_failures(ignore=(), strict=False, console: Console = default_console
     except ignore:
         raise
     except Exception as e:
+        console.exception(e)
         if strict:
             raise
-
-        console.exception(e)
 
 
 @contextlib.contextmanager
@@ -91,7 +90,15 @@ def parse_table(table: str) -> Tuple[str, str]:
     return schema, table
 
 
-def join_paths(*components: str) -> str:
-    first_component, *rest_components = components
+def join_paths(*components: Optional[str]) -> str:
+    real_components = [c for c in components if c is not None]
+
+    if not real_components:
+        return ""
+
+    if len(real_components) == 1:
+        return real_components[0]
+
+    first_component, *rest_components = real_components
     normalized_components = [c[5:] if is_s3_path(c) else c for c in rest_components]
     return os.path.join(first_component, *normalized_components)
