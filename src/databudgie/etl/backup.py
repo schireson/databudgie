@@ -29,7 +29,7 @@ def backup_all(
     console: Console = default_console,
     manifest: Optional[Manifest] = None,
     strict=False,
-    adapter=None,
+    adapter: Optional[str] = None,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
     """Perform backup on all tables in the config.
@@ -55,6 +55,12 @@ def backup_all(
         manifest=manifest,
         console=console,
         warn_for_unused_tables=True,
+    )
+
+    table_ops = concrete_adapter.materialize_table_dependencies(
+        session,
+        table_ops,
+        console=console,
     )
 
     backup_ddl(
@@ -91,7 +97,7 @@ def backup_ddl(
     table_ops: List[TableOp[BackupTableConfig]],
     *,
     timestamp: datetime,
-    adapter=Adapter,
+    adapter: Adapter,
     console: Console = default_console,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
@@ -140,8 +146,8 @@ def backup_ddl(
             if not table_op.raw_conf.ddl:
                 continue
 
-            progress.update(task, description=f"Backing up DDL: {table_op.table_name}")
-            result = adapter.export_table_ddl(session, table_op.table_name)
+            progress.update(task, description=f"Backing up DDL: {table_op.full_name}")
+            result = adapter.export_table_ddl(session, table_op.full_name)
 
             full_table_path = table_op.location()
             fully_qualified_path = join_paths(ddl_path, full_table_path, generate_filename(timestamp))
@@ -149,8 +155,8 @@ def backup_ddl(
             with io.BytesIO(result) as buffer:
                 persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
 
-            console.trace(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
-            table_names.append(table_op.table_name)
+            console.trace(f"Uploaded {table_op.full_name} to {fully_qualified_path}")
+            table_names.append(table_op.full_name)
 
     console.info("Finished backing up DDL")
 
@@ -168,7 +174,7 @@ def backup_sequences(
     table_ops: List[TableOp[BackupTableConfig]],
     *,
     timestamp: datetime,
-    adapter=Adapter,
+    adapter: Adapter,
     console: Console = default_console,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
@@ -182,12 +188,12 @@ def backup_sequences(
         task = progress.add_task("Backing up sequence positions", total=len(table_ops))
 
         for table_op in table_ops:
-            progress.update(task, description=f"Backing up sequence position: {table_op.table_name}")
+            progress.update(task, description=f"Backing up sequence position: {table_op.full_name}")
 
             if not table_op.raw_conf.sequences:
                 continue
 
-            sequences = table_sequences.get(table_op.table_name)
+            sequences = table_sequences.get(table_op.full_name)
             if not sequences:
                 continue
 
@@ -203,7 +209,7 @@ def backup_sequences(
             with io.BytesIO(result) as buffer:
                 persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
 
-            console.trace(f"Wrote {table_op.table_name} sequences to {fully_qualified_path}")
+            console.trace(f"Wrote {table_op.full_name} sequences to {fully_qualified_path}")
 
     console.info("Finished backing up sequence positions")
 
@@ -222,7 +228,7 @@ def backup_tables(
         task = progress.add_task("Backing up tables", total=len(table_ops))
 
         for table_op in table_ops:
-            progress.update(task, description=f"Backing up table: {table_op.table_name}")
+            progress.update(task, description=f"Backing up table: {table_op.full_name}")
 
             if not table_op.raw_conf.data:
                 continue
@@ -274,9 +280,9 @@ def backup(
     buffer.close()
 
     if manifest:
-        manifest.record(table_op.table_name, fully_qualified_path)
+        manifest.record(table_op.full_name, fully_qualified_path)
 
-    console.trace(f"Uploaded {table_op.table_name} to {fully_qualified_path}")
+    console.trace(f"Uploaded {table_op.full_name} to {fully_qualified_path}")
 
 
 def persist_backup(path: str, buffer: io.BytesIO, s3_resource: Optional["S3ServiceResource"] = None, compression=None):

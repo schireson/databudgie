@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from databudgie.adapter.base import Adapter
 from databudgie.adapter.fallback import PythonAdapter
+from databudgie.etl.base import TableOp
 from databudgie.output import Console, default_console
 
 
@@ -104,15 +105,13 @@ class PostgresAdapter(Adapter):
 
         session.invalidate()
 
-    @staticmethod
-    def collect_existing_tables(session: Session, console: Console = default_console) -> List[str]:
+    @classmethod
+    def collect_existing_tables(cls, session: Session, console: Console = default_console) -> List[str]:
         """Find the set of all user-defined tables in a database."""
-
         if "FALLBACK_SQLALCHEMY_TABLE_COLLECTION" in os.environ:
             console.warn("Using SQLAlchemy to collect tables.")
             return Adapter.collect_existing_tables(session)
 
-        # from https://stackoverflow.com/questions/51279588/sort-tables-in-order-of-dependency-postgres
         collect_tables = text(
             """
             with recursive fk_tree as (
@@ -158,9 +157,55 @@ class PostgresAdapter(Adapter):
             order by level;
             """
         )
+
         results = session.execute(collect_tables)
-        table_full_names = [row[0] for row in results]
-        return table_full_names
+        return [row[0] for row in results]
+
+    @staticmethod
+    def collect_table_dependencies(
+        session: Session, table_op: TableOp, console: Console = default_console
+    ) -> List[str]:
+        """Find the set of tables dependent on the set of input tables."""
+        collect_tables = text(
+            """
+            with recursive fk_tree as (
+                 select pg_class.oid      as table_oid,
+                     pg_namespace.nspname as schema_name,
+                     pg_class.relname     as table_name,
+                     1                    as level
+                 from pg_class
+                 join pg_namespace pg_namespace on pg_namespace.oid = pg_class.relnamespace
+                 where pg_namespace.nspname = :schema and pg_class.relname = :table_name
+                 union all
+                 select pg_class.oid      as table_oid,
+                     pg_namespace.nspname as schema_name,
+                     pg_class.relname     as table_name,
+                     fk_tree.level + 1          as level
+                 from fk_tree
+                 join pg_constraint on pg_constraint.contype = 'f' and pg_constraint.conrelid = fk_tree.table_oid
+                 join pg_class on pg_class.oid = pg_constraint.confrelid
+                 join pg_namespace on pg_namespace.oid = pg_class.relnamespace
+                 where fk_tree.table_oid != pg_class.oid -- do not enter to tables referencing theirselves.
+            ),
+            all_tables as (
+                -- this picks the **highest** level for each table
+                select
+                    schema_name,
+                    table_name,
+                    level,
+                    row_number() over (partition by schema_name, table_name order by level desc) as last_table_row
+                from fk_tree
+            )
+            select schema_name || '.' || table_name
+            from all_tables at
+            where last_table_row = 1
+            order by level;
+            """
+        )
+
+        results = session.execute(collect_tables, params=dict(schema=table_op.schema, table_name=table_op.table_name))
+
+        return [row[0] for row in results]
 
     @staticmethod
     def collect_table_sequences(session: Session) -> Dict[str, List[str]]:
