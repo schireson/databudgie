@@ -29,27 +29,27 @@ def restore_all(
     restore_config: RestoreConfig,
     console: Console = default_console,
     manifest: Optional[Manifest] = None,
-    adapter: Optional[str] = None,
+    adapter_name: Optional[str] = None,
     strict=False,
 ) -> None:
     """Perform restore on all tables in the config."""
-    concrete_adapter = Adapter.get_adapter(adapter or session)
+    adapter = Adapter.get_adapter(session, adapter_name)
     s3_resource = optional_s3_resource(restore_config)
 
     if restore_config.ddl.clean:
         console.warn("Cleaning database")
-        concrete_adapter.reset_database(session)
+        adapter.reset_database()
 
     restore_all_ddl(
         session,
         restore_config,
-        adapter=concrete_adapter,
+        adapter=adapter,
         s3_resource=s3_resource,
         console=console,
     )
 
     console.trace("Collecting existing tables")
-    existing_tables = concrete_adapter.collect_existing_tables(session)
+    existing_tables = adapter.collect_existing_tables()
 
     table_ops = expand_table_ops(
         session,
@@ -60,8 +60,7 @@ def restore_all(
         warn_for_unused_tables=True,
     )
 
-    table_ops = concrete_adapter.materialize_table_dependencies(
-        session,
+    table_ops = adapter.materialize_table_dependencies(
         table_ops,
         console=console,
         reverse=True,
@@ -70,21 +69,20 @@ def restore_all(
     restore_sequences(
         session,
         table_ops,
-        adapter=concrete_adapter,
+        adapter=adapter,
         s3_resource=s3_resource,
         console=console,
     )
     truncate_tables(
-        session,
         list(reversed(table_ops)),
-        adapter=concrete_adapter,
+        adapter=adapter,
         console=console,
     )
     restore_tables(
         session,
         table_ops,
         manifest=manifest,
-        adapter=concrete_adapter,
+        adapter=adapter,
         s3_resource=s3_resource,
         strict=strict,
         console=console,
@@ -115,7 +113,6 @@ def restore_all_ddl(
 
     table_ops = expand_table_ops(session, restore_config.tables, existing_tables=tables, console=console)
     table_ops = adapter.materialize_table_dependencies(
-        session,
         table_ops,
         console=console,
         reverse=True,
@@ -210,13 +207,13 @@ def restore_sequences(
                 sequences = json.load(file_object.content)
 
             for sequence, value in sequences.items():
-                adapter.restore_sequence_value(session, sequence, value)
+                adapter.restore_sequence_value(sequence, value)
 
     console.info("Finished restoring sequence positions")
     session.commit()
 
 
-def truncate_tables(session: Session, table_ops: Sequence[TableOp], adapter: Adapter, console: Console):
+def truncate_tables(table_ops: Sequence[TableOp], adapter: Adapter, console: Console):
     with Progress(console) as progress:
         task = progress.add_task("Truncating Tables", total=len(table_ops))
 
@@ -227,7 +224,7 @@ def truncate_tables(session: Session, table_ops: Sequence[TableOp], adapter: Ada
                 continue
 
             progress.update(task, description=f"[trace]Truncating {table_op.full_name}[/trace]", advance=1)
-            adapter.truncate_table(session, table_op.full_name)
+            adapter.truncate_table(table_op.full_name)
 
     console.info("Finished truncating tables")
 
@@ -293,7 +290,7 @@ def restore(
 
         with wrap_buffer(file_object.content) as wrapper:
             try:
-                adapter.import_csv(session, wrapper, table_op.full_name)
+                adapter.import_csv(wrapper, table_op.full_name)
             except SQLAlchemyError:
                 session.rollback()
             else:

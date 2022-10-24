@@ -28,7 +28,6 @@ def test_type_conversion(pg, mf, s3_resource):
     location = "s3://sample-bucket/public.sales"
 
     backup(
-        pg,
         s3_resource=s3_resource,
         adapter=Adapter.get_adapter(pg),
         table_op=TableOp.from_name(
