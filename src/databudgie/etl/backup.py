@@ -27,8 +27,6 @@ def backup_all(
     session: Session,
     backup_config: BackupConfig,
     manifest: Optional[Manifest] = None,
-    strict=False,
-    adapter_name: Optional[str] = None,
     s3_resource: Optional["S3ServiceResource"] = None,
     console: Console = default_console,
 ):
@@ -37,13 +35,11 @@ def backup_all(
     Arguments:
         session: A SQLAlchemy session with the PostgreSQL database from which to query data.
         backup_config: config object mapping table names to their query and location.
-        strict: terminate backup after failing one table.
         manifest: optional manifest to record the backup location.
-        adapter_name: optional adapter
         s3_resource: optional boto S3 resource from an authenticated session.
         console: Console used for output
     """
-    adapter = Adapter.get_adapter(session, adapter_name)
+    adapter = Adapter.get_adapter(session, backup_config.adapter)
     s3_resource = optional_s3_resource(backup_config)
     timestamp = datetime.now()
 
@@ -80,7 +76,6 @@ def backup_all(
     backup_tables(
         table_ops=table_ops,
         manifest=manifest,
-        strict=strict,
         adapter=adapter,
         s3_resource=s3_resource,
         console=console,
@@ -211,7 +206,6 @@ def backup_sequences(
 def backup_tables(
     table_ops: Sequence[TableOp],
     *,
-    strict=False,
     adapter: Adapter,
     console: Console = default_console,
     manifest: Optional[Manifest] = None,
@@ -226,7 +220,7 @@ def backup_tables(
             if not table_op.raw_conf.data:
                 continue
 
-            with capture_failures(strict=strict):
+            with capture_failures(strict=table_op.raw_conf.strict):
                 backup(
                     table_op=table_op,
                     manifest=manifest,

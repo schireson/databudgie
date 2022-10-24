@@ -38,7 +38,7 @@ def test_backup_ddl_disabled(pg):
             config = Config.from_yaml(folder / "config.backup.yml")
             config = RootConfig.from_dict(config.to_dict())
 
-        backup_all(pg, config.backup, strict=True)
+        backup_all(pg, config.backup)
 
         assert not os.path.exists(os.path.join(temp_dir, "ddl"))
 
@@ -51,7 +51,7 @@ def test_backup_ddl(pg, dir=None):
             config = Config.from_yaml(folder / "config.backup.yml")
             config = RootConfig.from_dict(config.to_dict())
 
-        backup_all(pg, config.backup, strict=True)
+        backup_all(pg, config.backup)
 
         assert os.path.exists(os.path.join(temp_dir, "ddl"))
 
@@ -67,7 +67,7 @@ def test_restore_ddl(pg, empty_db, mf):
             config = Config.from_yaml(folder / "config.restore.yml")
             config = RootConfig.from_dict(config.to_dict())
 
-        restore_all(empty_db, config.restore, strict=True)
+        restore_all(empty_db, config.restore)
         empty_db.commit()
 
         rows = empty_db.query(Store).all()
@@ -85,7 +85,7 @@ def test_restore_ddl_disabled(pg, empty_db, mf):
             config = Config.from_yaml(folder / "config.restore.yml")
             config = RootConfig.from_dict(config.to_dict())
 
-        restore_all(empty_db, config.restore, strict=True)
+        restore_all(empty_db, config.restore)
 
         with pytest.raises(sqlalchemy.exc.ProgrammingError) as e:
             empty_db.query(Store).all()
