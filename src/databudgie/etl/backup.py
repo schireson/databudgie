@@ -26,11 +26,11 @@ if TYPE_CHECKING:
 def backup_all(
     session: Session,
     backup_config: BackupConfig,
-    console: Console = default_console,
     manifest: Optional[Manifest] = None,
     strict=False,
-    adapter: Optional[str] = None,
+    adapter_name: Optional[str] = None,
     s3_resource: Optional["S3ServiceResource"] = None,
+    console: Console = default_console,
 ):
     """Perform backup on all tables in the config.
 
@@ -39,15 +39,15 @@ def backup_all(
         backup_config: config object mapping table names to their query and location.
         strict: terminate backup after failing one table.
         manifest: optional manifest to record the backup location.
-        adapter: optional adapter
+        adapter_name: optional adapter
         s3_resource: optional boto S3 resource from an authenticated session.
         console: Console used for output
     """
-    concrete_adapter = Adapter.get_adapter(adapter or session)
+    adapter = Adapter.get_adapter(session, adapter_name)
     s3_resource = optional_s3_resource(backup_config)
     timestamp = datetime.now()
 
-    existing_tables = concrete_adapter.collect_existing_tables(session)
+    existing_tables = adapter.collect_existing_tables()
     table_ops = expand_table_ops(
         session,
         backup_config.tables,
@@ -57,42 +57,37 @@ def backup_all(
         warn_for_unused_tables=True,
     )
 
-    table_ops = concrete_adapter.materialize_table_dependencies(
-        session,
+    table_ops = adapter.materialize_table_dependencies(
         table_ops,
         console=console,
     )
 
     backup_ddl(
-        session,
         backup_config,
         table_ops,
         timestamp=timestamp,
-        adapter=concrete_adapter,
+        adapter=adapter,
         s3_resource=s3_resource,
         console=console,
     )
     backup_sequences(
-        session,
         table_ops,
         timestamp=timestamp,
-        adapter=concrete_adapter,
+        adapter=adapter,
         s3_resource=s3_resource,
         console=console,
     )
     backup_tables(
-        session,
         table_ops=table_ops,
         manifest=manifest,
         strict=strict,
-        adapter=concrete_adapter,
+        adapter=adapter,
         s3_resource=s3_resource,
         console=console,
     )
 
 
 def backup_ddl(
-    session: Session,
     backup_config: BackupConfig,
     table_ops: List[TableOp[BackupTableConfig]],
     *,
@@ -130,7 +125,7 @@ def backup_ddl(
         for schema_op in schemas:
             progress.update(task, description=f"Backing up schema DDL: {schema_op.name}")
 
-            result = adapter.export_schema_ddl(session, schema_op.name)
+            result = adapter.export_schema_ddl(schema_op.name)
 
             path = schema_op.location()
             fully_qualified_path = join_paths(ddl_path, path, generate_filename(timestamp))
@@ -147,7 +142,7 @@ def backup_ddl(
                 continue
 
             progress.update(task, description=f"Backing up DDL: {table_op.full_name}")
-            result = adapter.export_table_ddl(session, table_op.full_name)
+            result = adapter.export_table_ddl(table_op.full_name)
 
             full_table_path = table_op.location()
             fully_qualified_path = join_paths(ddl_path, full_table_path, generate_filename(timestamp))
@@ -170,7 +165,6 @@ def backup_ddl(
 
 
 def backup_sequences(
-    session: Session,
     table_ops: List[TableOp[BackupTableConfig]],
     *,
     timestamp: datetime,
@@ -182,7 +176,7 @@ def backup_sequences(
     if not has_sequences:
         return
 
-    table_sequences = adapter.collect_table_sequences(session)
+    table_sequences = adapter.collect_table_sequences()
 
     with Progress(console) as progress:
         task = progress.add_task("Backing up sequence positions", total=len(table_ops))
@@ -199,7 +193,7 @@ def backup_sequences(
 
             sequence_values = {}
             for sequence in sequences:
-                sequence_values[sequence] = adapter.collect_sequence_value(session, sequence)
+                sequence_values[sequence] = adapter.collect_sequence_value(sequence)
 
             result = json.dumps(sequence_values).encode("utf-8")
 
@@ -215,7 +209,6 @@ def backup_sequences(
 
 
 def backup_tables(
-    session: Session,
     table_ops: Sequence[TableOp],
     *,
     strict=False,
@@ -235,7 +228,6 @@ def backup_tables(
 
             with capture_failures(strict=strict):
                 backup(
-                    session,
                     table_op=table_op,
                     manifest=manifest,
                     adapter=adapter,
@@ -247,7 +239,6 @@ def backup_tables(
 
 
 def backup(
-    session: Session,
     *,
     table_op: TableOp[BackupTableConfig],
     adapter: Adapter,
@@ -259,7 +250,6 @@ def backup(
     """Dump query contents to S3 as a CSV file.
 
     Arguments:
-        session: A SQLAlchemy session with the PostgreSQL database from which to query data.
         config: The raw backup configuration.
         table_op: The table operation being acted up on.
         timestamp: optional timestamp to use for the backup filename.
@@ -270,7 +260,7 @@ def backup(
     """
     buffer = io.BytesIO()
     with wrap_buffer(buffer) as wrapper:
-        adapter.export_query(session, table_op.query(), wrapper)
+        adapter.export_query(table_op.query(), wrapper)
 
     # path.join will handle optionally trailing slashes in the location
     compression = table_op.raw_conf.compression

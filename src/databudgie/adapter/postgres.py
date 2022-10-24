@@ -9,10 +9,8 @@ import psycopg2.errors
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, create_engine, Engine
 from sqlalchemy.engine.url import URL
-from sqlalchemy.orm import Session
 
 from databudgie.adapter.base import Adapter
-from databudgie.adapter.fallback import PythonAdapter
 from databudgie.etl.base import TableOp
 from databudgie.output import Console, default_console
 
@@ -31,10 +29,9 @@ def update_url(url, database=None):
         )
 
 
-# XXX: see if we can count rows in the transactions
 class PostgresAdapter(Adapter):
-    def export_query(self, session: Session, query: str, dest: io.StringIO):
-        engine: Engine = session.get_bind()
+    def export_query(self, query: str, dest: io.StringIO):
+        engine: Engine = self.session.get_bind()
         conn: Connection = engine.raw_connection()
         cursor: psycopg2.cursor = conn.cursor()
 
@@ -43,8 +40,8 @@ class PostgresAdapter(Adapter):
         cursor.close()
         conn.close()
 
-    def import_csv(self, session: Session, csv_file: io.TextIOBase, table: str):
-        engine: Engine = session.get_bind()
+    def import_csv(self, csv_file: io.TextIOBase, table: str):
+        engine: Engine = self.session.get_bind()
         conn: Connection = engine.raw_connection()
         cursor: psycopg2.cursor = conn.cursor()
 
@@ -57,33 +54,30 @@ class PostgresAdapter(Adapter):
         conn.commit()
         conn.close()
 
-    @staticmethod
-    def export_schema_ddl(session: Session, name: str, console: Console = default_console) -> bytes:
+    def export_schema_ddl(self, name: str, console: Console = default_console) -> bytes:
         if not shutil.which("pg_dump"):
             console.warn("Could not find pg_dump, falling back to SQLAlchemy implementation.")
-            return PythonAdapter.export_schema_ddl(session, name)
+            return super().export_schema_ddl(name)
 
-        url = session.connection().engine.url
+        url = self.session.connection().engine.url
         result = pg_dump(url, f"--schema-only --schema={name} --exclude-table={name}.*")
         result = result.replace(
             f"CREATE SCHEMA {name};".encode("utf-8"), f"CREATE SCHEMA IF NOT EXISTS {name};".encode("utf-8")
         )
         return result
 
-    @staticmethod
-    def export_table_ddl(session: Session, table_name: str, console: Console = default_console):
+    def export_table_ddl(self, table_name: str, console: Console = default_console):
         if not shutil.which("pg_dump"):
             console.warn("Could not find pg_dump, falling back to SQLAlchemy implementation.")
-            return PythonAdapter.export_table_ddl(session, table_name)
+            return super().export_table_ddl(table_name)
 
-        url = session.connection().engine.url
+        url = self.session.connection().engine.url
 
         return pg_dump(url, f"--schema-only -t {table_name}")
 
-    @staticmethod
-    def reset_database(session: Session):
+    def reset_database(self):
         """Attempt to kill the existing database and bring it back up."""
-        connection = session.connection()
+        connection = self.session.connection()
         url: URL = connection.engine.url
         database = url.database
 
@@ -103,14 +97,13 @@ class PostgresAdapter(Adapter):
             # from a template while there are active connections to it.
             connection.execute(text(f"CREATE DATABASE {database} template=template0"))
 
-        session.invalidate()
+        self.session.invalidate()
 
-    @classmethod
-    def collect_existing_tables(cls, session: Session, console: Console = default_console) -> List[str]:
+    def collect_existing_tables(self, console: Console = default_console) -> List[str]:
         """Find the set of all user-defined tables in a database."""
         if "FALLBACK_SQLALCHEMY_TABLE_COLLECTION" in os.environ:
             console.warn("Using SQLAlchemy to collect tables.")
-            return Adapter.collect_existing_tables(session)
+            return super().collect_existing_tables()
 
         collect_tables = text(
             """
@@ -158,13 +151,10 @@ class PostgresAdapter(Adapter):
             """
         )
 
-        results = session.execute(collect_tables)
+        results = self.session.execute(collect_tables)
         return [row[0] for row in results]
 
-    @staticmethod
-    def collect_table_dependencies(
-        session: Session, table_op: TableOp, console: Console = default_console
-    ) -> List[str]:
+    def collect_table_dependencies(self, table_op: TableOp, console: Console = default_console) -> List[str]:
         """Find the set of tables dependent on the set of input tables."""
         collect_tables = text(
             """
@@ -203,13 +193,14 @@ class PostgresAdapter(Adapter):
             """
         )
 
-        results = session.execute(collect_tables, params=dict(schema=table_op.schema, table_name=table_op.table_name))
+        results = self.session.execute(
+            collect_tables, params=dict(schema=table_op.schema, table_name=table_op.table_name)
+        )
 
         return [row[0] for row in results]
 
-    @staticmethod
-    def collect_table_sequences(session: Session) -> Dict[str, List[str]]:
-        sequences = session.execute(
+    def collect_table_sequences(self) -> Dict[str, List[str]]:
+        sequences = self.session.execute(
             text(
                 """
                 SELECT
@@ -232,13 +223,11 @@ class PostgresAdapter(Adapter):
             result.setdefault(sequence.fq_table_name, []).append(sequence.fq_sequence_name)
         return result
 
-    @staticmethod
-    def collect_sequence_value(session: Session, sequence_name: str) -> int:
-        return session.execute(text(f"SELECT last_value from {sequence_name}")).scalar()  # nosec
+    def collect_sequence_value(self, sequence_name: str) -> int:
+        return self.session.execute(text(f"SELECT last_value from {sequence_name}")).scalar()  # nosec
 
-    @staticmethod
-    def restore_sequence_value(session: Session, sequence_name: str, value: int) -> int:
-        return session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar()
+    def restore_sequence_value(self, sequence_name: str, value: int) -> int:
+        return self.session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar()
 
 
 def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:
