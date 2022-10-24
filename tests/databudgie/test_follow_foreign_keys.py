@@ -65,11 +65,12 @@ def test_backup_follow_foreign_keys(pg, s3_resource):
             "follow_foreign_keys": True,
             "sequences": False,
             "root_location": "s3://sample-bucket/",
+            "strict": True,
             **s3_config,
         }
     )
 
-    backup_all(pg, config.backup, strict=True)
+    backup_all(pg, config.backup)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -102,12 +103,16 @@ def test_restore_follow_foreign_keys(pg, s3_resource):
             "follow_foreign_keys": True,
             "sequences": False,
             "clean": True,
+            "strict": True,
             "root_location": "s3://sample-bucket/",
             **s3_config,
         }
     )
 
-    restore_all(pg, config.restore, strict=True)
+    restore_all(
+        pg,
+        config.restore,
+    )
 
     assert pg.query(Store).one().id == 1
     assert pg.query(Product).one().id == 2

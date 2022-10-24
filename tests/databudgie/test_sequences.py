@@ -32,10 +32,11 @@ def test_backup_without_sequences(pg, s3_resource):
             **table_config,
             **s3_config,
             "sequences": False,
+            "strict": True,
         }
     )
 
-    backup_all(pg, config.backup, strict=True)
+    backup_all(pg, config.backup)
 
     all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert len(all_objects) == 1
@@ -50,6 +51,7 @@ def test_backup_with_sequences(pg, s3_resource, sequence_config, mf):
             **table_config,
             **s3_config,
             **sequence_config,
+            "strict": True,
         }
     )
 
@@ -57,7 +59,7 @@ def test_backup_with_sequences(pg, s3_resource, sequence_config, mf):
     mf.product.new()
     mf.product.new()
 
-    backup_all(pg, config.backup, strict=True)
+    backup_all(pg, config.backup)
 
     all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert len(all_objects) == 2
@@ -76,12 +78,13 @@ def test_restore_without_sequences(pg, s3_resource):
             **table_config,
             **s3_config,
             "sequences": False,
+            "strict": True,
         }
     )
 
     mock_s3_json(s3_resource, "public.product/sequences/2021-04-26T09:00:00.json", {"product_id_seq": 91})
 
-    restore_all(pg, config.restore, strict=True)
+    restore_all(pg, config.restore)
 
     sequence_value = pg.execute(text("SELECT LAST_VALUE from product_id_seq")).scalar()
     assert sequence_value == 1
@@ -95,12 +98,13 @@ def test_restore_with_sequences(pg, s3_resource, sequence_config, mf):
             **table_config,
             **s3_config,
             **sequence_config,
+            "strict": True,
         }
     )
 
     mock_s3_json(s3_resource, "public.product/sequences/2021-04-26T09:00:00.json", {"product_id_seq": 91})
 
-    restore_all(pg, config.restore, strict=True)
+    restore_all(pg, config.restore)
 
     sequence_value = pg.execute(text("SELECT LAST_VALUE from product_id_seq")).scalar()
     assert sequence_value == 91

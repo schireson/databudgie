@@ -1,3 +1,4 @@
+strict: true
 backup:
   ddl:
     enabled: <% ENV[DDL_ENABLED, true] %>

@@ -29,11 +29,9 @@ def restore_all(
     restore_config: RestoreConfig,
     console: Console = default_console,
     manifest: Optional[Manifest] = None,
-    adapter_name: Optional[str] = None,
-    strict=False,
 ) -> None:
     """Perform restore on all tables in the config."""
-    adapter = Adapter.get_adapter(session, adapter_name)
+    adapter = Adapter.get_adapter(session, restore_config.adapter)
     s3_resource = optional_s3_resource(restore_config)
 
     if restore_config.ddl.clean:
@@ -84,7 +82,6 @@ def restore_all(
         manifest=manifest,
         adapter=adapter,
         s3_resource=s3_resource,
-        strict=strict,
         console=console,
     )
 
@@ -233,7 +230,6 @@ def restore_tables(
     session: Session,
     table_ops: Sequence[TableOp],
     *,
-    strict=False,
     adapter: Adapter,
     console: Console = default_console,
     manifest: Optional[Manifest] = None,
@@ -248,7 +244,7 @@ def restore_tables(
 
             progress.update(task, description=f"Restoring table: {table_op.full_name}")
 
-            with capture_failures(strict=strict):
+            with capture_failures(strict=table_op.raw_conf.strict):
                 restore(
                     session,
                     table_op=table_op,

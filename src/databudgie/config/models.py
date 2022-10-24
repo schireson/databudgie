@@ -62,16 +62,6 @@ def from_partial(cls: typing.Callable[..., F], **kwargs) -> F:
 
 
 @dataclass
-class LoggingConfig(Config):
-    enabled: bool = False
-    level: str = "INFO"
-
-    @classmethod
-    def from_dict(cls, logging_config: dict):
-        return from_partial(cls, **logging_config)
-
-
-@dataclass
 class DDLConfig(Config):
     enabled: bool = False
     location: str = "ddl"
@@ -125,13 +115,13 @@ class TableParentConfig(typing.Generic[T], Config):
     url: typing.Union[str, dict]
     tables: typing.List[T]
 
-    logging: LoggingConfig
     ddl: DDLConfig
     manifest: Optional[str] = None
 
     s3: Optional[S3Config] = None
     sentry: Optional[SentryConfig] = None
     root_location: Optional[str] = None
+    adapter: Optional[str] = None
 
     @classmethod
     @abc.abstractmethod
@@ -151,11 +141,12 @@ class TableParentConfig(typing.Generic[T], Config):
         manifest: Optional[str] = stack.get("manifest")
 
         ddl = DDLConfig.from_dict(stack.get("ddl", {}), root_location)
-        logging = LoggingConfig.from_dict(stack.get("logging", {}))
 
         # Optional integration configs
         s3 = S3Config.from_dict(stack.get("s3"))
         sentry = SentryConfig.from_dict(stack.get("sentry"))
+
+        adapter = stack.get("adapter")
 
         return cls(
             url=url,
@@ -163,9 +154,9 @@ class TableParentConfig(typing.Generic[T], Config):
             manifest=manifest,
             s3=s3,
             sentry=sentry,
-            logging=logging,
             ddl=ddl,
             root_location=root_location,
+            adapter=adapter,
         )
 
     def to_dict(self) -> dict:
@@ -173,10 +164,11 @@ class TableParentConfig(typing.Generic[T], Config):
             "url": self.url,
             "tables": [table.to_dict() for table in self.tables],
             "manifest": self.manifest,
-            "logging": self.logging.to_dict(),
             "ddl": self.ddl.to_dict(),
             "s3": self.s3.to_dict() if self.s3 else None,
             "sentry": self.sentry.to_dict() if self.sentry else None,
+            "root_location": self.root_location,
+            "adapter": self.adapter,
         }
 
 
@@ -191,6 +183,7 @@ class BackupTableConfig(Config):
     sequences: bool = True
     data: bool = True
     follow_foreign_keys: bool = False
+    strict: bool = False
 
     @classmethod
     def from_stack(cls, stack: ConfigStack, root_location: Optional[str] = None):
@@ -211,6 +204,7 @@ class BackupTableConfig(Config):
             data=stack.get("data", True),
             ddl=stack.get("ddl", True),
             follow_foreign_keys=stack.get("follow_foreign_keys", False),
+            strict=stack.get("strict", False),
         )
 
 
@@ -233,6 +227,7 @@ class RestoreTableConfig(Config):
     truncate: bool = False
     data: bool = True
     follow_foreign_keys: bool = False
+    strict: bool = False
 
     @classmethod
     def from_stack(cls, stack: ConfigStack, root_location: Optional[str] = None):
@@ -254,6 +249,7 @@ class RestoreTableConfig(Config):
             data=stack.get("data", True),
             ddl=stack.get("ddl", True),
             follow_foreign_keys=stack.get("follow_foreign_keys", False),
+            strict=stack.get("strict", False),
         )
 
 
