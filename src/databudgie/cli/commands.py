@@ -14,7 +14,13 @@ from databudgie.output import Console
 @resolver.group()
 @click.option("--strict/--no-strict", is_flag=True, default=None)
 @click.option("--color/--no-color", is_flag=True, default=True)
-@click.option("-a", "--adapter", default=None, help="postgres, python, etc.")
+@click.option(
+    "-a",
+    "--adapter",
+    default=None,
+    type=click.Choice(["postgres", "postgresql", "python"], case_sensitive=False),
+    help="Override the automatic dialect detection.",
+)
 @click.option("-c", "--config", default=[DEFAULT_CONFIG_FILE], help="config file", multiple=True)
 @click.option("-v", "--verbose", count=True, default=0)
 @click.option(
@@ -32,10 +38,10 @@ from databudgie.output import Console
 @click.version_option()
 def cli(
     strict: bool,
-    adapter: str,
     config: Iterable[str],
-    verbose: int,
+    verbose: int = 0,
     color: bool = True,
+    adapter: Optional[str] = None,
     ddl: Optional[bool] = None,
     url: Optional[str] = None,
     table: Optional[Tuple[str, ...]] = None,
@@ -74,9 +80,9 @@ def backup_cli(
     backup_config: BackupConfig,
     backup_db: Session,
     strict: bool,
-    adapter: str,
     console: Console,
-    verbosity: int,
+    verbosity: int = 0,
+    adapter: Optional[str] = None,
     backup_manifest: Optional[Manifest] = None,
     backup_id: Optional[int] = None,
 ):
@@ -90,7 +96,9 @@ def backup_cli(
         backup_manifest.set_transaction_id(backup_id)
 
     try:
-        backup_all(backup_db, backup_config, manifest=backup_manifest, strict=strict, adapter=adapter, console=console)
+        backup_all(
+            backup_db, backup_config, manifest=backup_manifest, strict=strict, adapter_name=adapter, console=console
+        )
     except Exception as e:
         console.trace(e)
         raise click.ClickException(*e.args)
@@ -145,7 +153,7 @@ def restore_cli(
             restore_config=restore_config,
             manifest=restore_manifest,
             strict=strict,
-            adapter=adapter,
+            adapter_name=adapter,
             console=console,
         )
     except Exception as e:

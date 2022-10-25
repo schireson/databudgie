@@ -113,7 +113,8 @@ def test_backup_all_tables_list(pg, s3_resource):
         },
     ),
 )
-def test_compression(pg, s3_resource, config):
+@pytest.mark.parametrize("adapter", ("postgres", "python"))
+def test_compression(pg, s3_resource, config, adapter):
     config = RootConfig.from_dict({"backup": config, "sequences": False, **s3_config})
     backup_all(pg, backup_config=config.backup, strict=True)
 
@@ -133,7 +134,6 @@ def test_backup_local_file(pg, mf, **extras):
 
     with tempfile.TemporaryDirectory() as dir_name:
         backup(
-            pg,
             adapter=Adapter.get_adapter(pg),
             table_op=TableOp.from_name(
                 "public.customer",
@@ -154,7 +154,6 @@ def test_backup_one(pg, mf, s3_resource, **extras):
     customer = mf.customer.new(external_id="cid_123")
 
     backup(
-        pg,
         s3_resource=s3_resource,
         adapter=Adapter.get_adapter(pg),
         table_op=TableOp.from_name(
