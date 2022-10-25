@@ -43,12 +43,14 @@ def restore_all(
     restore_all_ddl(
         session,
         restore_config,
+        adapter=concrete_adapter,
         s3_resource=s3_resource,
         console=console,
     )
 
     console.trace("Collecting existing tables")
     existing_tables = concrete_adapter.collect_existing_tables(session)
+
     table_ops = expand_table_ops(
         session,
         restore_config.tables,
@@ -56,6 +58,13 @@ def restore_all(
         manifest=manifest,
         console=console,
         warn_for_unused_tables=True,
+    )
+
+    table_ops = concrete_adapter.materialize_table_dependencies(
+        session,
+        table_ops,
+        console=console,
+        reverse=True,
     )
 
     restore_sequences(
@@ -85,6 +94,8 @@ def restore_all(
 def restore_all_ddl(
     session: Session,
     restore_config: RestoreConfig,
+    *,
+    adapter: Adapter,
     console: Console = default_console,
     s3_resource: Optional["S3ServiceResource"] = None,
 ):
@@ -103,6 +114,12 @@ def restore_all_ddl(
         tables = json.load(file_object.content)
 
     table_ops = expand_table_ops(session, restore_config.tables, existing_tables=tables, console=console)
+    table_ops = adapter.materialize_table_dependencies(
+        session,
+        table_ops,
+        console=console,
+        reverse=True,
+    )
 
     schema_names = set()
     schema_ops = []
@@ -128,7 +145,7 @@ def restore_all_ddl(
             restore_ddl(session, schema_op, ddl_path, s3_resource=s3_resource, console=console)
 
         for table_op in table_ops:
-            progress.update(task, description=f"Restoring DDL: {table_op.table_name}")
+            progress.update(task, description=f"Restoring DDL: {table_op.full_name}")
 
             restore_ddl(session, table_op, ddl_path, s3_resource=s3_resource, console=console)
 
@@ -178,7 +195,7 @@ def restore_sequences(
         task = progress.add_task("Restoring sequence positions", total=len(table_ops))
 
         for table_op in table_ops:
-            progress.update(task, description=f"Restoring sequence position: {table_op.table_name}")
+            progress.update(task, description=f"Restoring sequence position: {table_op.full_name}")
             if not table_op.raw_conf.sequences:
                 continue
 
@@ -209,8 +226,8 @@ def truncate_tables(session: Session, table_ops: Sequence[TableOp], adapter: Ada
             if not data or not truncate:
                 continue
 
-            progress.update(task, description=f"[trace]Truncating {table_op.table_name}[/trace]", advance=1)
-            adapter.truncate_table(session, table_op.table_name)
+            progress.update(task, description=f"[trace]Truncating {table_op.full_name}[/trace]", advance=1)
+            adapter.truncate_table(session, table_op.full_name)
 
     console.info("Finished truncating tables")
 
@@ -232,7 +249,7 @@ def restore_tables(
             if not table_op.raw_conf.data:
                 continue
 
-            progress.update(task, description=f"Restoring table: {table_op.table_name}")
+            progress.update(task, description=f"Restoring table: {table_op.full_name}")
 
             with capture_failures(strict=strict):
                 restore(
@@ -258,7 +275,7 @@ def restore(
 ) -> None:
     """Restore a CSV file from S3 to the database."""
     # Force table_name to be fully qualified
-    schema, table = parse_table(table_op.table_name)
+    schema, table = parse_table(table_op.full_name)
     table_name = f"{schema}.{table}"
 
     strategy: str = table_op.raw_conf.strategy
@@ -276,7 +293,7 @@ def restore(
 
         with wrap_buffer(file_object.content) as wrapper:
             try:
-                adapter.import_csv(session, wrapper, table_op.table_name)
+                adapter.import_csv(session, wrapper, table_op.full_name)
             except SQLAlchemyError:
                 session.rollback()
             else:

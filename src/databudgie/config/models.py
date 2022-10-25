@@ -3,7 +3,9 @@ from __future__ import annotations
 import abc
 import typing
 from dataclasses import asdict, dataclass, field
-from typing import Optional, Union
+from typing import Any, Optional, Union
+
+from databudgie.utils import join_paths
 
 T = typing.TypeVar("T", "BackupTableConfig", "RestoreTableConfig")
 F = typing.TypeVar("F")
@@ -77,10 +79,14 @@ class DDLConfig(Config):
     strategy: str = "use_latest_filename"
 
     @classmethod
-    def from_dict(cls, ddl_config: Union[dict, bool]):
+    def from_dict(cls, ddl_config: Union[dict, bool], root_location: Optional[str] = None):
         if isinstance(ddl_config, bool):
-            ddl_config = {"enabled": ddl_config}
-        return from_partial(cls, **ddl_config)
+            expanded_ddl_config: dict[str, Any] = {"enabled": ddl_config}
+        else:
+            expanded_ddl_config = ddl_config
+
+        location = join_paths(root_location, expanded_ddl_config.pop("location", None))
+        return from_partial(cls, location=location, **expanded_ddl_config)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -125,6 +131,7 @@ class TableParentConfig(typing.Generic[T], Config):
 
     s3: Optional[S3Config] = None
     sentry: Optional[SentryConfig] = None
+    root_location: Optional[str] = None
 
     @classmethod
     @abc.abstractmethod
@@ -134,15 +141,16 @@ class TableParentConfig(typing.Generic[T], Config):
     @classmethod
     def from_stack(cls, stack: ConfigStack):
         url: str = stack.get("url")
+        root_location = stack.get("root_location")
 
         tables_config: list = normalize_table_config(stack.get("tables", []))
         table_class = cls.get_child_class()
-        tables = [table_class.from_stack(stack.push(tbl_conf)) for tbl_conf in tables_config]
+        tables = [table_class.from_stack(stack.push(tbl_conf), root_location) for tbl_conf in tables_config]
 
         # manifest defauls to None
         manifest: Optional[str] = stack.get("manifest")
 
-        ddl = DDLConfig.from_dict(stack.get("ddl", {}))
+        ddl = DDLConfig.from_dict(stack.get("ddl", {}), root_location)
         logging = LoggingConfig.from_dict(stack.get("logging", {}))
 
         # Optional integration configs
@@ -157,6 +165,7 @@ class TableParentConfig(typing.Generic[T], Config):
             sentry=sentry,
             logging=logging,
             ddl=ddl,
+            root_location=root_location,
         )
 
     def to_dict(self) -> dict:
@@ -181,23 +190,27 @@ class BackupTableConfig(Config):
     ddl: bool = True
     sequences: bool = True
     data: bool = True
+    follow_foreign_keys: bool = False
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack):
+    def from_stack(cls, stack: ConfigStack, root_location: Optional[str] = None):
         ddl = stack.get("ddl", True)
         if isinstance(ddl, dict):
             ddl = ddl["enabled"]
 
+        location = join_paths(root_location, stack.get("location"))
+
         return from_partial(
             cls,
             name=stack.get("name"),
-            location=stack.get("location"),
+            location=location,
             query=stack.get("query"),
             compression=stack.get("compression"),
             exclude=stack.get("exclude"),
             sequences=stack.get("sequences", True),
             data=stack.get("data", True),
             ddl=stack.get("ddl", True),
+            follow_foreign_keys=stack.get("follow_foreign_keys", False),
         )
 
 
@@ -219,17 +232,20 @@ class RestoreTableConfig(Config):
     sequences: bool = True
     truncate: bool = False
     data: bool = True
+    follow_foreign_keys: bool = False
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack):
+    def from_stack(cls, stack: ConfigStack, root_location: Optional[str] = None):
         ddl = stack.get("ddl", True)
         if isinstance(ddl, dict):
             ddl = ddl["enabled"]
 
+        location = join_paths(root_location, stack.get("location"))
+
         return from_partial(
             cls,
             name=stack.get("name"),
-            location=stack.get("location"),
+            location=location,
             strategy=stack.get("strategy"),
             truncate=stack.get("truncate"),
             compression=stack.get("compression"),
@@ -237,6 +253,7 @@ class RestoreTableConfig(Config):
             sequences=stack.get("sequences", True),
             data=stack.get("data", True),
             ddl=stack.get("ddl", True),
+            follow_foreign_keys=stack.get("follow_foreign_keys", False),
         )
 
 

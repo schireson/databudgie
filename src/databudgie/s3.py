@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import urllib.parse
 from typing import Optional, TYPE_CHECKING, Union
 
-from databudgie.config.models import BackupConfig, RestoreConfig, S3Config
-
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3ServiceResource
+
+    from databudgie.config.models import BackupConfig, RestoreConfig, S3Config
 
 
 def optional_s3_resource(config: Union[BackupConfig, RestoreConfig]) -> Optional["S3ServiceResource"]:
@@ -33,6 +35,9 @@ def s3_resource(config: S3Config) -> "S3ServiceResource":
 
 
 def config_uses_s3(config: Union[BackupConfig, RestoreConfig]):
+    if config.root_location and is_s3_path(config.root_location):
+        return True
+
     for table_config in config.tables:
         if is_s3_path(table_config.location):
             return True

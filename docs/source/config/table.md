@@ -179,3 +179,26 @@ tables:
 Note that `exclude` list entries can also be globs themselves. So you can use them
 to arrive at more complex matching criteria than could be achieved with the single
 `name` matching glob.
+
+## `follow_foreign_keys`
+
+Defaults to `false`.
+
+When `true`, any foreign keys on the table will be recursively followed when performing the
+backup/restore. This allows one to specify **only** the table one seeks to backup/restore
+and any tables related through foreign keys will also be backed up.
+
+```{note}
+The backup file that is stored/read from will be relative to the explicit table
+that originated the inclusion of that table in the config.
+
+That is, if your config file includes some table "public.foo" with `location` "backups/{table}",
+then any tables backed up as a result of `follow_foreign_keys` on behalf of this table
+will end up at `backups/public.foo/{table}`.
+
+In the event that two tables produce "followed" versions of the same table, only one
+backup will be produced, under whichever table happens to resolve first (a necessary measure
+on the restore-side due to foreign key constraints). For a given heirarchy of foreign keys, this
+should remain constant, but doesnt preclude some future table/foreign key from taking
+control of that table by virtue of being higher up in the heirarchy.
+```

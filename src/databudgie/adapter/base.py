@@ -1,11 +1,16 @@
 import abc
 import io
 import warnings
+from dataclasses import replace
 from typing import Any, Dict, List, Union
 
 import sqlalchemy
 from sqlalchemy import inspect, MetaData
 from sqlalchemy.orm import Session
+
+from databudgie.etl.base import TableOp
+from databudgie.output import Console, default_console
+from databudgie.utils import join_paths
 
 
 class Adapter(metaclass=abc.ABCMeta):
@@ -86,6 +91,12 @@ class Adapter(metaclass=abc.ABCMeta):
         return [table.fullname for table in metadata.sorted_tables]
 
     @staticmethod
+    def collect_table_dependencies(
+        session: Session, table_op: TableOp, console: Console = default_console
+    ) -> List[str]:
+        raise NotImplementedError()
+
+    @staticmethod
     def collect_table_sequences(session: Session) -> Dict[str, List[str]]:
         raise NotImplementedError()
 
@@ -96,3 +107,37 @@ class Adapter(metaclass=abc.ABCMeta):
     @staticmethod
     def restore_sequence_value(session: Session, sequence_name: str, value: int) -> int:
         raise NotImplementedError()
+
+    @classmethod
+    def materialize_table_dependencies(
+        cls,
+        session: Session,
+        table_ops: List[TableOp],
+        reverse: bool = False,
+        console: Console = default_console,
+    ) -> List[TableOp]:
+        tables = set()
+        dependent_table_ops = []
+        for table_op in table_ops:
+            tables.add(table_op.full_name)
+
+            if not table_op.raw_conf.follow_foreign_keys:
+                continue
+
+            dependent_tables = cls.collect_table_dependencies(session, console=console, table_op=table_op)
+            for dependent_table in dependent_tables:
+                if dependent_table not in tables:
+                    table_location = join_paths(table_op.location(), "{table}")
+                    conf = replace(table_op.raw_conf, name=dependent_table, location=table_location)
+
+                    dependent_table_op = TableOp.from_name(dependent_table, conf)
+                    tables.add(dependent_table)
+                    dependent_table_ops.append(dependent_table_op)
+
+        if reverse:
+            # The original `table_ops` list comes to us already reverse
+            # ordered, so we need to preserve it's original order, and
+            # just invert the net-new tables and put them first.
+            return list(reversed(dependent_table_ops)) + table_ops
+
+        return table_ops + dependent_table_ops

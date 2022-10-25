@@ -5,7 +5,7 @@ import click
 from sqlalchemy.orm import Session
 
 from databudgie.cli.base import resolver
-from databudgie.cli.config import CliConfig, DEFAULT_CONFIG_FILE, load_configs
+from databudgie.cli.config import CliConfig, DEFAULT_CONFIG_FILE, load_configs, pretty_print
 from databudgie.config.models import BackupConfig, ConfigError, ConfigStack, RestoreConfig, RootConfig
 from databudgie.manifest.manager import Manifest
 from databudgie.output import Console
@@ -89,7 +89,11 @@ def backup_cli(
     if backup_manifest and backup_id:
         backup_manifest.set_transaction_id(backup_id)
 
-    backup_all(backup_db, backup_config, manifest=backup_manifest, strict=strict, adapter=adapter, console=console)
+    try:
+        backup_all(backup_db, backup_config, manifest=backup_manifest, strict=strict, adapter=adapter, console=console)
+    except Exception as e:
+        console.trace(e)
+        raise click.ClickException(*e.args)
 
 
 @resolver.command(cli, "restore")
@@ -135,20 +139,21 @@ def restore_cli(
         if input(message) != "y":  # nosec
             return False
 
-    restore_all(
-        restore_db,
-        restore_config=restore_config,
-        manifest=restore_manifest,
-        strict=strict,
-        adapter=adapter,
-        console=console,
-    )
+    try:
+        restore_all(
+            restore_db,
+            restore_config=restore_config,
+            manifest=restore_manifest,
+            strict=strict,
+            adapter=adapter,
+            console=console,
+        )
+    except Exception as e:
+        console.trace(e)
+        raise click.ClickException(*e.args)
 
 
 @resolver.command(cli, "config")
 def config_cli(root_config: RootConfig):
     """Print dereferenced and populated config."""
-
-    from databudgie.config import pretty_print
-
     pretty_print(root_config)
