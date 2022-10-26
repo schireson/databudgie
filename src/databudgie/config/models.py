@@ -146,7 +146,6 @@ class TableParentConfig(typing.Generic[T], Config):
         manifest: Optional[str] = stack.get("manifest")
 
         ddl = DDLConfig.from_dict(stack.get("ddl", {}), root_location)
-        print(ddl)
 
         # Optional integration configs
         s3 = S3Config.from_dict(stack.get("s3"))
