@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 
 from databudgie.compression import Compressor
 from databudgie.output import Console, default_console
-from databudgie.s3 import is_s3_path
+from databudgie.s3 import is_s3_path, S3Location
 
 DATETIME_FORMAT = r"%Y-%m-%dT%H:%M:%S"
 FILENAME_FORMAT = "{DATETIME_FORMAT}.csv"
@@ -100,5 +100,5 @@ def join_paths(*components: Optional[str]) -> str:
         return real_components[0]
 
     first_component, *rest_components = real_components
-    normalized_components = [c[5:] if is_s3_path(c) else c for c in rest_components]
+    normalized_components = [S3Location(c).key if is_s3_path(c) else c for c in rest_components]
     return os.path.join(first_component, *normalized_components)
