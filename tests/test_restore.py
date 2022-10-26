@@ -10,9 +10,9 @@ from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm.session import sessionmaker
 
 from databudgie.adapter.base import Adapter
-from databudgie.config.models import RestoreTableConfig, RootConfig
-from databudgie.etl.base import TableOp
-from databudgie.etl.restore import restore, restore_all
+from databudgie.config import RestoreTableConfig, RootConfig
+from databudgie.restore import restore, restore_all
+from databudgie.table_op import TableOp
 from tests.mockmodels.models import Product, Store
 from tests.utils import mock_csv, mock_s3_csv, s3_config
 

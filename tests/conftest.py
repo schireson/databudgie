@@ -4,7 +4,7 @@ from freezegun import freeze_time
 from moto import mock_s3
 from pytest_mock_resources import create_postgres_fixture, PostgresConfig
 
-from databudgie.config.models import RootConfig
+from databudgie.config import RootConfig
 from tests.mockmodels.models import Base
 
 

@@ -5,9 +5,9 @@ import pytest
 from mypy_boto3_s3.service_resource import S3ServiceResource
 from sqlalchemy import text
 
-from databudgie.config.models import RootConfig
-from databudgie.etl.backup import backup_all
-from databudgie.etl.restore import restore_all
+from databudgie.backup import backup_all
+from databudgie.config import RootConfig
+from databudgie.restore import restore_all
 from tests.utils import s3_config
 
 

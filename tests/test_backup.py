@@ -8,10 +8,10 @@ from unittest.mock import patch
 import pytest
 
 from databudgie.adapter.base import Adapter
-from databudgie.config.models import BackupTableConfig, RootConfig
-from databudgie.etl.backup import backup, backup_all
-from databudgie.etl.base import TableOp
+from databudgie.backup import backup, backup_all
+from databudgie.config import BackupTableConfig, RootConfig
 from databudgie.s3 import is_s3_path, S3Location
+from databudgie.table_op import TableOp
 from tests.mockmodels.models import Customer
 from tests.utils import s3_config
 
@@ -184,7 +184,7 @@ def test_backup_failure(pg):
         "sequences": False,
         **s3_config,
     }
-    with patch("databudgie.etl.backup.backup", side_effect=RuntimeError("Dummy error")):
+    with patch("databudgie.backup.backup", side_effect=RuntimeError("Dummy error")):
         # With strict on, the backup should raise an exception.
         with pytest.raises(RuntimeError):
             strict_config = RootConfig.from_dict({**config, "strict": True})

@@ -3,7 +3,7 @@ from typing import Optional
 
 import strapp.logging
 
-from databudgie.config.models import SentryConfig
+from databudgie.config import SentryConfig
 
 package_verbosity = strapp.logging.package_verbosity_factory(
     ("urllib3", logging.INFO, logging.INFO, logging.INFO, logging.DEBUG),

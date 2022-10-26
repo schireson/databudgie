@@ -1,16 +1,12 @@
-import contextlib
-import os
-import tempfile
-
 import pytest
 import sqlalchemy.exc
 from pytest_mock_resources import create_postgres_fixture
-from sqlalchemy import Column, ForeignKey, MetaData, types, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, MetaData, types
 from sqlalchemy.ext.declarative import declarative_base
 
-from databudgie.config.models import RootConfig
-from databudgie.etl.backup import backup_all
-from databudgie.etl.restore import restore_all
+from databudgie.backup import backup_all
+from databudgie.config import RootConfig
+from databudgie.restore import restore_all
 from tests.utils import s3_config
 
 metadata = MetaData()

@@ -8,8 +8,8 @@ import sqlalchemy
 from sqlalchemy import inspect, MetaData, Table, text
 from sqlalchemy.orm import Session
 
-from databudgie.etl.base import TableOp
 from databudgie.output import Console, default_console
+from databudgie.table_op import TableOp
 from databudgie.utils import join_paths, parse_table
 
 
