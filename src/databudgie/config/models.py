@@ -75,8 +75,13 @@ class DDLConfig(Config):
         else:
             expanded_ddl_config = ddl_config
 
-        location = join_paths(root_location, expanded_ddl_config.pop("location", None))
-        return from_partial(cls, location=location, **expanded_ddl_config)
+        location = join_paths(root_location, expanded_ddl_config.get("location"))
+
+        # Splat into a new dict so we can override `location` without mutating
+        # the original input (which may be re-read later in config parsing)
+        final_ddl_config = {**expanded_ddl_config, "location": location}
+
+        return from_partial(cls, **final_ddl_config)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -141,6 +146,7 @@ class TableParentConfig(typing.Generic[T], Config):
         manifest: Optional[str] = stack.get("manifest")
 
         ddl = DDLConfig.from_dict(stack.get("ddl", {}), root_location)
+        print(ddl)
 
         # Optional integration configs
         s3 = S3Config.from_dict(stack.get("s3"))
