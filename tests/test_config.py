@@ -1,4 +1,4 @@
-from databudgie.config.models import ConfigStack, RootConfig
+from databudgie.config import ConfigStack, RootConfig
 
 
 def test_only_leaf_values():

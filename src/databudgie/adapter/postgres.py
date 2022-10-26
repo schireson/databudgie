@@ -11,8 +11,8 @@ from sqlalchemy.engine import Connection, create_engine, Engine
 from sqlalchemy.engine.url import URL
 
 from databudgie.adapter.base import Adapter
-from databudgie.etl.base import TableOp
 from databudgie.output import Console, default_console
+from databudgie.table_op import TableOp
 
 
 def update_url(url, database=None):

@@ -9,14 +9,13 @@ from rich.console import Console
 from rich.syntax import Syntax
 from ruamel.yaml import YAML
 
-from databudgie.config import models
-from databudgie.config.models import Config as DatabudgieConfig
+from databudgie.config import Config as DatabudgieConfig
 
 DEFAULT_CONFIG_FILE = "config.databudgie.yml"
 
 
 @dataclass
-class CliConfig(models.Config):
+class CliConfig(DatabudgieConfig):
     tables: Optional[List[str]] = None
     ddl: Optional[bool] = None
     url: Optional[str] = None

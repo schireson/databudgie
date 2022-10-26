@@ -1,9 +1,9 @@
 from unittest.mock import call, patch
 
 from databudgie.manifest.manager import BackupManifest, RestoreManifest
-from tests.databudgie.test_backup import test_backup_all, test_backup_one
-from tests.databudgie.test_restore import test_restore_all, test_restore_one
 from tests.mockmodels.models import DatabudgieManifest
+from tests.test_backup import test_backup_all, test_backup_one
+from tests.test_restore import test_restore_all, test_restore_one
 
 
 def test_manifest_backup(pg, mf, s3_resource):

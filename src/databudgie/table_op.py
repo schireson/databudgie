@@ -4,7 +4,7 @@ from typing import Dict, Generic, List, Optional, Sequence, TypeVar
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
-from databudgie.config.models import BackupTableConfig, RestoreTableConfig
+from databudgie.config import BackupTableConfig, RestoreTableConfig
 from databudgie.manifest.manager import Manifest
 from databudgie.match import expand_table_globs
 from databudgie.output import Console, default_console

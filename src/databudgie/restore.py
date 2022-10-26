@@ -13,11 +13,11 @@ from sqlalchemy.orm import Session
 
 from databudgie.adapter import Adapter
 from databudgie.compression import Compressor
-from databudgie.config.models import RestoreConfig
-from databudgie.etl.base import expand_table_ops, SchemaOp, TableOp
+from databudgie.config import RestoreConfig
 from databudgie.manifest.manager import Manifest
 from databudgie.output import Console, default_console, Progress
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
+from databudgie.table_op import expand_table_ops, SchemaOp, TableOp
 from databudgie.utils import capture_failures, join_paths, parse_table, restore_filename, wrap_buffer
 
 if TYPE_CHECKING:
