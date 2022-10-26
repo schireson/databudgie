@@ -21,6 +21,8 @@ class CliConfig(models.Config):
     ddl: Optional[bool] = None
     url: Optional[str] = None
     location: Optional[str] = None
+    adapter: Optional[str] = None
+    strict: Optional[bool] = None
 
     def to_dict(self) -> dict:
         config = asdict(self)

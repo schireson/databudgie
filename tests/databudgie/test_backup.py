@@ -24,11 +24,12 @@ def test_backup_all(pg, s3_resource, **extras):
             "location": "s3://sample-bucket/databudgie/test/{table}",
             "tables": ["public.customer", "public.store"],
             "sequences": False,
+            "strict": True,
             **s3_config,
         }
     )
 
-    backup_all(pg, config.backup, strict=True, **extras)
+    backup_all(pg, config.backup, **extras)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -48,11 +49,12 @@ def test_backup_all_glob(pg, s3_resource):
                 }
             },
             "sequences": False,
+            "strict": True,
             **s3_config,
         }
     )
 
-    backup_all(pg, backup_config=config.backup, strict=True)
+    backup_all(pg, backup_config=config.backup)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -65,6 +67,7 @@ def test_backup_all_tables_list(pg, s3_resource):
     config = RootConfig.from_dict(
         {
             **s3_config,
+            "strict": True,
             "sequences": False,
             "backup": {
                 "tables": [
@@ -83,7 +86,7 @@ def test_backup_all_tables_list(pg, s3_resource):
         }
     )
 
-    backup_all(pg, backup_config=config.backup, strict=True)
+    backup_all(pg, backup_config=config.backup)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -115,8 +118,8 @@ def test_backup_all_tables_list(pg, s3_resource):
 )
 @pytest.mark.parametrize("adapter", ("postgres", "python"))
 def test_compression(pg, s3_resource, config, adapter):
-    config = RootConfig.from_dict({"backup": config, "sequences": False, **s3_config})
-    backup_all(pg, backup_config=config.backup, strict=True)
+    config = RootConfig.from_dict({"backup": config, "sequences": False, "strict": True, **s3_config})
+    backup_all(pg, backup_config=config.backup)
 
     all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert len(all_objects) == 1
@@ -175,23 +178,22 @@ def test_backup_one(pg, mf, s3_resource, **extras):
 def test_backup_failure(pg):
     """Validate alternative behavior of the `strict` flag."""
 
-    config = RootConfig.from_dict(
-        {
-            "location": "s3://sample-bucket/databudgie/test/{table}",
-            "tables": ["public.customer", "public.store"],
-            "sequences": False,
-            **s3_config,
-        }
-    )
-
+    config = {
+        "location": "s3://sample-bucket/databudgie/test/{table}",
+        "tables": ["public.customer", "public.store"],
+        "sequences": False,
+        **s3_config,
+    }
     with patch("databudgie.etl.backup.backup", side_effect=RuntimeError("Dummy error")):
         # With strict on, the backup should raise an exception.
         with pytest.raises(RuntimeError):
-            backup_all(pg, backup_config=config.backup, strict=True)
+            strict_config = RootConfig.from_dict({**config, "strict": True})
+            backup_all(pg, backup_config=strict_config.backup)
 
         # With strict off, the backup should produce log messages.
         with patch("databudgie.output.Console.exception") as console:
-            backup_all(pg, backup_config=config.backup, strict=False)
+            loose_config = RootConfig.from_dict({**config, "strict": False})
+            backup_all(pg, backup_config=loose_config.backup)
             assert console.call_count == 2
 
 

@@ -55,6 +55,8 @@ def cli(
         tables=list(table) if table else None,
         url=url,
         location=location,
+        adapter=adapter,
+        strict=strict,
     )
 
     configs = load_configs(config)
@@ -66,9 +68,7 @@ def cli(
         raise click.UsageError(*e.args)
 
     resolver.register_values(
-        adapter=adapter,
         root_config=root_config,
-        strict=strict,
         verbosity=verbose,
         console=Console(verbosity=verbose),
     )
@@ -79,10 +79,8 @@ def cli(
 def backup_cli(
     backup_config: BackupConfig,
     backup_db: Session,
-    strict: bool,
     console: Console,
     verbosity: int = 0,
-    adapter: Optional[str] = None,
     backup_manifest: Optional[Manifest] = None,
     backup_id: Optional[int] = None,
 ):
@@ -90,15 +88,13 @@ def backup_cli(
     from databudgie.cli.setup import setup
     from databudgie.etl.backup import backup_all
 
-    setup(backup_config.sentry, backup_config.logging, verbosity=verbosity)
+    setup(backup_config.sentry)
 
     if backup_manifest and backup_id:
         backup_manifest.set_transaction_id(backup_id)
 
     try:
-        backup_all(
-            backup_db, backup_config, manifest=backup_manifest, strict=strict, adapter_name=adapter, console=console
-        )
+        backup_all(backup_db, backup_config, manifest=backup_manifest, console=console)
     except Exception as e:
         console.trace(e)
         raise click.ClickException(*e.args)
@@ -122,12 +118,10 @@ def backup_cli(
 def restore_cli(
     restore_config: RestoreConfig,
     restore_db: Session,
-    strict: bool,
     verbosity: int,
     console: Console,
     restore_manifest: Optional[Manifest] = None,
     restore_id: Optional[int] = None,
-    adapter: Optional[str] = None,
     clean: Optional[bool] = None,
     yes: bool = False,
 ):
@@ -135,7 +129,7 @@ def restore_cli(
     from databudgie.cli.setup import setup
     from databudgie.etl.restore import restore_all
 
-    setup(restore_config.sentry, restore_config.logging, verbosity=verbosity)
+    setup(restore_config.sentry)
 
     if restore_manifest and restore_id:
         restore_manifest.set_transaction_id(restore_id)
@@ -148,14 +142,7 @@ def restore_cli(
             return False
 
     try:
-        restore_all(
-            restore_db,
-            restore_config=restore_config,
-            manifest=restore_manifest,
-            strict=strict,
-            adapter_name=adapter,
-            console=console,
-        )
+        restore_all(restore_db, restore_config=restore_config, manifest=restore_manifest, console=console)
     except Exception as e:
         console.trace(e)
         raise click.ClickException(*e.args)

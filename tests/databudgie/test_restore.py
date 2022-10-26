@@ -37,6 +37,7 @@ def test_restore_all(pg, s3_resource, **extras):
     config = RootConfig.from_dict(
         {
             **s3_config,
+            "strict": True,
             "restore": {
                 "tables": {
                     "public.store": {"location": "s3://sample-bucket/public.store", "strategy": "use_latest_filename"},
@@ -48,7 +49,7 @@ def test_restore_all(pg, s3_resource, **extras):
             },
         }
     )
-    restore_all(pg, config.restore, strict=True, **extras)
+    restore_all(pg, config.restore, **extras)
 
     assert pg.query(Store).count() == 1
     assert pg.query(Product).count() == 1
@@ -155,9 +156,13 @@ def test_restore_all_local_files(pg, mf):
             f.write(fake_file_data)
 
         config = RootConfig.from_dict(
-            {"restore": {"tables": {"product": {"truncate": True, "location": dir_name}}}, "sequences": False}
+            {
+                "restore": {"tables": {"product": {"truncate": True, "location": dir_name}}},
+                "sequences": False,
+                "strict": True,
+            }
         )
-        restore_all(pg, restore_config=config.restore, strict=True)
+        restore_all(pg, restore_config=config.restore)
 
     stores = pg.query(Product).all()
     assert len(stores) == 1
@@ -197,11 +202,14 @@ def test_restore_glob(pg, mf, s3_resource):
     config = RootConfig.from_dict(
         {
             **s3_config,
-            "restore": {"tables": {"public.*": {"location": "s3://sample-bucket/{table}", "truncate": True}}},
+            "restore": {
+                "tables": {"public.*": {"location": "s3://sample-bucket/{table}", "truncate": True}},
+                "strict": True,
+            },
         }
     )
 
-    restore_all(pg, config.restore, strict=True)
+    restore_all(pg, config.restore)
 
     stores = pg.query(Store).all()
     assert len(stores) == 2
@@ -280,7 +288,13 @@ def test_compression(pg, s3_resource, config):
 
     mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv.gz", [mock_store], gzipped=True)
 
-    config = RootConfig.from_dict({"restore": config, **s3_config})
-    restore_all(pg, config.restore, strict=True)
+    config = RootConfig.from_dict(
+        {
+            "restore": config,
+            **s3_config,
+            "strict": True,
+        }
+    )
+    restore_all(pg, config.restore)
 
     assert pg.query(Store).count() == 1

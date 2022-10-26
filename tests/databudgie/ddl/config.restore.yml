@@ -1,3 +1,4 @@
+strict: true
 restore:
   ddl:
     enabled: <% ENV[DDL_ENABLED, true] %>
