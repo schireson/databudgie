@@ -7,7 +7,7 @@ import sqlalchemy.orm
 import strapp.click
 import strapp.logging
 
-from databudgie.config.models import BackupConfig, RestoreConfig, RootConfig
+from databudgie.config import BackupConfig, RestoreConfig, RootConfig
 from databudgie.output import Console
 
 version = getattr(sqlalchemy, "__version__", "")

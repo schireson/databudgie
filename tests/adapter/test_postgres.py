@@ -2,10 +2,10 @@ from sqlalchemy import MetaData, Table
 from sqlalchemy.schema import CreateSchema
 
 from databudgie.adapter.base import Adapter
-from databudgie.config.models import BackupTableConfig, RootConfig
-from databudgie.etl.backup import backup
-from databudgie.etl.base import TableOp
-from databudgie.etl.restore import restore_all
+from databudgie.backup import backup
+from databudgie.config import BackupTableConfig, RootConfig
+from databudgie.restore import restore_all
+from databudgie.table_op import TableOp
 from tests.mockmodels.models import Sale
 from tests.utils import s3_config
 

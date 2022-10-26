@@ -6,7 +6,7 @@ from typing import Optional, TYPE_CHECKING, Union
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3ServiceResource
 
-    from databudgie.config.models import BackupConfig, RestoreConfig, S3Config
+    from databudgie.config import BackupConfig, RestoreConfig, S3Config
 
 
 def optional_s3_resource(config: Union[BackupConfig, RestoreConfig]) -> Optional["S3ServiceResource"]:

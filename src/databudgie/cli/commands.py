@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from databudgie.cli.base import resolver
 from databudgie.cli.config import CliConfig, DEFAULT_CONFIG_FILE, load_configs, pretty_print
-from databudgie.config.models import BackupConfig, ConfigError, ConfigStack, RestoreConfig, RootConfig
+from databudgie.config import BackupConfig, ConfigError, ConfigStack, RestoreConfig, RootConfig
 from databudgie.manifest.manager import Manifest
 from databudgie.output import Console
 
@@ -85,8 +85,8 @@ def backup_cli(
     backup_id: Optional[int] = None,
 ):
     """Perform backup."""
+    from databudgie.backup import backup_all
     from databudgie.cli.setup import setup
-    from databudgie.etl.backup import backup_all
 
     setup(backup_config.sentry)
 
@@ -127,7 +127,7 @@ def restore_cli(
 ):
     """Perform restore."""
     from databudgie.cli.setup import setup
-    from databudgie.etl.restore import restore_all
+    from databudgie.restore import restore_all
 
     setup(restore_config.sentry)
 
