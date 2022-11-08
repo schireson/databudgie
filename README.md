@@ -1,6 +1,11 @@
 # Databudgie
 
-[![Docs](https://assets.readthedocs.org/static/projects/badges/passing-flat.svg)](http://docs.schireson.com/packages/databudgie/latest/index.html)
+[![Docs](https://assets.readthedocs.org/static/projects/badges/passing-flat.svg)](https://databudgie.readthedocs.org)
+
+![Github Actions Build](https://github.com/schireson/databudgie/actions/workflows/build.yml/badge.svg)
+[![Coverage Status](https://coveralls.io/repos/github/schireson/databudgie/badge.svg?branch=main&t=6I0aU6)](https://coveralls.io/github/schireson/databudgie?branch=main)
+[![Documentation
+Status](https://readthedocs.org/projects/databudgie/badge/?version=latest)](https://databudgie.readthedocs.io)
 
 ![](docs/source/_static/databudgie.png)
 
@@ -32,7 +37,5 @@ is as simple as `databudgie backup`; and restore `databudgie restore`.
 ## Installation
 
 ```bash
-$ poetry add databudgie
- OR
-$ pip install databudgie --index-url "https://artifactory.schireson.com/artifactory/api/pypi/pypi/simple"
+pip install databudgie
 ```
