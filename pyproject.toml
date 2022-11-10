@@ -1,14 +1,27 @@
 [tool.poetry]
 name = "databudgie"
 version = "2.7.0"
-description = ""
-authors = ["Andrew Sosa <andrewso@known.is>", "Dan Cardin <ddcardin@gmail.com>"]
 packages = [
     { include = "databudgie", from = "src" },
 ]
+
+authors = [
+  "Andrew Sosa <andrewso@known.is>",
+  "Dan Cardin <ddcardin@gmail.com>",
+]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Topic :: System :: Archiving :: Backup",
+]
+description = "Ergonomic and flexible tool for database backup and restore"
 include = [
+    "*.md",
     "py.typed",
 ]
+keywords = [ "sqlalchemy", "postgres", "database", "etl", "s3" ]
+license = "MIT"
+readme = 'README.md'
+repository = "https://github.com/schireson/databudgie"
 
 [tool.poetry.scripts]
 databudgie = "databudgie.__main__:run"

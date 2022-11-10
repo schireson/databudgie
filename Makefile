@@ -30,3 +30,17 @@ test:
 
 docker-login-cmd:
 	eval $$(aws --profile=$(AWS_PROFILE) ecr get-login --no-include-email --region us-east-1)
+
+
+## Build
+build-package:
+	poetry build
+
+build-docs:
+	pip install -r docs/requirements.txt
+	make -C docs html
+
+build: build-package
+
+publish: build
+	poetry publish -u __token__ -p '${PYPI_PASSWORD}' --no-interaction
