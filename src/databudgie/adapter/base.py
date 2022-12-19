@@ -99,7 +99,7 @@ class Adapter:
 
     def truncate_table(self, table: str):
         try:
-            self.session.execute(f"TRUNCATE TABLE {table} CASCADE")
+            self.session.execute(text(f"TRUNCATE TABLE {table} CASCADE"))
             self.session.commit()
         except sqlalchemy.exc.ProgrammingError:
             self.session.rollback()
