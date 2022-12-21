@@ -1,27 +1,31 @@
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 
 import click
 import sqlalchemy
 import sqlalchemy.engine.url
 import sqlalchemy.orm
 import strapp.click
-import strapp.logging
 
 from databudgie.config import BackupConfig, RestoreConfig, RootConfig
 from databudgie.output import Console
 
 version = getattr(sqlalchemy, "__version__", "")
+
+URLType = Callable[..., sqlalchemy.engine.url.URL]
+
 if version.startswith("1.4") or version.startswith("2."):
-    create_url = sqlalchemy.engine.url.URL.create
+    create_url: URLType = sqlalchemy.engine.url.URL.create
 else:
     create_url = sqlalchemy.engine.url.URL
 
 
 def _create_postgres_session(url: Union[str, dict]):
     if isinstance(url, dict):
-        url = create_url(**url)
+        url_obj = create_url(**url)
+    else:
+        url_obj = sqlalchemy.engine.url.make_url(url)
 
-    engine = sqlalchemy.create_engine(url)
+    engine = sqlalchemy.create_engine(url_obj)
     session = sqlalchemy.orm.scoping.scoped_session(sqlalchemy.orm.session.sessionmaker(bind=engine))()
     return session
 

@@ -51,6 +51,7 @@ jobs:
         run: poetry run pip install 'sqlalchemy~=${{ matrix.sqlalchemy-version }}'
 
       - name: Run linters
+        if: ${{ matrix.sqlalchemy-version == '1.4.0' }}
         run: poetry run make lint
 
       - name: Run tests

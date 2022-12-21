@@ -20,8 +20,8 @@ class Manifest(metaclass=abc.ABCMeta):
     @functools.lru_cache()
     def manifest_table(self):
         schema, table = parse_table(self.table_name)
-        self.metadata = MetaData(bind=self.session.get_bind())
-        self.metadata.reflect(schema=schema, only=[table])
+        self.metadata = MetaData()
+        self.metadata.reflect(bind=self.session.get_bind(), schema=schema, only=[table])
         return Table(table, self.metadata, autoload=True, schema=schema)
 
     @functools.lru_cache()

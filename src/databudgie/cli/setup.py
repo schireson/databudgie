@@ -1,20 +1,6 @@
-import logging
 from typing import Optional
 
-import strapp.logging
-
 from databudgie.config import SentryConfig
-
-package_verbosity = strapp.logging.package_verbosity_factory(
-    ("urllib3", logging.INFO, logging.INFO, logging.INFO, logging.DEBUG),
-    ("sqlalchemy.engine", logging.WARNING, logging.WARNING, logging.WARNING, logging.INFO),
-    ("docker", logging.INFO, logging.INFO, logging.INFO, logging.DEBUG),
-    ("suds", logging.CRITICAL, logging.CRITICAL, logging.CRITICAL, logging.CRITICAL),
-    ("botocore", logging.INFO, logging.INFO, logging.INFO, logging.DEBUG),
-    ("boto3", logging.INFO, logging.INFO, logging.INFO, logging.DEBUG),
-    ("datadog.threadstats", logging.INFO),
-    ("datadog.dogstatsd", logging.ERROR),
-)
 
 
 def setup(sentry: Optional[SentryConfig]):

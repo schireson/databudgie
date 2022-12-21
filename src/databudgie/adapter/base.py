@@ -2,10 +2,11 @@ import csv
 import io
 import warnings
 from dataclasses import dataclass, replace
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, cast, Dict, Generator, List, Optional, Sequence
 
 import sqlalchemy
 from sqlalchemy import inspect, MetaData, Table, text
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from databudgie.output import Console, default_console
@@ -52,13 +53,12 @@ class Adapter:
             return cls(session)
 
     def export_query(self, query: str, dest: io.StringIO):
-        def query_database(session: Session, query: str) -> Generator[List[Any], None, None]:
+        def query_database(session: Session, query: str) -> Generator[Sequence[Any], None, None]:
             cursor = session.execute(text(query))
 
-            columns: List[str] = list(cursor.keys())
+            columns: Sequence[str] = list(cursor.keys())
             yield columns
 
-            row: List[Any]
             for row in cursor:
                 yield row
 
@@ -84,12 +84,14 @@ class Adapter:
 
         schema, table_name = parse_table(table)
 
-        engine = self.session.get_bind()
+        engine = cast(Engine, self.session.get_bind())
         metadata = MetaData()
         metadata.reflect(engine, schema=schema)
         table_ref = Table(table_name, metadata, autoload=True, autoload_with=engine, schema=schema)
 
-        engine.execute(table_ref.insert(), prepared_rows)
+        with engine.connect() as conn:
+            conn.execute(table_ref.insert(), prepared_rows)
+            conn.execute(text("commit"))
 
     def export_schema_ddl(self, name: str):
         raise NotImplementedError()  # pragma: no cover

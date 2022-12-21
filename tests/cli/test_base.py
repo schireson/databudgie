@@ -8,7 +8,12 @@ pg_engine = create_postgres_fixture()
 
 def test_create_postgres_session_str(pg_engine):
     url = pg_engine.pmr_credentials.as_sqlalchemy_url()
-    url_str = str(url)
+
+    try:
+        url_str = url.render_as_string(hide_password=False)
+    except AttributeError:
+        url_str = str(url)
+
     assert url_str.startswith("postgresql+psycopg2://")
 
     session = _create_postgres_session(url_str)
