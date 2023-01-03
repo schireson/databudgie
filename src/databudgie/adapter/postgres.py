@@ -3,11 +3,11 @@ import os
 import shlex
 import shutil
 import subprocess  # nosec
-from typing import Dict, List
+from typing import cast, Dict, List
 
 import psycopg2.errors
 from sqlalchemy import text
-from sqlalchemy.engine import Connection, create_engine, Engine
+from sqlalchemy.engine import create_engine, Engine
 from sqlalchemy.engine.url import URL
 
 from databudgie.adapter.base import Adapter
@@ -31,8 +31,8 @@ def update_url(url, database=None):
 
 class PostgresAdapter(Adapter):
     def export_query(self, query: str, dest: io.StringIO):
-        engine: Engine = self.session.get_bind()
-        conn: Connection = engine.raw_connection()
+        engine: Engine = cast(Engine, self.session.get_bind())
+        conn = engine.raw_connection()
         cursor: psycopg2.cursor = conn.cursor()
 
         copy = "COPY ({}) TO STDOUT CSV HEADER".format(query)
@@ -41,8 +41,8 @@ class PostgresAdapter(Adapter):
         conn.close()
 
     def import_csv(self, csv_file: io.TextIOBase, table: str):
-        engine: Engine = self.session.get_bind()
-        conn: Connection = engine.raw_connection()
+        engine: Engine = cast(Engine, self.session.get_bind())
+        conn = engine.raw_connection()
         cursor: psycopg2.cursor = conn.cursor()
 
         # Reading the header line from the buffer removes it for the ingest
@@ -75,11 +75,13 @@ class PostgresAdapter(Adapter):
 
         return pg_dump(url, f"--schema-only -t {table_name}")
 
-    def reset_database(self):
+    def reset_database(self) -> None:
         """Attempt to kill the existing database and bring it back up."""
         connection = self.session.connection()
+
+        assert connection.engine.url
         url: URL = connection.engine.url
-        database = url.database
+        database = cast(str, url.database)
 
         # "template1" is a *special* internal postgres database that we can be guaranteed
         # to connect to after having dropped (potentially) all other available databases.
@@ -89,7 +91,7 @@ class PostgresAdapter(Adapter):
         template_engine = create_engine(template_url)
         with template_engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
             kill_pids = text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :database;")
-            connection.execute(kill_pids, database=database)
+            connection.execute(kill_pids, {"database": database})
 
             connection.execute(text(f"DROP DATABASE {database}"))
 
@@ -224,10 +226,10 @@ class PostgresAdapter(Adapter):
         return result
 
     def collect_sequence_value(self, sequence_name: str) -> int:
-        return self.session.execute(text(f"SELECT last_value from {sequence_name}")).scalar()  # nosec
+        return cast(int, self.session.execute(text(f"SELECT last_value from {sequence_name}")).scalar())  # nosec
 
     def restore_sequence_value(self, sequence_name: str, value: int) -> int:
-        return self.session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar()
+        return cast(int, self.session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar())
 
 
 def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:
@@ -244,7 +246,7 @@ def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:
 
     try:
         result = subprocess.run(  # nosec
-            command, capture_output=True, env={**os.environ, "PGPASSWORD": url.password}, check=True
+            command, capture_output=True, env={**os.environ, "PGPASSWORD": str(url.password or "")}, check=True
         )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(e.stderr)

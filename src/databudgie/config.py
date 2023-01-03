@@ -16,8 +16,8 @@ class ConfigError(ValueError):
 
 
 class ConfigStack:
-    def __init__(self, *configs):
-        self.configs: typing.Tuple[dict] = configs
+    def __init__(self, *configs: dict):
+        self.configs: typing.Tuple[dict, ...] = configs
 
     def __getitem__(self, key):
         for config in self.configs:
@@ -115,7 +115,7 @@ class RootConfig(Config):
         }
 
 
-@dataclass  # type: ignore
+@dataclass
 class TableParentConfig(typing.Generic[T], Config):
     url: typing.Union[str, dict]
     tables: typing.List[T]

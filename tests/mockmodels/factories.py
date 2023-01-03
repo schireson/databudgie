@@ -13,7 +13,7 @@ fake = Faker()
 
 @register_at("store")
 @autoincrement
-def create_store(autoincrement: int, name: str = None):
+def create_store(autoincrement: int, name: Optional[str] = None):
     name = name or fake.company()
     return Store(id=autoincrement, name=name)
 
