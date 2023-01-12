@@ -196,7 +196,7 @@ class BackupTableConfig(Config):
         if isinstance(ddl, dict):
             ddl = ddl["enabled"]
 
-        location = join_paths(root_location, stack.get("location"))
+        location = join_paths(root_location, stack.get("location")) or None
 
         return from_partial(
             cls,
