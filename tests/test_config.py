@@ -224,3 +224,12 @@ def test_configs_stack():
 
     assert config.backup.tables[1].name == "2"
     assert config.backup.tables[1].query == "foo"
+
+
+def test_default_location():
+    """Assert an omitted "location" config falls back to dataclass default."""
+    config_stack = ConfigStack(
+        {"tables": [{"name": "1"}]},
+    )
+    config = RootConfig.from_stack(config_stack)
+    assert config.backup.tables[0].location == "backups/{table}"
