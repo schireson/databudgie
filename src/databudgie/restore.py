@@ -157,7 +157,7 @@ def restore_ddl(
     strategy: str = op.raw_conf.strategy
 
     path = join_paths(ddl_path, location)
-    with get_file_contents(path, strategy, s3_resource=s3_resource) as file_object:
+    with get_file_contents(path, strategy, s3_resource=s3_resource, filetype="sql") as file_object:
         if not file_object:
             console.warn(f"Found no DDL backups under {path} to restore")
             return

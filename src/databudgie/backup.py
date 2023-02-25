@@ -123,12 +123,12 @@ def backup_ddl(
             result = adapter.export_schema_ddl(schema_op.name)
 
             path = schema_op.location()
-            fully_qualified_path = join_paths(ddl_path, path, generate_filename(timestamp))
+            fully_qualified_path = join_paths(ddl_path, path, generate_filename(timestamp, filetype="sql"))
 
             with io.BytesIO(result) as buffer:
                 persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
 
-            console.trace(f"Uploaded {schema_op.name} to {fully_qualified_path}")
+            console.trace(f"Wrote {schema_op.name} to {fully_qualified_path}")
 
         console.info("Finished backing up schema DDL")
 
@@ -140,7 +140,7 @@ def backup_ddl(
             result = adapter.export_table_ddl(table_op.full_name)
 
             full_table_path = table_op.location()
-            fully_qualified_path = join_paths(ddl_path, full_table_path, generate_filename(timestamp))
+            fully_qualified_path = join_paths(ddl_path, full_table_path, generate_filename(timestamp, filetype="sql"))
 
             with io.BytesIO(result) as buffer:
                 persist_backup(fully_qualified_path, buffer, s3_resource=s3_resource)
