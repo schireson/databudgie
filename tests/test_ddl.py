@@ -91,11 +91,11 @@ def test_backup_ddl(pg, s3_resource):
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
         "ddl/2021-04-26T09:00:00.json",
-        "ddl/public.customer/2021-04-26T09:00:00.csv",
-        "ddl/public.product/2021-04-26T09:00:00.csv",
-        "ddl/public.sales/2021-04-26T09:00:00.csv",
-        "ddl/public.store/2021-04-26T09:00:00.csv",
-        "ddl/public/2021-04-26T09:00:00.csv",
+        "ddl/public.customer/2021-04-26T09:00:00.sql",
+        "ddl/public.product/2021-04-26T09:00:00.sql",
+        "ddl/public.sales/2021-04-26T09:00:00.sql",
+        "ddl/public.store/2021-04-26T09:00:00.sql",
+        "ddl/public/2021-04-26T09:00:00.sql",
         "public.customer/2021-04-26T09:00:00.csv",
         "public.product/2021-04-26T09:00:00.csv",
         "public.sales/2021-04-26T09:00:00.csv",

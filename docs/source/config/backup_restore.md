@@ -13,7 +13,8 @@ High level listing of all available config at this level follows:
 
 ```yaml
 backup:
-  url: ...
+  url: ... # alternatively, 'connection:'
+  connections: ...
   tables: ...
   ddl: ...
   logging: ...
@@ -24,7 +25,8 @@ backup:
   sentry: ...
 
 restore:
-  url: ...
+  url: ... # alternatively, 'connection:'
+  connections: ...
   tables: ...
   ddl: ...
   logging: ...
@@ -35,11 +37,13 @@ restore:
   sentry: ...
 ```
 
-## `url`
+## `url` / `connection`
 
-Required! This is one of the only required pieces of configuration!
+The field name can be **either** of `url` or `connection`. Either this field
+must be supplied in the configuration, or the `connections` field (described in the
+next section) must be supplied.
 
-The `url` value can be given either by a `RFC-1738` compliant string, or by the component
+This field value can be given either by a `RFC-1738` compliant string, or by the component
 parts of that string:
 
 ```yaml
@@ -54,6 +58,42 @@ url:
   host: host
   port: port
   database: database
+
+# And either option can be given as:
+connection: ...
+```
+
+## `connections`
+
+Defaults to `[]`.
+
+Defines a set of named connection which can be selected to connect to at
+command-time. One selects a connection through the CLI `databudgie --connection <name>`.
+
+While this config can coexist with the above `url`/`connection` config, they
+are mutually exclusive at runtime. That is, if a `--connection` is supplied, it will
+take precedence. If a `--connection` is not supplied, the `url`/`connection` config
+will be used instead.
+
+`connections` can either be given as a list or a mapping, similar to `tables`.
+
+```yaml
+# This
+connections:
+  dev: postgresql://localhost:5432
+  prod:
+    drivername: postgresql
+    host: localhost
+    port: 5432
+
+# Is the same as this.
+connections:
+ - name: dev
+   url: postgresql://localhost:5432
+ - name: prod
+   drivername: postgresql
+   host: localhost
+   port: 5432
 ```
 
 ## `tables`

@@ -18,7 +18,7 @@ def test_no_default_file_warns_of_no_url(command):
 def test_config_command_works_without_url():
     runner = CliRunner()
     result = runner.invoke(cli, ["config"])
-    assert "url:" in result.output
+    assert "connection:" in result.output
     assert result.exit_code == 0
 
 
@@ -30,7 +30,7 @@ def test_cli_args_pass_through_to_config():
 
     for part in ["backup", "restore"]:
         config_part = config[part]
-        assert config_part["url"] == "foo"
+        assert config_part["connection"] == {"name": "default", "url": "foo"}
         assert config_part["ddl"]["enabled"] is True
         assert config_part["tables"][0]["location"] == "bar"
         assert config_part["tables"][0]["name"] == "baz"
