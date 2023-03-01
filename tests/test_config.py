@@ -119,7 +119,7 @@ def test_root_level_tables():
         }
     )
 
-    assert config.backup.url == "backup_url"
+    assert config.backup.connection.url == "backup_url"
     assert config.backup.tables[0].name == "root_table_1"
     assert config.backup.tables[0].query == "root_query"
     assert config.backup.tables[0].location == "root_location"
@@ -127,7 +127,7 @@ def test_root_level_tables():
     assert config.backup.tables[1].query == "root_query"
     assert config.backup.tables[1].location == "root_location"
 
-    assert config.restore.url == "restore_url"
+    assert config.restore.connection.url == "restore_url"
     assert config.restore.tables[0].name == "root_table_1"
     assert config.restore.tables[0].strategy == "root_strategy"
     assert config.restore.tables[0].location == "root_location"
@@ -151,7 +151,7 @@ def test_tables_as_just_strings():
         }
     )
 
-    assert config.backup.url == "root_url"
+    assert config.backup.connection.url == "root_url"
     assert config.backup.tables[0].name == "root_table_1"
     assert config.backup.tables[0].query == "root_query"
     assert config.backup.tables[0].location == "root_location"
@@ -174,7 +174,7 @@ def test_tables_mixed_str_dict():
         }
     )
 
-    assert config.backup.url == "root_url"
+    assert config.backup.connection.url == "root_url"
     assert config.backup.tables[0].name == "table_1"
     assert config.backup.tables[0].query == "root_query"
     assert config.backup.tables[0].location == "root_location"
@@ -216,8 +216,8 @@ def test_configs_stack():
     )
     config = RootConfig.from_stack(config_stack)
 
-    assert config.backup.url == "root_url"
-    assert config.restore.url == "restore url"
+    assert config.backup.connection.url == "root_url"
+    assert config.restore.connection.url == "restore url"
 
     assert config.backup.tables[0].name == "1"
     assert config.backup.tables[0].query == "bar"
@@ -233,3 +233,9 @@ def test_default_location():
     )
     config = RootConfig.from_stack(config_stack)
     assert config.backup.tables[0].location == "backups/{table}"
+
+
+def test_config_url():
+    """Assert config connection renders as "url"."""
+    root_config = RootConfig.from_stack(ConfigStack())
+    root_config.to_dict()

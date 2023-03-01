@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import abc
 import typing
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import Any, Optional, Union
 
 from databudgie.utils import join_paths
@@ -43,7 +43,20 @@ class ConfigStack:
 
 class Config(metaclass=abc.ABCMeta):
     def to_dict(self) -> dict:
-        return asdict(self)
+        result = {}
+        for f in fields(self):
+            v = getattr(self, f.name)
+            if isinstance(v, Config):
+                value: Any = v.to_dict()
+            elif isinstance(v, list):
+                value = [v.to_dict() if isinstance(v, Config) else v for v in v]
+            elif isinstance(v, dict):
+                value = {k: v.to_dict() if isinstance(v, Config) else v for k, v in v.items()}
+            else:
+                value = v
+
+            result[f.name] = value
+        return result
 
 
 def from_partial(cls: typing.Callable[..., F], **kwargs) -> F:
@@ -108,19 +121,14 @@ class RootConfig(Config):
         restore = RestoreConfig.from_stack(stack.push(restore_config))
         return cls(backup=backup, restore=restore)
 
-    def to_dict(self) -> dict:
-        return {
-            "backup": self.backup.to_dict() if self.backup else None,
-            "restore": self.restore.to_dict() if self.restore else None,
-        }
-
 
 @dataclass
 class TableParentConfig(typing.Generic[T], Config):
-    url: typing.Union[str, dict]
     tables: typing.List[T]
-
+    connections: typing.Dict[str, Connection]
     ddl: DDLConfig
+
+    connection: Optional[Connection] = None
     manifest: Optional[str] = None
 
     s3: Optional[S3Config] = None
@@ -135,7 +143,7 @@ class TableParentConfig(typing.Generic[T], Config):
 
     @classmethod
     def from_stack(cls, stack: ConfigStack):
-        url: str = stack.get("url")
+        connection = Connection.from_raw(stack.get("url") or stack.get("connection"), name="default")
         root_location = stack.get("root_location")
 
         tables_config: list = normalize_table_config(stack.get("tables", []))
@@ -153,8 +161,10 @@ class TableParentConfig(typing.Generic[T], Config):
 
         adapter = stack.get("adapter")
 
+        connections = Connection.from_collection(stack.get("connections"))
+
         return cls(
-            url=url,
+            connection=connection,
             tables=tables,
             manifest=manifest,
             s3=s3,
@@ -162,19 +172,55 @@ class TableParentConfig(typing.Generic[T], Config):
             ddl=ddl,
             root_location=root_location,
             adapter=adapter,
+            connections=connections,
         )
 
-    def to_dict(self) -> dict:
-        return {
-            "url": self.url,
-            "tables": [table.to_dict() for table in self.tables],
-            "manifest": self.manifest,
-            "ddl": self.ddl.to_dict(),
-            "s3": self.s3.to_dict() if self.s3 else None,
-            "sentry": self.sentry.to_dict() if self.sentry else None,
-            "root_location": self.root_location,
-            "adapter": self.adapter,
-        }
+
+@dataclass
+class Connection(Config):
+    name: str
+    url: typing.Union[str, dict]
+
+    @classmethod
+    def from_raw(cls, raw: typing.Union[str, dict, None], *, name: Optional[str] = None):
+        if raw is None:
+            return None
+
+        if isinstance(raw, str):
+            if name is None:
+                raise ConfigError(f"Connection '{raw}' requires a name")
+            return cls(name="default", url=raw)
+        else:
+            if name is None:
+                raise ConfigError(f"Connection '{raw}' requires a name")
+
+            if "url" in raw:
+                url = raw["url"]
+            else:
+                url = {k: v for k, v in raw.items() if k != "name"}
+
+            return cls(name=name or "default", url=url)
+
+    @classmethod
+    def from_collection(cls, collection: typing.Union[typing.List, typing.Dict, None]) -> typing.Dict[str, Connection]:
+        if collection is None:
+            return {}
+
+        if isinstance(collection, list):
+            connections = []
+            names = set()
+            for c in collection:
+                connection = Connection.from_raw(c, name=c.get("name"))
+                assert connection is not None
+
+                if connection.name in names:
+                    raise ConfigError(f"Detected more than one connection with the same name: {connection.name}")
+                names.add(connection.name)
+                connections.append(connection)
+
+            return {c.name: c for c in connections}
+
+        return {k: Connection.from_raw(c, name=k) for k, c in collection.items()}
 
 
 @dataclass

@@ -19,7 +19,17 @@ else:
     create_url = sqlalchemy.engine.url.URL
 
 
-def _create_postgres_session(url: Union[str, dict]):
+def _create_postgres_session(config: Union[BackupConfig, RestoreConfig], connection_name: Optional[str] = None):
+    if connection_name:
+        connection = config.connections.get(connection_name)
+        if connection is None:
+            raise click.UsageError(f"Connection '{connection_name}' not found")
+    else:
+        connection = config.connection
+        if connection is None:
+            raise click.UsageError("No config found for 'url' field. Either a 'connection' or a 'url' is required")
+
+    url = connection.url
     if isinstance(url, dict):
         url_obj = create_url(**url)
     else:
@@ -33,31 +43,21 @@ def _create_postgres_session(url: Union[str, dict]):
 def backup_config(root_config: RootConfig):
     if root_config.backup is None:
         raise click.UsageError("No backup config found. Run 'databudgie config' to see your current configuration.")
-
-    if root_config.backup.url is None:
-        raise click.UsageError(
-            "No config found for 'url' field. Run 'databudgie config' to see your current configuration."
-        )
     return root_config.backup
 
 
 def restore_config(root_config: RootConfig, console: Console):
     if not root_config.restore:
         raise click.UsageError("No restore config found. Run 'databudgie config' to see your current configuration.")
-
-    if not root_config.restore.url:
-        raise click.UsageError(
-            "No config found for 'url' field. Run 'databudgie config' to see your current configuration."
-        )
     return root_config.restore
 
 
-def backup_db(backup_config: BackupConfig):
-    return _create_postgres_session(backup_config.url)
+def backup_db(backup_config: BackupConfig, connection_name: Optional[str] = None):
+    return _create_postgres_session(backup_config, connection_name)
 
 
-def restore_db(restore_config: RestoreConfig):
-    return _create_postgres_session(restore_config.url)
+def restore_db(restore_config: RestoreConfig, connection_name: Optional[str] = None):
+    return _create_postgres_session(restore_config, connection_name)
 
 
 def backup_manifest(backup_config: BackupConfig, backup_db):

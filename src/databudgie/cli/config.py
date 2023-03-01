@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 from dataclasses import asdict, dataclass
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from configly import Config
 from rich.console import Console
@@ -18,7 +18,7 @@ DEFAULT_CONFIG_FILE = "config.databudgie.yml"
 class CliConfig(DatabudgieConfig):
     tables: Optional[List[str]] = None
     ddl: Optional[bool] = None
-    url: Optional[str] = None
+    url: Optional[Union[str, dict]] = None
     location: Optional[str] = None
     adapter: Optional[str] = None
     strict: Optional[bool] = None

@@ -22,6 +22,13 @@ from databudgie.output import Console
     help="Override the automatic dialect detection.",
 )
 @click.option("-c", "--config", default=[DEFAULT_CONFIG_FILE], help="config file", multiple=True)
+@click.option(
+    "-C",
+    "--conn",
+    "--connection",
+    default=None,
+    help="The name of a named connection to use. Takes precedence over the 'url' field if present.",
+)
 @click.option("-v", "--verbose", count=True, default=0)
 @click.option(
     "--ddl", default=None, is_flag=True, help="Whether to backup the DDL. Overrides the config option, if set"
@@ -41,6 +48,7 @@ def cli(
     config: Iterable[str],
     verbose: int = 0,
     color: bool = True,
+    conn: Optional[str] = None,
     adapter: Optional[str] = None,
     ddl: Optional[bool] = None,
     url: Optional[str] = None,
@@ -49,6 +57,9 @@ def cli(
 ):
     if color is False:
         os.environ["NO_COLOR"] = "true"
+
+    if conn and url:
+        raise click.UsageError("--url and --connection are mutually exclusive options")
 
     cli_config = CliConfig(
         ddl=ddl,
@@ -71,6 +82,7 @@ def cli(
         root_config=root_config,
         verbosity=verbose,
         console=Console(verbosity=verbose),
+        connection_name=conn,
     )
 
 
@@ -80,7 +92,6 @@ def backup_cli(
     backup_config: BackupConfig,
     backup_db: Session,
     console: Console,
-    verbosity: int = 0,
     backup_manifest: Optional[Manifest] = None,
     backup_id: Optional[int] = None,
 ):
@@ -118,7 +129,6 @@ def backup_cli(
 def restore_cli(
     restore_config: RestoreConfig,
     restore_db: Session,
-    verbosity: int,
     console: Console,
     restore_manifest: Optional[Manifest] = None,
     restore_id: Optional[int] = None,
