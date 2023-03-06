@@ -42,6 +42,13 @@ from databudgie.output import Console
     multiple=True,
     help="The set of tables to backup or restore. Note that this overrides any table section in config.",
 )
+@click.option(
+    "-x",
+    "--exclude",
+    default=None,
+    multiple=True,
+    help="The set of tables to exclude. Note that this overrides any table section in config.",
+)
 @click.version_option()
 def cli(
     strict: bool,
@@ -53,6 +60,7 @@ def cli(
     ddl: Optional[bool] = None,
     url: Optional[str] = None,
     table: Optional[Tuple[str, ...]] = None,
+    exclude: Optional[Tuple[str, ...]] = None,
     location: Optional[str] = None,
 ):
     if color is False:
@@ -64,6 +72,7 @@ def cli(
     cli_config = CliConfig(
         ddl=ddl,
         tables=list(table) if table else None,
+        exclude=list(exclude) if exclude else None,
         url=url,
         location=location,
         adapter=adapter,

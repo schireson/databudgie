@@ -24,7 +24,21 @@ def test_config_command_works_without_url():
 
 def test_cli_args_pass_through_to_config():
     runner = CliRunner()
-    result = runner.invoke(cli, ["--ddl", "--url=foo", "--location=bar", "--table=baz", "--table=public.*", "config"])
+    result = runner.invoke(
+        cli,
+        [
+            "--ddl",
+            "--url=foo",
+            "--location=bar",
+            "--table=baz",
+            "--table=public.*",
+            "--exclude",
+            "foo",
+            "-x",
+            "bar",
+            "config",
+        ],
+    )
 
     config = yaml.load(result.output)
 
@@ -36,3 +50,6 @@ def test_cli_args_pass_through_to_config():
         assert config_part["tables"][0]["name"] == "baz"
         assert config_part["tables"][1]["location"] == "bar"
         assert config_part["tables"][1]["name"] == "public.*"
+
+        assert config_part["tables"][0]["exclude"] == ["foo", "bar"]
+        assert config_part["tables"][1]["exclude"] == ["foo", "bar"]
