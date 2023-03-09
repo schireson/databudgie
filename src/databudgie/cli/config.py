@@ -17,6 +17,7 @@ DEFAULT_CONFIG_FILE = "config.databudgie.yml"
 @dataclass
 class CliConfig(DatabudgieConfig):
     tables: Optional[List[str]] = None
+    exclude: Optional[List[str]] = None
     ddl: Optional[bool] = None
     url: Optional[Union[str, dict]] = None
     location: Optional[str] = None
