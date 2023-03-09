@@ -8,9 +8,8 @@ backup:
     - name: foo # <--- here
 ```
 
-Remember that any option defined below can be specified at more general
-levels of config as a fallback for options which are the same across many/all
-tables.
+Remember that any option defined below can be specified at more general levels
+of config as a fallback for options which are the same across many/all tables.
 
 All options are intentionally identical, and in most cases are valid for both
 `backup` and `restore` commands, unless specifically noted otherwise.
@@ -20,9 +19,10 @@ All options are intentionally identical, and in most cases are valid for both
 When `tables` are given as a mapping, defaults to the key-side of the mapping.
 When `tables` are given as a list, this field is **required**!
 
-The `name` field defines the matching criteria for tables which should be backed up/
-restored. For the simplest case, this can just be the name (or `{schema}.{name}`)
-of the table. However this name can also be "globbed" to match multiple tables!
+The `name` field defines the matching criteria for tables which should be backed
+up/ restored. For the simplest case, this can just be the name (or
+`{schema}.{name}`) of the table. However this name can also be "globbed" to
+match multiple tables!
 
 ```{note}
 Remember each item in this list has a corresponding `query` field which can be
@@ -83,23 +83,24 @@ protocol to use for the backup/restore of that path.
 
 ### Local files
 
-Note an otherwise unadorned path will be assumed to be a local file path, for example
-`path/to/folder`.
+Note an otherwise unadorned path will be assumed to be a local file path, for
+example `path/to/folder`.
 
-For backups, if the path leading up to the leaf folder does not yet exist,
-it will be automatically created.
+For backups, if the path leading up to the leaf folder does not yet exist, it
+will be automatically created.
 
 ### S3
 
-A path is identified as an "S3 path" when it is prefixed with the S3 protocol: `s3://`.
+A path is identified as an "S3 path" when it is prefixed with the S3 protocol:
+`s3://`.
 
-For example `s3://bucket/path/to/folder` references a path `path/to/folder` inside
-of a bucket `bucket`.
+For example `s3://bucket/path/to/folder` references a path `path/to/folder`
+inside of a bucket `bucket`.
 
-S3 paths make use of the [s3](backup_restore.md#s3) config for authorization against
-the included bucket. Alternatively, the common environment variables recognized
-by the `aws` CLI (i.e. `AWS_PROFILE`, `AWS_REGION`, `AWS_SECRET_ACCESS_KEY`, `AWS_ACCESS_KEY_ID`,
-etc) will be automatically read.
+S3 paths make use of the [s3](backup_restore.md#s3) config for authorization
+against the included bucket. Alternatively, the common environment variables
+recognized by the `aws` CLI (i.e. `AWS_PROFILE`, `AWS_REGION`,
+`AWS_SECRET_ACCESS_KEY`, `AWS_ACCESS_KEY_ID`, etc) will be automatically read.
 
 ## `strategy`
 
@@ -109,9 +110,9 @@ This option is **only** read during `restore` commands and has two valid values:
 `use_latest_filename` and `use_latest_metadata`.
 
 The restore-time "strategy" defines how databudgie should determine which file,
-on a per-table basis to read from. Note that each time you run `databudgie backup`,
-it's never altering preexisting files, instead it's writing new files to disk with
-a timestamp in the name to disambiguate.
+on a per-table basis to read from. Note that each time you run
+`databudgie backup`, it's never altering preexisting files, instead it's writing
+new files to disk with a timestamp in the name to disambiguate.
 
 - `use_latest_filename` will make use of the default file naming scheme which
   includes write-time timestamps in the name of the file, and chooses the most
@@ -138,20 +139,20 @@ relationships may encounter issues with this option (on those tables).
 
 Defaults to `select * from {table}`
 
-Specify the query to be used on a given match. The default, which simply selects the
-whole table is the most obviously useful query one might use, to backup the whole
-table.
+Specify the query to be used on a given match. The default, which simply selects
+the whole table is the most obviously useful query one might use, to backup the
+whole table.
 
 There aren't any constraints on the query to be executed, however, so this field
-can apply filters, perform joins, alter/obfuscate the data, or otherwise do whatever
-it wants.
+can apply filters, perform joins, alter/obfuscate the data, or otherwise do
+whatever it wants.
 
 ## `compression`
 
 Defaults to `null`.
 
-Depending on the size of tables, the backups can get quite large. By default compression
-is disabled, but it can be enabled for any/all table "data" backups.
+Depending on the size of tables, the backups can get quite large. By default
+compression is disabled, but it can be enabled for any/all table "data" backups.
 
 Valid values include: `gzip`.
 
@@ -165,8 +166,8 @@ restore side agree on the value of the `compression` key.
 
 Defaults to `[]`.
 
-This is most commonly useful when using globs, particularly when running up against
-the limitations of glob matching versus regex
+This is most commonly useful when using globs, particularly when running up
+against the limitations of glob matching versus regex
 
 ```yaml
 tables:
@@ -176,17 +177,18 @@ tables:
       - "tree_log"
 ```
 
-Note that `exclude` list entries can also be globs themselves. So you can use them
-to arrive at more complex matching criteria than could be achieved with the single
-`name` matching glob.
+Note that `exclude` list entries can also be globs themselves. So you can use
+them to arrive at more complex matching criteria than could be achieved with the
+single `name` matching glob.
 
 ## `follow_foreign_keys`
 
 Defaults to `false`.
 
-When `true`, any foreign keys on the table will be recursively followed when performing the
-backup/restore. This allows one to specify **only** the table one seeks to backup/restore
-and any tables related through foreign keys will also be backed up.
+When `true`, any foreign keys on the table will be recursively followed when
+performing the backup/restore. This allows one to specify **only** the table one
+seeks to backup/restore and any tables related through foreign keys will also be
+backed up.
 
 ```{note}
 The backup file that is stored/read from will be relative to the explicit table
@@ -202,3 +204,14 @@ on the restore-side due to foreign key constraints). For a given heirarchy of fo
 should remain constant, but doesnt preclude some future table/foreign key from taking
 control of that table by virtue of being higher up in the heirarchy.
 ```
+
+## `skip_if_exists`
+
+```{note}
+Unlike most options, this option only has an effect in the backup-side of the config.
+```
+
+Defaults to `false`.
+
+When `true`, skips the backing up the table, if there already exists backup data
+for the annotated table.

@@ -52,9 +52,11 @@ class LocalStorage:
         with open(path, "wb") as f:
             f.write(buffer.getbuffer())
 
-    def path_exists(self, path: str):
-        matching_objects = [dir_entry for dir_entry in os.scandir(path) if dir_entry.is_file()]
-        return len(matching_objects) >= 1
+    def path_exists(self, path: str) -> bool:
+        if not os.path.exists("path"):
+            return False
+
+        return any(dir_entry for dir_entry in os.scandir(path) if dir_entry.is_file())
 
     def get_file_content(
         self, path: str, selection_strategy: SelectionStrategy, file_type: FileTypes, compression: str | None = None
@@ -99,7 +101,7 @@ class S3Storage:
         s3_bucket: Bucket = self.resource.Bucket(s3_location.bucket)
         s3_bucket.put_object(Key=s3_location.key, Body=buffer)
 
-    def path_exists(self, path: str):
+    def path_exists(self, path: str) -> bool:
         s3_location = S3Location(path)
         s3_bucket: Bucket = self.resource.Bucket(s3_location.bucket)
         matching_objects = list(s3_bucket.objects.filter(Prefix=s3_location.key).all())

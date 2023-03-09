@@ -230,13 +230,19 @@ def backup(
         storage: the storage backend to use for backing up the data.
         console: Console used for output
     """
+    path = table_op.location()
+
+    if table_op.raw_conf.skip_if_exists and storage.path_exists(path):
+        console.trace(f"Skipping {table_op.full_name} due to `skip_if_exists`")
+        return
+
     buffer = adapter.export_query(table_op.query())
 
     # path.join will handle optionally trailing slashes in the location
     compression = table_op.raw_conf.compression
 
     filename = storage.write_buffer(
-        table_op.location(), buffer, file_type=FileTypes.data, name=table_op.full_name, compression=compression
+        path, buffer, file_type=FileTypes.data, name=table_op.full_name, compression=compression
     )
 
     console.trace(f"Uploaded {table_op.full_name} to {filename}")

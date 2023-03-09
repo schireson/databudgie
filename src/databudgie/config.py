@@ -246,6 +246,7 @@ class BackupTableConfig(Config):
     data: bool = True
     follow_foreign_keys: bool = False
     strict: bool = False
+    skip_if_exists: bool = False
 
     @classmethod
     def from_stack(cls, stack: ConfigStack, root_location: str | None = None):
@@ -267,6 +268,7 @@ class BackupTableConfig(Config):
             ddl=bool(ddl),
             follow_foreign_keys=bool(stack.get("follow_foreign_keys", False)),
             strict=bool(stack.get("strict", False)),
+            skip_if_exists=bool(stack.get("skip_if_exists", False)),
         )
 
 
