@@ -1,3 +1,4 @@
+import contextlib
 import io
 import os
 import shlex
@@ -5,12 +6,12 @@ import shutil
 import subprocess  # nosec
 from typing import cast, Dict, List
 
-import psycopg2.errors
+from psycopg2._psycopg import cursor
 from sqlalchemy import text
 from sqlalchemy.engine import create_engine, Engine
 from sqlalchemy.engine.url import URL
 
-from databudgie.adapter.base import Adapter
+from databudgie.adapter.base import Adapter, QueryResult
 from databudgie.output import Console, default_console
 from databudgie.table_op import TableOp
 
@@ -30,29 +31,31 @@ def update_url(url, database=None):
 
 
 class PostgresAdapter(Adapter):
-    def export_query(self, query: str, dest: io.StringIO):
+    def export_query(self, query: str) -> QueryResult:
         engine: Engine = cast(Engine, self.session.get_bind())
-        conn = engine.raw_connection()
-        cursor: psycopg2.cursor = conn.cursor()
 
-        copy = f"COPY ({query}) TO STDOUT CSV HEADER"
-        cursor.copy_expert(copy, dest)
-        cursor.close()
-        conn.close()
+        result = QueryResult()
+        with result.binary_buffer() as buffer:
+            with contextlib.closing(engine.raw_connection()) as conn:
+                with cast(cursor, conn.cursor()) as cursor_:
+                    copy = f"COPY ({query}) TO STDOUT CSV HEADER"
+
+                    cursor_.copy_expert(copy, buffer)
+                    result.row_count = cursor_.rowcount
+
+        return result
 
     def import_csv(self, csv_file: io.TextIOBase, table: str):
         engine: Engine = cast(Engine, self.session.get_bind())
-        conn = engine.raw_connection()
-        cursor: psycopg2.cursor = conn.cursor()
 
         # Reading the header line from the buffer removes it for the ingest
         columns: List[str] = [f'"{c}"' for c in csv_file.readline().strip().split(",")]
-
         copy = "COPY {table} ({columns}) FROM STDIN CSV".format(table=table, columns=",".join(columns))
-        cursor.copy_expert(copy, csv_file)
-        cursor.close()
-        conn.commit()
-        conn.close()
+
+        with contextlib.closing(engine.raw_connection()) as conn:
+            with cast(cursor, conn.cursor()) as cursor_:
+                cursor_.copy_expert(copy, csv_file)
+                conn.commit()
 
     def export_schema_ddl(self, name: str, console: Console = default_console) -> bytes:
         if not shutil.which("pg_dump"):

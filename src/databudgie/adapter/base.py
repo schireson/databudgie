@@ -1,8 +1,11 @@
+from __future__ import annotations
+
+import contextlib
 import csv
 import io
 import warnings
-from dataclasses import dataclass, replace
-from typing import Any, cast, Dict, Generator, List, Optional, Sequence
+from dataclasses import dataclass, field, replace
+from typing import Any, cast, Generator, Sequence
 
 import sqlalchemy
 from sqlalchemy import inspect, MetaData, Table, text
@@ -11,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from databudgie.output import Console, default_console
 from databudgie.table_op import TableOp
-from databudgie.utils import join_paths, parse_table
+from databudgie.utils import join_paths, parse_table, wrap_buffer
 
 
 @dataclass
@@ -28,7 +31,7 @@ class Adapter:
     session: Session
 
     @classmethod
-    def get_adapter(cls, session: Session, dialect: Optional[str] = None) -> "Adapter":
+    def get_adapter(cls, session: Session, dialect: str | None = None) -> Adapter:
         """Determine an interface based on the dialect name from the Session (or an explicit string).
 
         Examples:
@@ -52,7 +55,7 @@ class Adapter:
 
         return cls(session)
 
-    def export_query(self, query: str, dest: io.StringIO):
+    def export_query(self, query: str) -> QueryResult:
         def query_database(session: Session, query: str) -> Generator[Sequence[Any], None, None]:
             cursor = session.execute(text(query))
 
@@ -61,16 +64,23 @@ class Adapter:
 
             yield from cursor
 
-        writer = csv.writer(dest, quoting=csv.QUOTE_MINIMAL)
-        for row in query_database(self.session, query):
-            writer.writerow(row)
+        result = QueryResult()
+        with result.text_buffer() as text_buffer:
+            writer = csv.writer(text_buffer, quoting=csv.QUOTE_MINIMAL)
+
+            i = 0
+            for i, row in enumerate(query_database(self.session, query), start=1):
+                writer.writerow(row)
+
+        result.row_count = i
+        return result
 
     def import_csv(self, csv_file: io.TextIOBase, table: str):
         reader = csv.DictReader(csv_file, quoting=csv.QUOTE_MINIMAL)
 
-        prepared_rows: List[dict] = []
+        prepared_rows: list[dict] = []
         for row in reader:
-            new_row: Dict[str, Any] = dict(row)
+            new_row: dict[str, Any] = dict(row)
             for key, value in new_row.items():
                 if value.lower() == "true":
                     new_row[key] = True
@@ -116,7 +126,7 @@ class Adapter:
         """
         raise NotImplementedError()
 
-    def collect_existing_tables(self) -> List[str]:
+    def collect_existing_tables(self) -> list[str]:
         """Find the set of all user-defined tables in a database."""
         connection = self.session.connection()
 
@@ -133,10 +143,10 @@ class Adapter:
 
         return [table.fullname for table in metadata.sorted_tables]
 
-    def collect_table_dependencies(self, table_op: TableOp, console: Console = default_console) -> List[str]:
+    def collect_table_dependencies(self, table_op: TableOp, console: Console = default_console) -> list[str]:
         raise NotImplementedError()
 
-    def collect_table_sequences(self) -> Dict[str, List[str]]:
+    def collect_table_sequences(self) -> dict[str, list[str]]:
         raise NotImplementedError()
 
     def collect_sequence_value(self, sequence_name: str) -> int:
@@ -147,10 +157,10 @@ class Adapter:
 
     def materialize_table_dependencies(
         self,
-        table_ops: List[TableOp],
+        table_ops: list[TableOp],
         reverse: bool = False,
         console: Console = default_console,
-    ) -> List[TableOp]:
+    ) -> list[TableOp]:
         tables = set()
         dependent_table_ops = []
         for table_op in table_ops:
@@ -176,3 +186,19 @@ class Adapter:
             return list(reversed(dependent_table_ops)) + table_ops
 
         return table_ops + dependent_table_ops
+
+
+@dataclass
+class QueryResult:
+    buffer: io.BytesIO = field(default_factory=io.BytesIO)
+    row_count: int = 0
+
+    @contextlib.contextmanager
+    def binary_buffer(self):
+        yield self.buffer
+        self.buffer.seek(0)
+
+    @contextlib.contextmanager
+    def text_buffer(self):
+        with wrap_buffer(self.buffer) as text_buffer:
+            yield text_buffer

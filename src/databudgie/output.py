@@ -1,4 +1,5 @@
 from rich import console, progress
+from rich.table import Table
 from rich.theme import Theme
 from rich.traceback import Traceback
 
@@ -51,4 +52,5 @@ __all__ = [
     "default_console",
     "Progress",
     "Traceback",
+    "Table",
 ]

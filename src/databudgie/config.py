@@ -104,8 +104,8 @@ class DDLConfig(Config):
 
 @dataclass
 class RootConfig(Config):
-    backup: BackupConfig | None = None
-    restore: RestoreConfig | None = None
+    backup: BackupConfig
+    restore: RestoreConfig
 
     @classmethod
     def from_dict(cls, raw_config: dict):

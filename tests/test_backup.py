@@ -7,18 +7,15 @@ from unittest.mock import patch
 
 import pytest
 
-from databudgie.adapter.base import Adapter
-from databudgie.backup import backup, backup_all
-from databudgie.config import BackupTableConfig, RootConfig
+from databudgie.backup import backup_all
+from databudgie.config import RootConfig
 from databudgie.s3 import is_s3_path, S3Location
-from databudgie.table_op import TableOp
 from tests.mockmodels.models import Customer
 from tests.utils import s3_config
 
 
-def test_backup_all(pg, s3_resource, **extras):
+def test_backup_all(pg, s3_resource):
     """Validate the backup_all performs backup for all tables in the backup config."""
-
     config = RootConfig.from_dict(
         {
             "location": "s3://sample-bucket/databudgie/test/{table}",
@@ -29,7 +26,7 @@ def test_backup_all(pg, s3_resource, **extras):
         }
     )
 
-    backup_all(pg, config.backup, **extras)
+    backup_all(pg, config.backup)
 
     all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
     assert all_object_keys == [
@@ -131,44 +128,25 @@ def test_compression(pg, s3_resource, config, adapter):
     assert gzip.decompress(content) == b"id,store_id,external_id,external_name,external_status,active\n"
 
 
-def test_backup_local_file(pg, mf, **extras):
+def test_backup_local_file(pg, mf):
     """Validate the upload for a single table contains the correct contents."""
     customer = mf.customer.new(external_id="cid_123")
 
     with tempfile.TemporaryDirectory() as dir_name:
-        backup(
-            adapter=Adapter.get_adapter(pg),
-            table_op=TableOp.from_name(
-                "public.customer",
-                BackupTableConfig(
-                    name="public.customer",
-                    query="select * from public.customer",
-                    location=f"{dir_name}/public.customer",
-                ),
-            ),
-            **extras,
-        )
+        config = RootConfig.from_dict({"tables": {"public.customer": {"location": f"{dir_name}/public.customer"}}})
+        backup_all(pg, config.backup)
 
         _validate_backup_contents(_get_file_buffer(f"{dir_name}/public.customer/2021-04-26T09:00:00.csv"), [customer])
 
 
-def test_backup_one(pg, mf, s3_resource, **extras):
+def test_backup_s3(pg, mf, s3_resource):
     """Validate the upload for a single table contains the correct contents."""
     customer = mf.customer.new(external_id="cid_123")
 
-    backup(
-        s3_resource=s3_resource,
-        adapter=Adapter.get_adapter(pg),
-        table_op=TableOp.from_name(
-            "public.customer",
-            BackupTableConfig(
-                name="public.customer",
-                query="select * from public.customer",
-                location="s3://sample-bucket/databudgie/test/public.customer",
-            ),
-        ),
-        **extras,
+    config = RootConfig.from_dict(
+        {"tables": {"public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer"}}, **s3_config}
     )
+    backup_all(pg, config.backup)
 
     _validate_backup_contents(
         _get_file_buffer("s3://sample/databudgie/test/public.customer/2021-04-26T09:00:00.csv", s3_resource), [customer]
