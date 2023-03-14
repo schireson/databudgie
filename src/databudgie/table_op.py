@@ -78,7 +78,6 @@ def expand_table_ops(
     Additionally, tables may be filtered, either by the pre-existence of
     manifest data or explicit table exclusions.
     """
-
     # Avoid hardcoding things like "public", we hardcode this elsewhere, this
     # should probably be moved upstream.
     insp = inspect(session.connection())

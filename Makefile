@@ -7,15 +7,12 @@ install:
 
 
 format:
-	isort --recursive --quiet src tests
+	ruff --fix src tests
 	black src tests
 
 lint:
-	isort --recursive --quiet --check --diff src tests || exit 1
-	flake8 --max-line-length=200 src tests || exit 1
-	pydocstyle src tests || exit 1
+	ruff src tests || exit 1
 	mypy --namespace-packages src tests || exit 1
-	bandit -r -s B101 src || exit 1
 	black --check --diff src tests || exit 1
 
 test:

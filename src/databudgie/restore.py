@@ -18,7 +18,13 @@ from databudgie.manifest.manager import Manifest
 from databudgie.output import Console, default_console, Progress
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
 from databudgie.table_op import expand_table_ops, SchemaOp, TableOp
-from databudgie.utils import capture_failures, join_paths, parse_table, restore_filename, wrap_buffer
+from databudgie.utils import (
+    capture_failures,
+    join_paths,
+    parse_table,
+    restore_filename,
+    wrap_buffer,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
@@ -160,7 +166,7 @@ def restore_ddl(
     with get_file_contents(path, strategy, s3_resource=s3_resource, filetype="sql") as file_object:
         if not file_object:
             console.warn(f"Found no DDL backups under {path} to restore")
-            return
+            return None
 
         query = file_object.content.read().decode("utf-8")
 
@@ -311,7 +317,7 @@ def check_location_exists(
         s3_bucket: "Bucket" = s3_resource.Bucket(s3_location.bucket)
         matching_objects = list(s3_bucket.objects.filter(Prefix=s3_location.key).all())
     else:
-        matching_objects = list(dir_entry for dir_entry in os.scandir(location) if dir_entry.is_file())
+        matching_objects = [dir_entry for dir_entry in os.scandir(location) if dir_entry.is_file()]
 
     return len(matching_objects) >= 1
 

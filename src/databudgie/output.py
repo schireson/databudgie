@@ -13,6 +13,7 @@ class Console(console.Console):
     def trace(self, message):
         if self.verbosity >= 1:
             return self.log(message, style="trace")
+        return None
 
     def info(self, message):
         return self.log(message, style="info")

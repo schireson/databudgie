@@ -121,7 +121,7 @@ def test_compression(pg, s3_resource, config, adapter):
     config = RootConfig.from_dict({"backup": config, "sequences": False, "strict": True, **s3_config})
     backup_all(pg, backup_config=config.backup)
 
-    all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    all_objects = list(s3_resource.Bucket("sample-bucket").objects.all())
     assert len(all_objects) == 1
 
     obj = all_objects[0]
@@ -234,7 +234,8 @@ def _comparable_bool(value: bool):
     """Convert a boolean value to a comparable value."""
     if value is True:
         return (True, "True", "t", "true")
-    elif value is False:
+
+    if value is False:
         return (False, "False", "f", "false")
-    else:
-        raise ValueError(f"Invalid boolean value: {value}")
+
+    raise ValueError(f"Invalid boolean value: {value}")

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import io
 from dataclasses import asdict, dataclass
-from typing import List, Optional, Union
 
 from configly import Config
 from rich.console import Console
@@ -16,13 +15,13 @@ DEFAULT_CONFIG_FILE = "config.databudgie.yml"
 
 @dataclass
 class CliConfig(DatabudgieConfig):
-    tables: Optional[List[str]] = None
-    exclude: Optional[List[str]] = None
-    ddl: Optional[bool] = None
-    url: Optional[Union[str, dict]] = None
-    location: Optional[str] = None
-    adapter: Optional[str] = None
-    strict: Optional[bool] = None
+    tables: list[str] | None = None
+    exclude: list[str] | None = None
+    ddl: bool | None = None
+    url: str | dict | None = None
+    location: str | None = None
+    adapter: str | None = None
+    strict: bool | None = None
 
     def to_dict(self) -> dict:
         config = asdict(self)

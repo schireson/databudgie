@@ -13,15 +13,15 @@ from tests.utils import s3_config
 def test_type_conversion(pg, mf, s3_resource):
     sales = [mf.sale.new() for _ in range(100)]
     original_sales = {
-        s.id: dict(
-            id=s.id,
-            external_id=s.external_id,
-            store_id=s.store_id,
-            product_id=s.product_id,
-            sale_value=s.sale_value,
-            sale_date=s.sale_date,
-            active=s.active,
-        )
+        s.id: {
+            "id": s.id,
+            "external_id": s.external_id,
+            "store_id": s.store_id,
+            "product_id": s.product_id,
+            "sale_value": s.sale_value,
+            "sale_date": s.sale_date,
+            "active": s.active,
+        }
         for s in sales
     }
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import abc
 import typing
 from dataclasses import dataclass, field, fields
-from typing import Any, Optional, Union
+from typing import Any
 
 from databudgie.utils import join_paths
 
@@ -17,7 +17,7 @@ class ConfigError(ValueError):
 
 class ConfigStack:
     def __init__(self, *configs: dict):
-        self.configs: typing.Tuple[dict, ...] = configs
+        self.configs: tuple[dict, ...] = configs
 
     def __getitem__(self, key):
         for config in self.configs:
@@ -82,7 +82,7 @@ class DDLConfig(Config):
     strategy: str = "use_latest_filename"
 
     @classmethod
-    def from_dict(cls, ddl_config: Union[dict, bool], root_location: Optional[str] = None):
+    def from_dict(cls, ddl_config: dict | bool, root_location: str | None = None):
         if isinstance(ddl_config, bool):
             expanded_ddl_config: dict[str, Any] = {"enabled": ddl_config}
         else:
@@ -104,8 +104,8 @@ class DDLConfig(Config):
 
 @dataclass
 class RootConfig(Config):
-    backup: Optional[BackupConfig] = None
-    restore: Optional[RestoreConfig] = None
+    backup: BackupConfig | None = None
+    restore: RestoreConfig | None = None
 
     @classmethod
     def from_dict(cls, raw_config: dict):
@@ -124,17 +124,17 @@ class RootConfig(Config):
 
 @dataclass
 class TableParentConfig(typing.Generic[T], Config):
-    tables: typing.List[T]
-    connections: typing.Dict[str, Connection]
+    tables: list[T]
+    connections: dict[str, Connection]
     ddl: DDLConfig
 
-    connection: Optional[Connection] = None
-    manifest: Optional[str] = None
+    connection: Connection | None = None
+    manifest: str | None = None
 
-    s3: Optional[S3Config] = None
-    sentry: Optional[SentryConfig] = None
-    root_location: Optional[str] = None
-    adapter: Optional[str] = None
+    s3: S3Config | None = None
+    sentry: SentryConfig | None = None
+    root_location: str | None = None
+    adapter: str | None = None
 
     @classmethod
     @abc.abstractmethod
@@ -151,7 +151,7 @@ class TableParentConfig(typing.Generic[T], Config):
         tables = [table_class.from_stack(stack.push(tbl_conf), root_location) for tbl_conf in tables_config]
 
         # manifest defauls to None
-        manifest: Optional[str] = stack.get("manifest")
+        manifest: str | None = stack.get("manifest")
 
         ddl = DDLConfig.from_dict(stack.get("ddl", {}), root_location)
 
@@ -179,10 +179,10 @@ class TableParentConfig(typing.Generic[T], Config):
 @dataclass
 class Connection(Config):
     name: str
-    url: typing.Union[str, dict]
+    url: str | dict
 
     @classmethod
-    def from_raw(cls, raw: typing.Union[str, dict, None], *, name: Optional[str] = None):
+    def from_raw(cls, raw: str | dict | None, *, name: str | None = None):
         if raw is None:
             return None
 
@@ -190,19 +190,19 @@ class Connection(Config):
             if name is None:
                 raise ConfigError(f"Connection '{raw}' requires a name")
             return cls(name="default", url=raw)
+
+        if name is None:
+            raise ConfigError(f"Connection '{raw}' requires a name")
+
+        if "url" in raw:
+            url = raw["url"]
         else:
-            if name is None:
-                raise ConfigError(f"Connection '{raw}' requires a name")
+            url = {k: v for k, v in raw.items() if k != "name"}
 
-            if "url" in raw:
-                url = raw["url"]
-            else:
-                url = {k: v for k, v in raw.items() if k != "name"}
-
-            return cls(name=name or "default", url=url)
+        return cls(name=name or "default", url=url)
 
     @classmethod
-    def from_collection(cls, collection: typing.Union[typing.List, typing.Dict, None]) -> typing.Dict[str, Connection]:
+    def from_collection(cls, collection: list | dict | None) -> dict[str, Connection]:
         if collection is None:
             return {}
 
@@ -228,7 +228,7 @@ class BackupTableConfig(Config):
     name: str
     location: str = "backups/{table}"
     query: str = "select * from {table}"
-    compression: Optional[str] = None
+    compression: str | None = None
     exclude: list = field(default_factory=list)
     ddl: bool = True
     sequences: bool = True
@@ -237,7 +237,7 @@ class BackupTableConfig(Config):
     strict: bool = False
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack, root_location: Optional[str] = None):
+    def from_stack(cls, stack: ConfigStack, root_location: str | None = None):
         ddl = stack.get("ddl", True)
         if isinstance(ddl, dict):
             ddl = ddl["enabled"]
@@ -271,7 +271,7 @@ class RestoreTableConfig(Config):
     name: str
     location: str = "backups/{table}"
     strategy: str = "use_latest_filename"
-    compression: Optional[str] = None
+    compression: str | None = None
     exclude: list = field(default_factory=list)
     ddl: bool = True
     sequences: bool = True
@@ -281,7 +281,7 @@ class RestoreTableConfig(Config):
     strict: bool = False
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack, root_location: Optional[str] = None):
+    def from_stack(cls, stack: ConfigStack, root_location: str | None = None):
         ddl = stack.get("ddl", True)
         if isinstance(ddl, dict):
             ddl = ddl["enabled"]
@@ -311,7 +311,7 @@ class RestoreConfig(TableParentConfig[RestoreTableConfig]):
         return RestoreTableConfig
 
 
-def normalize_table_config(tables_config: typing.Union[list, dict]) -> list:
+def normalize_table_config(tables_config: list | dict) -> list:
     """Convert the dict-style table declaration into list style.
 
     from: {"name": {"location": "backups/{table}"}}
@@ -322,9 +322,10 @@ def normalize_table_config(tables_config: typing.Union[list, dict]) -> list:
     to: [{"name": "name1"}, {"name": "name2"}]
     """
     if isinstance(tables_config, dict):
-        tables_config = [{"name": k, **v} for k, v in tables_config.items()]
-    elif isinstance(tables_config, list):
-        tables_config = [{"name": c} if isinstance(c, str) else c for c in tables_config]
+        return [{"name": k, **v} for k, v in tables_config.items()]
+
+    if isinstance(tables_config, list):
+        return [{"name": c} if isinstance(c, str) else c for c in tables_config]
 
     return tables_config
 
@@ -341,12 +342,12 @@ class SentryConfig(Config):
     SentryConfig does not inherit keys from the root config.
     """
 
-    dsn: Optional[str] = None
-    environment: Optional[str] = None
-    version: Optional[str] = None
+    dsn: str | None = None
+    environment: str | None = None
+    version: str | None = None
 
     @classmethod
-    def from_dict(cls, sentry_config: Optional[dict]) -> Optional[SentryConfig]:
+    def from_dict(cls, sentry_config: dict | None) -> SentryConfig | None:
         if sentry_config is None:
             return None
 
@@ -359,13 +360,13 @@ class SentryConfig(Config):
 
 @dataclass
 class S3Config(Config):
-    aws_access_key_id: Optional[str] = None
-    aws_secret_access_key: Optional[str] = None
-    region: Optional[str] = None
-    profile: Optional[str] = None
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: str | None = None
+    region: str | None = None
+    profile: str | None = None
 
     @classmethod
-    def from_dict(cls, s3_config: Optional[dict]) -> Optional[S3Config]:
+    def from_dict(cls, s3_config: dict | None) -> S3Config | None:
         if s3_config is None:
             return None
         return cls(

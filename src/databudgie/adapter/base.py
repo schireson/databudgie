@@ -49,8 +49,8 @@ class Adapter:
             from databudgie.adapter.postgres import PostgresAdapter
 
             return PostgresAdapter(session)
-        else:
-            return cls(session)
+
+        return cls(session)
 
     def export_query(self, query: str, dest: io.StringIO):
         def query_database(session: Session, query: str) -> Generator[Sequence[Any], None, None]:
@@ -59,8 +59,7 @@ class Adapter:
             columns: Sequence[str] = list(cursor.keys())
             yield columns
 
-            for row in cursor:
-                yield row
+            yield from cursor
 
         writer = csv.writer(dest, quoting=csv.QUOTE_MINIMAL)
         for row in query_database(self.session, query):
