@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import urllib.parse
-from typing import Optional, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3ServiceResource
@@ -9,13 +9,13 @@ if TYPE_CHECKING:
     from databudgie.config import BackupConfig, RestoreConfig, S3Config
 
 
-def optional_s3_resource(config: Union[BackupConfig, RestoreConfig]) -> Optional["S3ServiceResource"]:
+def optional_s3_resource(config: BackupConfig | RestoreConfig) -> S3ServiceResource | None:
     if config_uses_s3(config) and config.s3:
         return s3_resource(config.s3)
     return None
 
 
-def s3_resource(config: S3Config) -> "S3ServiceResource":
+def s3_resource(config: S3Config) -> S3ServiceResource:
     try:
         import boto3
     except ImportError:
@@ -30,11 +30,11 @@ def s3_resource(config: S3Config) -> "S3ServiceResource":
         region_name=config.region,
     )
 
-    s3: "S3ServiceResource" = session.resource("s3")
+    s3: S3ServiceResource = session.resource("s3")
     return s3
 
 
-def config_uses_s3(config: Union[BackupConfig, RestoreConfig]):
+def config_uses_s3(config: BackupConfig | RestoreConfig):
     if config.root_location and is_s3_path(config.root_location):
         return True
 

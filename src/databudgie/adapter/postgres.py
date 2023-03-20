@@ -35,7 +35,7 @@ class PostgresAdapter(Adapter):
         conn = engine.raw_connection()
         cursor: psycopg2.cursor = conn.cursor()
 
-        copy = "COPY ({}) TO STDOUT CSV HEADER".format(query)
+        copy = f"COPY ({query}) TO STDOUT CSV HEADER"
         cursor.copy_expert(copy, dest)
         cursor.close()
         conn.close()
@@ -61,10 +61,7 @@ class PostgresAdapter(Adapter):
 
         url = self.session.connection().engine.url
         result = pg_dump(url, f"--schema-only --schema={name} --exclude-table={name}.*")
-        result = result.replace(
-            f"CREATE SCHEMA {name};".encode("utf-8"), f"CREATE SCHEMA IF NOT EXISTS {name};".encode("utf-8")
-        )
-        return result
+        return result.replace(f"CREATE SCHEMA {name};".encode(), f"CREATE SCHEMA IF NOT EXISTS {name};".encode())
 
     def export_table_ddl(self, table_name: str, console: Console = default_console):
         if not shutil.which("pg_dump"):
@@ -196,7 +193,7 @@ class PostgresAdapter(Adapter):
         )
 
         results = self.session.execute(
-            collect_tables, params=dict(schema=table_op.schema, table_name=table_op.table_name)
+            collect_tables, params={"schema": table_op.schema, "table_name": table_op.table_name}
         )
 
         return [row[0] for row in results]
@@ -226,7 +223,7 @@ class PostgresAdapter(Adapter):
         return result
 
     def collect_sequence_value(self, sequence_name: str) -> int:
-        return cast(int, self.session.execute(text(f"SELECT last_value from {sequence_name}")).scalar())  # nosec
+        return cast(int, self.session.execute(text(f"SELECT last_value from {sequence_name}")).scalar())  # noqa: S608
 
     def restore_sequence_value(self, sequence_name: str, value: int) -> int:
         return cast(int, self.session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar())

@@ -36,8 +36,7 @@ def _create_postgres_session(config: Union[BackupConfig, RestoreConfig], connect
         url_obj = sqlalchemy.engine.url.make_url(url)
 
     engine = sqlalchemy.create_engine(url_obj)
-    session = sqlalchemy.orm.scoping.scoped_session(sqlalchemy.orm.session.sessionmaker(bind=engine))()
-    return session
+    return sqlalchemy.orm.scoping.scoped_session(sqlalchemy.orm.session.sessionmaker(bind=engine))()
 
 
 def backup_config(root_config: RootConfig):

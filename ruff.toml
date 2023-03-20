@@ -1,0 +1,28 @@
+src = ["src", "tests"]
+target-version = "py37"
+
+select = ["C", "D", "E", "F", "I", "N", "Q", "RET", "RUF", "S", "T", "UP", "YTT"]
+ignore = ["C901", "E501", "S101"]
+extend-select = ["D"]
+extend-ignore = [
+    "D1",
+
+    "D203",
+    "D204",
+    "D213",
+    "D215",
+    "D400",
+    "D404",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+]
+
+[isort]
+known-first-party = ["ma"]
+order-by-type = false
+
+[per-file-ignores]
+"**/tests/**/*.py" = ["D", "S", "N801", "N802", 'N806']

@@ -91,10 +91,12 @@ def test_restore_follow_foreign_keys(pg, s3_resource):
     correctly orders the tables by foreign key. t0/t1 would cause an unsorted
     result set to fail due to the foreign keys being unfulfilled at time of restore.
     """
-    mock_s3_csv(s3_resource, "public.t0_address/public.t0_store/2021-04-26T09:00:00.csv", [dict(id=1)])
-    mock_s3_csv(s3_resource, "public.t0_address/public.t1_product/2021-04-26T09:00:00.csv", [dict(id=2, store_id=1)])
-    mock_s3_csv(s3_resource, "public.t0_address/public.t0_customer/2021-04-26T09:00:00.csv", [dict(id=3, product_id=2)])
-    mock_s3_csv(s3_resource, "public.t0_address/2021-04-26T09:00:00.csv", [dict(id=4, customer_id=3, store_id=1)])
+    mock_s3_csv(s3_resource, "public.t0_address/public.t0_store/2021-04-26T09:00:00.csv", [{"id": 1}])
+    mock_s3_csv(s3_resource, "public.t0_address/public.t1_product/2021-04-26T09:00:00.csv", [{"id": 2, "store_id": 1}])
+    mock_s3_csv(
+        s3_resource, "public.t0_address/public.t0_customer/2021-04-26T09:00:00.csv", [{"id": 3, "product_id": 2}]
+    )
+    mock_s3_csv(s3_resource, "public.t0_address/2021-04-26T09:00:00.csv", [{"id": 4, "customer_id": 3, "store_id": 1}])
 
     config = RootConfig.from_dict(
         {

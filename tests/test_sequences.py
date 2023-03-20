@@ -38,7 +38,7 @@ def test_backup_without_sequences(pg, s3_resource):
 
     backup_all(pg, config.backup)
 
-    all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    all_objects = list(s3_resource.Bucket("sample-bucket").objects.all())
     assert len(all_objects) == 1
     assert all_objects[0].key == "public.product/2021-04-26T09:00:00.csv"
 
@@ -61,7 +61,7 @@ def test_backup_with_sequences(pg, s3_resource, sequence_config, mf):
 
     backup_all(pg, config.backup)
 
-    all_objects = [obj for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    all_objects = list(s3_resource.Bucket("sample-bucket").objects.all())
     assert len(all_objects) == 2
     assert all_objects[0].key == "public.product/2021-04-26T09:00:00.csv"
     assert all_objects[1].key == "public.product/sequences/2021-04-26T09:00:00.json"

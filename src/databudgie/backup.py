@@ -6,7 +6,7 @@ import os
 import pathlib
 from datetime import datetime
 from os import path
-from typing import List, Optional, Sequence, TYPE_CHECKING
+from typing import Sequence, TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,12 @@ from databudgie.manifest.manager import Manifest
 from databudgie.output import Console, default_console, Progress
 from databudgie.s3 import is_s3_path, optional_s3_resource, S3Location
 from databudgie.table_op import expand_table_ops, TableOp
-from databudgie.utils import capture_failures, generate_filename, join_paths, wrap_buffer
+from databudgie.utils import (
+    capture_failures,
+    generate_filename,
+    join_paths,
+    wrap_buffer,
+)
 
 if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
@@ -26,8 +31,8 @@ if TYPE_CHECKING:
 def backup_all(
     session: Session,
     backup_config: BackupConfig,
-    manifest: Optional[Manifest] = None,
-    s3_resource: Optional["S3ServiceResource"] = None,
+    manifest: Manifest | None = None,
+    s3_resource: S3ServiceResource | None = None,
     console: Console = default_console,
 ):
     """Perform backup on all tables in the config.
@@ -84,12 +89,12 @@ def backup_all(
 
 def backup_ddl(
     backup_config: BackupConfig,
-    table_ops: List[TableOp[BackupTableConfig]],
+    table_ops: list[TableOp[BackupTableConfig]],
     *,
     timestamp: datetime,
     adapter: Adapter,
     console: Console = default_console,
-    s3_resource: Optional["S3ServiceResource"] = None,
+    s3_resource: S3ServiceResource | None = None,
 ):
     if not backup_config.ddl.enabled:
         return
@@ -160,12 +165,12 @@ def backup_ddl(
 
 
 def backup_sequences(
-    table_ops: List[TableOp[BackupTableConfig]],
+    table_ops: list[TableOp[BackupTableConfig]],
     *,
     timestamp: datetime,
     adapter: Adapter,
     console: Console = default_console,
-    s3_resource: Optional["S3ServiceResource"] = None,
+    s3_resource: S3ServiceResource | None = None,
 ):
     has_sequences = any(o.raw_conf.sequences for o in table_ops)
     if not has_sequences:
@@ -208,8 +213,8 @@ def backup_tables(
     *,
     adapter: Adapter,
     console: Console = default_console,
-    manifest: Optional[Manifest] = None,
-    s3_resource: Optional["S3ServiceResource"] = None,
+    manifest: Manifest | None = None,
+    s3_resource: S3ServiceResource | None = None,
 ) -> None:
     with Progress(console) as progress:
         task = progress.add_task("Backing up tables", total=len(table_ops))
@@ -237,9 +242,9 @@ def backup(
     table_op: TableOp[BackupTableConfig],
     adapter: Adapter,
     console: Console = default_console,
-    timestamp: Optional[datetime] = None,
-    manifest: Optional[Manifest] = None,
-    s3_resource: Optional["S3ServiceResource"] = None,
+    timestamp: datetime | None = None,
+    manifest: Manifest | None = None,
+    s3_resource: S3ServiceResource | None = None,
 ):
     """Dump query contents to S3 as a CSV file.
 
@@ -269,7 +274,7 @@ def backup(
     console.trace(f"Uploaded {table_op.full_name} to {fully_qualified_path}")
 
 
-def persist_backup(path: str, buffer: io.BytesIO, s3_resource: Optional["S3ServiceResource"] = None, compression=None):
+def persist_backup(path: str, buffer: io.BytesIO, s3_resource: S3ServiceResource | None = None, compression=None):
     buffer = Compressor.get_with_name(compression).compress(buffer)
 
     if is_s3_path(path):

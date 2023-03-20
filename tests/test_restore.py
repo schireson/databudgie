@@ -21,15 +21,15 @@ fake = faker.Faker()
 
 def test_restore_all(pg, s3_resource, **extras):
     """Validate restore functionality for all tables in a config."""
-    mock_store = dict(id=1, name=fake.name())
-    mock_product = dict(
-        id=1,
-        store_id=1,
-        external_id=str(fake.unique.pyint()),
-        external_name=fake.name(),
-        external_status="ACTIVE",
-        active=True,
-    )
+    mock_store = {"id": 1, "name": fake.name()}
+    mock_product = {
+        "id": 1,
+        "store_id": 1,
+        "external_id": str(fake.unique.pyint()),
+        "external_name": fake.name(),
+        "external_status": "ACTIVE",
+        "active": True,
+    }
 
     mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv", [mock_store])
     mock_s3_csv(s3_resource, "public.product/2021-04-26T09:00:00.csv", [mock_product])
@@ -61,22 +61,22 @@ def test_restore_one(pg, mf, s3_resource, **extras):
     store = mf.store.new(name=fake.name())
 
     mock_products = [
-        dict(
-            id=1,
-            store_id=store.id,
-            external_id=str(fake.unique.pyint()),
-            external_name=fake.name(),
-            external_status="ACTIVE",
-            active=True,
-        ),
-        dict(
-            id=2,
-            store_id=store.id,
-            external_id=str(fake.unique.pyint()),
-            external_name=fake.name(),
-            external_status=None,
-            active=False,
-        ),
+        {
+            "id": 1,
+            "store_id": store.id,
+            "external_id": str(fake.unique.pyint()),
+            "external_name": fake.name(),
+            "external_status": "ACTIVE",
+            "active": True,
+        },
+        {
+            "id": 2,
+            "store_id": store.id,
+            "external_id": str(fake.unique.pyint()),
+            "external_name": fake.name(),
+            "external_status": None,
+            "active": False,
+        },
     ]
 
     mock_s3_csv(s3_resource, "products/2021-04-26T09:00:00.csv", mock_products)
@@ -108,14 +108,14 @@ def test_restore_all_overwrite_cascade(pg, mf, s3_resource):
     mf.product.new(store=store)
     mf.product.new(store=store)
 
-    mock_product = dict(
-        id=1,
-        store_id=store.id,
-        external_id=fake.unique.pyint(),
-        external_name=fake.name(),
-        external_status="ACTIVE",
-        active=True,
-    )
+    mock_product = {
+        "id": 1,
+        "store_id": store.id,
+        "external_id": fake.unique.pyint(),
+        "external_name": fake.name(),
+        "external_status": "ACTIVE",
+        "active": True,
+    }
 
     mock_s3_csv(s3_resource, "products/2021-04-26T09:00:00.csv", [mock_product])
 
@@ -140,14 +140,14 @@ def test_restore_all_local_files(pg, mf):
     mf.product.new(store=store)
     mf.product.new(store=store)
 
-    mock_product = dict(
-        id=1,
-        store_id=store.id,
-        external_id=fake.unique.pyint(),
-        external_name=fake.name(),
-        external_status="ACTIVE",
-        active=True,
-    )
+    mock_product = {
+        "id": 1,
+        "store_id": store.id,
+        "external_id": fake.unique.pyint(),
+        "external_name": fake.name(),
+        "external_status": "ACTIVE",
+        "active": True,
+    }
 
     fake_file_data = mock_csv([mock_product]).read()
     with tempfile.TemporaryDirectory() as dir_name:
@@ -180,22 +180,22 @@ def test_restore_glob(pg, mf, s3_resource):
         s3_resource,
         "public.store/2021-04-26T09:00:00.csv",
         [
-            dict(id=1, name=fake.name()),
-            dict(id=2, name=fake.name()),
+            {"id": 1, "name": fake.name()},
+            {"id": 2, "name": fake.name()},
         ],
     )
     mock_s3_csv(
         s3_resource,
         "public.product/2021-04-26T09:00:00.csv",
         [
-            dict(
-                id=1,
-                store_id=1,
-                external_id=fake.unique.pyint(),
-                external_name=fake.name(),
-                external_status="ACTIVE",
-                active=True,
-            ),
+            {
+                "id": 1,
+                "store_id": 1,
+                "external_id": fake.unique.pyint(),
+                "external_name": fake.name(),
+                "external_status": "ACTIVE",
+                "active": True,
+            },
         ],
     )
 
@@ -219,7 +219,7 @@ def test_restore_glob(pg, mf, s3_resource):
 
 
 def test_reset_database(pg):
-    pmr_credentials = pg.connection().engine.pmr_credentials
+    pmr_credentials = pg.pmr_credentials
     url = pmr_credentials.as_sqlalchemy_url()
 
     with create_engine(url).execution_options(isolation_level="AUTOCOMMIT").connect() as conn:
@@ -284,7 +284,7 @@ def test_reset_database(pg):
 )
 def test_compression(pg, s3_resource, config):
     """Validate restore functionality with compression enabled."""
-    mock_store = dict(id=1, name=fake.name())
+    mock_store = {"id": 1, "name": fake.name()}
 
     mock_s3_csv(s3_resource, "public.store/2021-04-26T09:00:00.csv.gz", [mock_store], gzipped=True)
 
