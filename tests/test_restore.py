@@ -9,17 +9,15 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm.session import sessionmaker
 
-from databudgie.adapter.base import Adapter
-from databudgie.config import RestoreTableConfig, RootConfig
-from databudgie.restore import restore, restore_all
-from databudgie.table_op import TableOp
+from databudgie.config import RootConfig
+from databudgie.restore import restore_all
 from tests.mockmodels.models import Product, Store
 from tests.utils import mock_csv, mock_s3_csv, s3_config
 
 fake = faker.Faker()
 
 
-def test_restore_all(pg, s3_resource, **extras):
+def test_restore_all(pg, s3_resource):
     """Validate restore functionality for all tables in a config."""
     mock_store = {"id": 1, "name": fake.name()}
     mock_product = {
@@ -49,13 +47,13 @@ def test_restore_all(pg, s3_resource, **extras):
             },
         }
     )
-    restore_all(pg, config.restore, **extras)
+    restore_all(pg, config.restore)
 
     assert pg.query(Store).count() == 1
     assert pg.query(Product).count() == 1
 
 
-def test_restore_one(pg, mf, s3_resource, **extras):
+def test_restore_one(pg, mf, s3_resource):
     """Validate restore functionality for a single table."""
 
     store = mf.store.new(name=fake.name())
@@ -81,15 +79,8 @@ def test_restore_one(pg, mf, s3_resource, **extras):
 
     mock_s3_csv(s3_resource, "products/2021-04-26T09:00:00.csv", mock_products)
 
-    restore(
-        pg,
-        adapter=Adapter.get_adapter(pg),
-        table_op=TableOp.from_name(
-            "product", RestoreTableConfig(name="product", location="s3://sample-bucket/products")
-        ),
-        s3_resource=s3_resource,
-        **extras,
-    )
+    config = RootConfig.from_dict({**s3_config, "tables": {"product": {"location": "s3://sample-bucket/products"}}})
+    restore_all(pg, config.restore)
 
     products = pg.query(Product).all()
     assert len(products) == 2

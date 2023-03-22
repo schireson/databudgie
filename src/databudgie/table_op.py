@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Dict, Generic, List, Optional, Sequence, TypeVar
+from typing import Generic, Sequence, TYPE_CHECKING, TypeVar
 
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 
 from databudgie.config import BackupTableConfig, RestoreTableConfig
-from databudgie.manifest.manager import Manifest
 from databudgie.match import expand_table_globs
 from databudgie.output import Console, default_console
 from databudgie.utils import parse_table
+
+if TYPE_CHECKING:
+    from databudgie.storage import StorageBackend
 
 T = TypeVar("T", BackupTableConfig, RestoreTableConfig)
 
@@ -64,12 +68,12 @@ class TableOp(Generic[T]):
 def expand_table_ops(
     session: Session,
     tables: Sequence[T],
-    existing_tables: List[str],
+    existing_tables: list[str],
+    storage: StorageBackend,
     *,
     console: Console = default_console,
-    manifest: Optional[Manifest] = None,
     warn_for_unused_tables: bool = False,
-) -> List[TableOp[T]]:
+) -> list[TableOp[T]]:
     """Produce a full list of table operations to be performed.
 
     tables in the set of `tables` may be globbed and produce more concrete
@@ -84,7 +88,7 @@ def expand_table_ops(
     default_schema_name = insp.default_schema_name
 
     # expand table globs into fully qualified mappings to the config.
-    matching_tables: Dict[str, List[T]] = {}
+    matching_tables: dict[str, list[T]] = {}
     for table_conf in tables:
         pattern = table_conf.name
         if "." not in pattern:
@@ -96,7 +100,7 @@ def expand_table_ops(
             continue
 
         for table_name in expanded_tables:
-            if manifest and table_name in manifest:
+            if storage.check_manifest(table_name):
                 console.trace(f"Skipping {table_name}...")
                 continue
 

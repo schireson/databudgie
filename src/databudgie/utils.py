@@ -1,28 +1,10 @@
 import contextlib
 import io
 import os
-from datetime import datetime
 from typing import Optional, Tuple
 
-from databudgie.compression import Compressor
 from databudgie.output import Console, default_console
 from databudgie.s3 import is_s3_path, S3Location
-
-DATETIME_FORMAT = r"%Y-%m-%dT%H:%M:%S"
-FILENAME_FORMAT = "{DATETIME_FORMAT}.csv"
-
-
-def generate_filename(timestamp=None, *, filetype="csv", compression=None):
-    if timestamp is None:
-        timestamp = datetime.now()
-
-    filetype = Compressor.get_with_name(compression).compose_filetype(filetype)
-    return timestamp.strftime(f"{DATETIME_FORMAT}.{filetype}")
-
-
-def restore_filename(timestamp, *, filetype="csv", compression=None):
-    filetype = Compressor.get_with_name(compression).compose_filetype(filetype)
-    return datetime.strptime(timestamp, f"{DATETIME_FORMAT}.{filetype}")
 
 
 @contextlib.contextmanager

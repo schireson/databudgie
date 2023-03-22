@@ -20,6 +20,7 @@ from databudgie.config import (
 )
 from databudgie.manifest.manager import Manifest
 from databudgie.output import Console
+from databudgie.storage import StorageBackend
 
 
 @resolver.group()
@@ -60,6 +61,18 @@ from databudgie.output import Console
     multiple=True,
     help="The set of tables to exclude. Note that this overrides any table section in config.",
 )
+@click.option(
+    "--stats/--no-stats",
+    default=None,
+    is_flag=True,
+    help="Print high level statistics about what the command did. Automatically implied by --dry-run!",
+)
+@click.option(
+    "--dry-run/--no-dry-run",
+    default=None,
+    is_flag=True,
+    help="Do not actually perform the write operations of the backup/restore. It **does**, however, execute the queries.",
+)
 @click.version_option()
 def cli(
     strict: bool,
@@ -73,6 +86,8 @@ def cli(
     table: Optional[Tuple[str, ...]] = None,
     exclude: Optional[Tuple[str, ...]] = None,
     location: Optional[str] = None,
+    dry_run: bool = False,
+    stats: bool = False,
 ):
     if color is False:
         os.environ["NO_COLOR"] = "true"
@@ -103,6 +118,8 @@ def cli(
         verbosity=verbose,
         console=Console(verbosity=verbose),
         connection_name=conn,
+        dry_run=bool(dry_run),
+        stats=stats if stats is not None else dry_run,
     )
 
 
@@ -114,6 +131,8 @@ def backup_cli(
     console: Console,
     backup_manifest: Optional[Manifest] = None,
     backup_id: Optional[int] = None,
+    stats: bool = False,
+    dry_run: bool = False,
 ):
     """Perform backup."""
     from databudgie.backup import backup_all
@@ -124,11 +143,21 @@ def backup_cli(
     if backup_manifest and backup_id:
         backup_manifest.set_transaction_id(backup_id)
 
+    storage = StorageBackend.from_config(
+        backup_config,
+        manifest=backup_manifest,
+        record_stats=stats,
+        perform_writes=not dry_run,
+    )
+
     try:
-        backup_all(backup_db, backup_config, manifest=backup_manifest, console=console)
+        backup_all(backup_db, backup_config, storage=storage, console=console)
     except Exception as e:
         console.trace(e)
-        raise click.ClickException(*e.args)
+        raise click.ClickException(str(e))
+
+    if stats:
+        storage.print_stats()
 
 
 @resolver.command(cli, "restore")
@@ -154,6 +183,8 @@ def restore_cli(
     restore_id: Optional[int] = None,
     clean: Optional[bool] = None,
     yes: bool = False,
+    stats: bool = False,
+    dry_run: bool = False,
 ):
     """Perform restore."""
     from databudgie.cli.setup import setup
@@ -169,13 +200,26 @@ def restore_cli(
     if not yes and restore_config.ddl.clean:
         message = "About to delete the database! input 'y' if that's what you want: "
         if input(message) != "y":  # nosec
-            return False
+            return
+
+    if dry_run:
+        raise click.UsageError("--dry-run is not (yet) supported for restore")
+
+    storage = StorageBackend.from_config(
+        restore_config,
+        manifest=restore_manifest,
+        record_stats=stats,
+        perform_writes=not dry_run,
+    )
 
     try:
-        restore_all(restore_db, restore_config=restore_config, manifest=restore_manifest, console=console)
+        restore_all(restore_db, restore_config=restore_config, storage=storage, console=console)
     except Exception as e:
         console.trace(e)
         raise click.ClickException(*e.args)
+
+    if stats:
+        storage.print_stats()
 
 
 @resolver.command(cli, "config")
