@@ -3,7 +3,7 @@
 VERSION=$(shell git rev-parse --short HEAD)
 
 install:
-	poetry install -E psycopg2-binary -E s3 -E sentry
+	poetry install -E psycopg2-binary -E s3
 
 
 format:

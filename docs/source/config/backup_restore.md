@@ -1,8 +1,8 @@
 # Backup/Restore Config
 
-The backup and restore configuration options are intentionally identical in nearly
-all cases. Generally, you can assume any option given for one will be available
-for the other, except when specifically noted otherwise.
+The backup and restore configuration options are intentionally identical in
+nearly all cases. Generally, you can assume any option given for one will be
+available for the other, except when specifically noted otherwise.
 
 ```{note}
 Any configuration defined at this level can also be supplied at the top level,
@@ -22,7 +22,6 @@ backup:
   data: true
   root_location: null
   s3: ...
-  sentry: ...
 
 restore:
   url: ... # alternatively, 'connection:'
@@ -34,17 +33,16 @@ restore:
   data: true
   root_location: null
   s3: ...
-  sentry: ...
 ```
 
 ## `url` / `connection`
 
 The field name can be **either** of `url` or `connection`. Either this field
-must be supplied in the configuration, or the `connections` field (described in the
-next section) must be supplied.
+must be supplied in the configuration, or the `connections` field (described in
+the next section) must be supplied.
 
-This field value can be given either by a `RFC-1738` compliant string, or by the component
-parts of that string:
+This field value can be given either by a `RFC-1738` compliant string, or by the
+component parts of that string:
 
 ```yaml
 # This
@@ -68,12 +66,13 @@ connection: ...
 Defaults to `[]`.
 
 Defines a set of named connection which can be selected to connect to at
-command-time. One selects a connection through the CLI `databudgie --connection <name>`.
+command-time. One selects a connection through the CLI
+`databudgie --connection <name>`.
 
-While this config can coexist with the above `url`/`connection` config, they
-are mutually exclusive at runtime. That is, if a `--connection` is supplied, it will
-take precedence. If a `--connection` is not supplied, the `url`/`connection` config
-will be used instead.
+While this config can coexist with the above `url`/`connection` config, they are
+mutually exclusive at runtime. That is, if a `--connection` is supplied, it will
+take precedence. If a `--connection` is not supplied, the `url`/`connection`
+config will be used instead.
 
 `connections` can either be given as a list or a mapping, similar to `tables`.
 
@@ -103,9 +102,9 @@ Defaults to `[]`.
 Defines the set of tables (and their config) to be backed up or restored.
 
 Table config can either be given as a list or a mapping, depending on how
-complex the config is. Specifically giving tables as a mapping makes it impossible
-to specify a backup of the same table twice (for example with different queries),
-so using a list is generally preferred.
+complex the config is. Specifically giving tables as a mapping makes it
+impossible to specify a backup of the same table twice (for example with
+different queries), so using a list is generally preferred.
 
 ```yaml
 # This
@@ -120,8 +119,8 @@ tables:
 ```
 
 Additionally, if you can omit all other table-specific config (either by giving
-it at a more [general level of specificity](precedence), or relying on the default
-values), you can simply list the tables/globs directly:
+it at a more [general level of specificity](precedence), or relying on the
+default values), you can simply list the tables/globs directly:
 
 ```yaml
 tables:
@@ -138,19 +137,22 @@ more details.
 
 Defaults to `true`.
 
-When `true`, backs up or restores all sequences' positions associated with matching target tables.
+When `true`, backs up or restores all sequences' positions associated with
+matching target tables.
 
 ## `data`
 
 Defaults to `true`.
 
-When `true`, records the data returned by `query` (`table`-level config) or restores the data.
+When `true`, records the data returned by `query` (`table`-level config) or
+restores the data.
 
 ## `root_location`
 
 Defaults to `null`.
 
-When specified, all table-level `location` values will be made relative to the `root_location`.
+When specified, all table-level `location` values will be made relative to the
+`root_location`.
 
 ## `manifest`
 
@@ -161,13 +163,13 @@ See the [Manifest](manifest) documentation.
 
 ## `s3`
 
-Any `location` field meant to specify where to backup tables to or where to restore from,
-can be given either as a local file path, or an S3 path (including the bucket, like
-`s3://bucket/rest/of/path/`).
+Any `location` field meant to specify where to backup tables to or where to
+restore from, can be given either as a local file path, or an S3 path (including
+the bucket, like `s3://bucket/rest/of/path/`).
 
 When supplying an S3 path as a `location`, a supplemental configuration defining
-how to authenticate against the bucket is required at either the backup/restore or
-global level.
+how to authenticate against the bucket is required at either the backup/restore
+or global level.
 
 ```yaml
 s3:
@@ -175,21 +177,6 @@ s3:
   aws_secret_access_key: ...
   region: ...
   profile: ...
-```
-
-## `sentry`
-
-The top-level `sentry` configuration can optionally be included, which will enable
-reporting of issues to sentry when invoked through the CLI.
-
-Note this has no effect when using databudgie as a library (where you should instead
-set up sentry in your application).
-
-```yaml
-sentry:
-  sentry_dsn: sample@sentry.io/dsn
-  environment: prod
-  version: abcedf
 ```
 
 ## `logging`
