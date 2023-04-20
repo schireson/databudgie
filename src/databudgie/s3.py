@@ -10,12 +10,12 @@ if TYPE_CHECKING:
 
 
 def optional_s3_resource(config: BackupConfig | RestoreConfig) -> S3ServiceResource | None:
-    if config_uses_s3(config) and config.s3:
+    if config_uses_s3(config):
         return s3_resource(config.s3)
     return None
 
 
-def s3_resource(config: S3Config) -> S3ServiceResource:
+def s3_resource(config: S3Config | None = None) -> S3ServiceResource:
     try:
         import boto3
     except ImportError:
@@ -23,12 +23,15 @@ def s3_resource(config: S3Config) -> S3ServiceResource:
 
     # Boto loads all config as environment variables by default, this config
     # section can be entirely optional.
-    session = boto3.session.Session(
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-        profile_name=config.profile,
-        region_name=config.region,
-    )
+    if not config:
+        session = boto3.session.Session()
+    else:
+        session = boto3.session.Session(
+            aws_access_key_id=config.aws_access_key_id,
+            aws_secret_access_key=config.aws_secret_access_key,
+            profile_name=config.profile,
+            region_name=config.region,
+        )
 
     s3: S3ServiceResource = session.resource("s3")
     return s3
