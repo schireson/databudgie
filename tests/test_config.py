@@ -239,3 +239,38 @@ def test_config_url():
     """Assert config connection renders as "url"."""
     root_config = RootConfig.from_stack(ConfigStack())
     root_config.to_dict()
+
+
+def test_correct_():
+    """These config values should ignore all inherited values and use the leaf-specified values"""
+
+    config = RootConfig.from_dict(
+        {
+            "url": "root_url",
+            "query": "root_query",
+            "location": "root_location",
+            "backup": {
+                "url": "backup_url",
+                "query": "backup_query",
+                "location": "backup_location",
+                "tables": [
+                    {
+                        "name": "backup_table_1",
+                        "query": "backup_table_1_query",
+                        "location": "backup_table_1_location",
+                    },
+                    {
+                        "name": "backup_table_2",
+                        "query": "backup_table_2_query",
+                        "location": "backup_table_2_location",
+                    },
+                ],
+            },
+        }
+    )
+    assert config.backup.tables[0].name == "backup_table_1"
+    assert config.backup.tables[0].query == "backup_table_1_query"
+    assert config.backup.tables[0].location == "backup_table_1_location"
+    assert config.backup.tables[1].name == "backup_table_2"
+    assert config.backup.tables[1].query == "backup_table_2_query"
+    assert config.backup.tables[1].location == "backup_table_2_location"

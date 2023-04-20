@@ -77,7 +77,7 @@ def from_partial(cls: typing.Callable[..., F], **kwargs) -> F:
 @dataclass
 class DDLConfig(Config):
     enabled: bool = False
-    location: str = "ddl"
+    location: str = "backups/ddl"
     clean: bool = False
     strategy: str = "use_latest_filename"
 
@@ -88,7 +88,7 @@ class DDLConfig(Config):
         else:
             expanded_ddl_config = ddl_config
 
-        location = join_paths(root_location, expanded_ddl_config.get("location"))
+        location = compose_root_location(root_location, expanded_ddl_config.get("location"), default="backups/ddl")
 
         # Splat into a new dict so we can override `location` without mutating
         # the original input (which may be re-read later in config parsing)
@@ -242,7 +242,7 @@ class BackupTableConfig(Config):
         if isinstance(ddl, dict):
             ddl = ddl["enabled"]
 
-        location = join_paths(root_location, stack.get("location")) or None
+        location = compose_root_location(root_location, stack.get("location"), default="backups/{table}")
 
         return from_partial(
             cls,
@@ -286,7 +286,7 @@ class RestoreTableConfig(Config):
         if isinstance(ddl, dict):
             ddl = ddl["enabled"]
 
-        location = join_paths(root_location, stack.get("location"))
+        location = compose_root_location(root_location, stack.get("location"), default="backups/{table}")
 
         return from_partial(
             cls,
@@ -375,3 +375,10 @@ class S3Config(Config):
             region=s3_config.get("region"),
             profile=s3_config.get("profile"),
         )
+
+
+def compose_root_location(root_location, location, *, default):
+    if root_location is None:
+        return location or default
+
+    return join_paths(root_location, location or default)
