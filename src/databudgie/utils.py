@@ -82,5 +82,13 @@ def join_paths(*components: Optional[str]) -> str:
         return real_components[0]
 
     first_component, *rest_components = real_components
-    normalized_components = [S3Location(c).key if is_s3_path(c) else c for c in rest_components]
+    normalized_components = []
+    for c in rest_components:
+        if is_s3_path(c):
+            normalized_c = S3Location(c).key
+        else:
+            normalized_c = c.strip("/")
+
+        normalized_components.append(normalized_c)
+
     return os.path.join(first_component, *normalized_components)
