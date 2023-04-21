@@ -207,7 +207,6 @@ class StorageBackend:
             # `name` is primarily omitted for things spanning individual tables, like schemas.
             if name and self.manifest and file_type == FileTypes.data:
                 self.manifest.record(name, filename)
-        print(filename)
 
         return filename
 

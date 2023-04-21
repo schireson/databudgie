@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databudgie"
-version = "2.7.3"
+version = "2.7.4"
 packages = [
     { include = "databudgie", from = "src" },
 ]
@@ -42,6 +42,12 @@ sentry-sdk = { version = "*", optional = true }
 psycopg2 = { version = ">=2.7", optional = true }
 psycopg2-binary = { version = ">=2.7", optional = true }
 
+[tool.poetry.extras]
+sentry = ["sentry-sdk"]
+s3 = ["boto3"]
+psycopg2 = ["psycopg2"]
+psycopg2-binary = ["psycopg2-binary"]
+
 [tool.poetry.dev-dependencies]
 boto3 = "^1.16.10,<1.17.72"
 black = "22.3.0"
@@ -59,12 +65,6 @@ faker = "^8.12.1"
 moto = {extras = ["s3"], version = "^2.2.6"}
 sqlalchemy-model-factory = "^0.4.5"
 types-click = "^7.1.5"
-
-[tool.poetry.extras]
-sentry = ["sentry-sdk"]
-s3 = ["boto3"]
-psycopg2 = ["psycopg2"]
-psycopg2-binary = ["psycopg2-binary"]
 
 [tool.black]
 line_length = 120
