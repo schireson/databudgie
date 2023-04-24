@@ -132,7 +132,6 @@ class TableParentConfig(typing.Generic[T], Config):
     manifest: str | None = None
 
     s3: S3Config | None = None
-    sentry: SentryConfig | None = None
     root_location: str | None = None
     adapter: str | None = None
 
@@ -157,7 +156,6 @@ class TableParentConfig(typing.Generic[T], Config):
 
         # Optional integration configs
         s3 = S3Config.from_dict(stack.get("s3"))
-        sentry = SentryConfig.from_dict(stack.get("sentry"))
 
         adapter = stack.get("adapter")
 
@@ -168,7 +166,6 @@ class TableParentConfig(typing.Generic[T], Config):
             tables=tables,
             manifest=manifest,
             s3=s3,
-            sentry=sentry,
             ddl=ddl,
             root_location=root_location,
             adapter=adapter,
@@ -333,29 +330,6 @@ def normalize_table_config(tables_config: list | dict) -> list:
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Optional Integration configs which do NOT have default values built-in
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-
-
-@dataclass
-class SentryConfig(Config):
-    """Configuration for Sentry integration.
-
-    SentryConfig does not inherit keys from the root config.
-    """
-
-    dsn: str | None = None
-    environment: str | None = None
-    version: str | None = None
-
-    @classmethod
-    def from_dict(cls, sentry_config: dict | None) -> SentryConfig | None:
-        if sentry_config is None:
-            return None
-
-        return cls(
-            dsn=sentry_config.get("dsn"),
-            environment=sentry_config.get("environment"),
-            version=sentry_config.get("version"),
-        )
 
 
 @dataclass

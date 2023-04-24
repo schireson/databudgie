@@ -136,9 +136,6 @@ def backup_cli(
 ):
     """Perform backup."""
     from databudgie.backup import backup_all
-    from databudgie.cli.setup import setup
-
-    setup(backup_config.sentry)
 
     if backup_manifest and backup_id:
         backup_manifest.set_transaction_id(backup_id)
@@ -187,10 +184,7 @@ def restore_cli(
     dry_run: bool = False,
 ):
     """Perform restore."""
-    from databudgie.cli.setup import setup
     from databudgie.restore import restore_all
-
-    setup(restore_config.sentry)
 
     if restore_manifest and restore_id:
         restore_manifest.set_transaction_id(restore_id)

@@ -38,12 +38,10 @@ typing-extensions = {version = ">=3.10.0", python = "<3.8"}
 importlib-metadata = {version = "*", python = "<3.8"}
 
 boto3 = { version = "*", optional = true }
-sentry-sdk = { version = "*", optional = true }
 psycopg2 = { version = ">=2.7", optional = true }
 psycopg2-binary = { version = ">=2.7", optional = true }
 
 [tool.poetry.extras]
-sentry = ["sentry-sdk"]
 s3 = ["boto3"]
 psycopg2 = ["psycopg2"]
 psycopg2-binary = ["psycopg2-binary"]
