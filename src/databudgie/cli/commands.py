@@ -7,14 +7,12 @@ from sqlalchemy.orm import Session
 from databudgie.cli.base import resolver
 from databudgie.cli.config import (
     CliConfig,
-    DEFAULT_CONFIG_FILE,
-    load_configs,
+    collect_config,
     pretty_print,
 )
 from databudgie.config import (
     BackupConfig,
     ConfigError,
-    ConfigStack,
     RestoreConfig,
     RootConfig,
 )
@@ -33,7 +31,7 @@ from databudgie.storage import StorageBackend
     type=click.Choice(["postgres", "postgresql", "python"], case_sensitive=False),
     help="Override the automatic dialect detection.",
 )
-@click.option("-c", "--config", default=[DEFAULT_CONFIG_FILE], help="config file", multiple=True)
+@click.option("-c", "--config", default=None, help="config file", multiple=True)
 @click.option(
     "-C",
     "--conn",
@@ -43,7 +41,7 @@ from databudgie.storage import StorageBackend
 )
 @click.option("-v", "--verbose", count=True, default=0)
 @click.option(
-    "--ddl", default=None, is_flag=True, help="Whether to backup the DDL. Overrides the config option, if set"
+    "--ddl/--no-ddl", default=None, is_flag=True, help="Whether to backup the DDL. Overrides the config option, if set"
 )
 @click.option("-u", "--url", default=None, help="The url used to connect to the database.")
 @click.option("-l", "--location", default=None, help="The location to read/write backups from/to.")
@@ -105,11 +103,8 @@ def cli(
         strict=strict,
     )
 
-    configs = load_configs(config)
-    config_stack = ConfigStack(cli_config.to_dict(), *configs)
-
     try:
-        root_config = RootConfig.from_stack(config_stack)
+        root_config = collect_config(cli_config, *config)
     except ConfigError as e:
         raise click.UsageError(*e.args)
 
