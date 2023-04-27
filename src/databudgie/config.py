@@ -250,7 +250,7 @@ class BackupTableConfig(Config):
             exclude=stack.get("exclude"),
             sequences=stack.get("sequences", True),
             data=stack.get("data", True),
-            ddl=stack.get("ddl", True),
+            ddl=ddl,
             follow_foreign_keys=stack.get("follow_foreign_keys", False),
             strict=stack.get("strict", False),
         )
@@ -295,7 +295,7 @@ class RestoreTableConfig(Config):
             exclude=stack.get("exclude"),
             sequences=stack.get("sequences", True),
             data=stack.get("data", True),
-            ddl=stack.get("ddl", True),
+            ddl=ddl,
             follow_foreign_keys=stack.get("follow_foreign_keys", False),
             strict=stack.get("strict", False),
         )

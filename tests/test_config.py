@@ -274,3 +274,25 @@ def test_correct_():
     assert config.backup.tables[1].name == "backup_table_2"
     assert config.backup.tables[1].query == "backup_table_2_query"
     assert config.backup.tables[1].location == "backup_table_2_location"
+
+
+def test_parent_ddl_enabled():
+    """Assert table-level ddl enablement is inherited from parent.
+
+    Namely, that it can be disabled by a parent, when omitted at the table level.
+    """
+
+    config = RootConfig.from_dict(
+        {
+            "ddl": {"enabled": False},
+            "tables": [
+                {
+                    "name": "backup_table_1",
+                },
+            ],
+        }
+    )
+    assert config.backup.tables[0].name == "backup_table_1"
+    assert config.backup.tables[0].ddl is False
+    assert config.restore.tables[0].name == "backup_table_1"
+    assert config.restore.tables[0].ddl is False
