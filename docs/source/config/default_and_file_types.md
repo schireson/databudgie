@@ -56,6 +56,7 @@ restore:
                 "name": "public.product",
                 "query": "select * from {table} where store_id = 4",
                 "location": "s3://my-s3-bucket/databudgie/public.product"
+            }
         ]
     },
     "restore": {
@@ -65,6 +66,7 @@ restore:
                 "name": "public.product",
                 "query": "select * from {table} where store_id = 4",
                 "location": "s3://my-s3-bucket/databudgie/public.product"
+            }
         ]
     },
 ```

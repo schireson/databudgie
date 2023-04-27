@@ -88,12 +88,48 @@ control).
 
 ## CLI level options
 
-At time of writing there aren't necessarily any CLI options to which this
-comment will apply, but definitely planned is the ability to specify config
-options at the CLI level, particularly those which would be common to want to
-specify on-demand without alterting the config, such as tables.
+There are a subset of supported CLI options, for example `databudgie --ddl`,
+`databudgie --url`, or `databudgie --location` (see the actual CLI help text for
+the full set).
+
+These options are all optional, but allow overriding config file fields which
+would be useful to be changed at invocation-time without needing to alter the
+config file itself.
 
 Any CLI options which relate to configuration options will act as an additional
 level of specificity **on top** of those defined in the config. That is, if
 provided, a CLI-level option will always take precedence over configuration
 options.
+
+## Environment Variables
+
+Most config file options can additionally be configured through environment
+variables. Environment variables prefixed with `DATABUDGIE_` will be interpreted
+as though they were specified at the top level of the config file.
+
+Additionally, you can target nested values by providing the path to that option,
+using `__` as separators between levels of specificity.
+
+For example:
+
+```bash
+export DATABUDGIE_LOCATION=backups
+export DATABUDGIE_RESTORE__DDL__CLEAN=1
+```
+
+These options compose translate into the equivalent of:
+
+```yaml
+location: backups
+restore:
+  ddl:
+    clean: true
+```
+
+Note, environment variable options sit in the middle of the chain of precedence.
+They will be chosen **after** CLI-level options, but **before** file-level
+options.
+
+Also note, for boolean values environment variables use the "truthiness" of the
+string value. That is, `0`, `1`, `true`, `false`, etc all resolve to `True`. In
+order to to get `False`, the value must be an empty string (i.e. `export VAR=`).

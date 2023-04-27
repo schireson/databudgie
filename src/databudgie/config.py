@@ -82,9 +82,9 @@ class DDLConfig(Config):
     strategy: str = "use_latest_filename"
 
     @classmethod
-    def from_dict(cls, ddl_config: dict | bool, root_location: str | None = None):
-        if isinstance(ddl_config, bool):
-            expanded_ddl_config: dict[str, Any] = {"enabled": ddl_config}
+    def from_dict(cls, ddl_config: dict | bool | str, root_location: str | None = None):
+        if isinstance(ddl_config, (bool, str)):
+            expanded_ddl_config: dict[str, Any] = {"enabled": bool(ddl_config)}
         else:
             expanded_ddl_config = ddl_config
 
@@ -93,6 +93,9 @@ class DDLConfig(Config):
         # Splat into a new dict so we can override `location` without mutating
         # the original input (which may be re-read later in config parsing)
         final_ddl_config = {**expanded_ddl_config, "location": location}
+
+        if "clean" in final_ddl_config:
+            final_ddl_config["clean"] = bool(final_ddl_config["clean"])
 
         return from_partial(cls, **final_ddl_config)
 
@@ -248,11 +251,11 @@ class BackupTableConfig(Config):
             query=stack.get("query"),
             compression=stack.get("compression"),
             exclude=stack.get("exclude"),
-            sequences=stack.get("sequences", True),
-            data=stack.get("data", True),
-            ddl=ddl,
-            follow_foreign_keys=stack.get("follow_foreign_keys", False),
-            strict=stack.get("strict", False),
+            sequences=bool(stack.get("sequences", True)),
+            data=bool(stack.get("data", True)),
+            ddl=bool(ddl),
+            follow_foreign_keys=bool(stack.get("follow_foreign_keys", False)),
+            strict=bool(stack.get("strict", False)),
         )
 
 
@@ -293,11 +296,11 @@ class RestoreTableConfig(Config):
             truncate=stack.get("truncate"),
             compression=stack.get("compression"),
             exclude=stack.get("exclude"),
-            sequences=stack.get("sequences", True),
-            data=stack.get("data", True),
-            ddl=ddl,
-            follow_foreign_keys=stack.get("follow_foreign_keys", False),
-            strict=stack.get("strict", False),
+            sequences=bool(stack.get("sequences", True)),
+            data=bool(stack.get("data", True)),
+            ddl=bool(ddl),
+            follow_foreign_keys=bool(stack.get("follow_foreign_keys", False)),
+            strict=bool(stack.get("strict", False)),
         )
 
 
