@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from databudgie.cli.base import resolver
 from databudgie.cli.config import (
     CliConfig,
-    DEFAULT_CONFIG_FILE,
     load_configs,
     pretty_print,
 )
@@ -33,7 +32,7 @@ from databudgie.storage import StorageBackend
     type=click.Choice(["postgres", "postgresql", "python"], case_sensitive=False),
     help="Override the automatic dialect detection.",
 )
-@click.option("-c", "--config", default=[DEFAULT_CONFIG_FILE], help="config file", multiple=True)
+@click.option("-c", "--config", default=None, help="config file", multiple=True)
 @click.option(
     "-C",
     "--conn",
@@ -105,7 +104,7 @@ def cli(
         strict=strict,
     )
 
-    configs = load_configs(config)
+    configs = load_configs(*config)
     config_stack = ConfigStack(cli_config.to_dict(), *configs)
 
     try:

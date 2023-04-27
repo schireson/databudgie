@@ -7,15 +7,15 @@ Status](https://readthedocs.org/projects/databudgie/badge/?version=latest)](http
 
 ![](docs/source/_static/databudgie.png)
 
-Databudgie is a CLI & library for database performing targeted backup and restore
-of database tables or arbitrary queries against database tables.
+Databudgie is a CLI & library for database performing targeted backup and
+restore of database tables or arbitrary queries against database tables.
 
 # Usage
 
 A minimal config file might look like:
 
 ```yaml
-# config.databudgie.yml
+# databudgie.yml or config.databudgie.yml
 backup:
   url: postgresql://postgres:postgres@localhost:5432/postgres
   tables:
@@ -29,8 +29,8 @@ restore:
       location: s3://my-s3-bucket/databudgie/public.product
 ```
 
-With that config in place, backing up the defined tables (using the specified config)
-is as simple as `databudgie backup`; and restore `databudgie restore`.
+With that config in place, backing up the defined tables (using the specified
+config) is as simple as `databudgie backup`; and restore `databudgie restore`.
 
 ## Installation
 
