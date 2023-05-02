@@ -208,7 +208,7 @@ def _validate_backup_contents(buffer, expected_contents: List[Customer]):
         assert actual["external_status"] == expected.external_status
 
 
-def _comparable_bool(value: bool):
+def _comparable_bool(value):
     """Convert a boolean value to a comparable value."""
     if value is True:
         return (True, "True", "t", "true")

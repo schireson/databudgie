@@ -8,6 +8,7 @@ from databudgie.cli.base import resolver
 from databudgie.cli.config import (
     CliConfig,
     collect_config,
+    loaders,
     pretty_print,
 )
 from databudgie.config import (
@@ -71,6 +72,17 @@ from databudgie.storage import StorageBackend
     is_flag=True,
     help="Do not actually perform the write operations of the backup/restore. It **does**, however, execute the queries.",
 )
+@click.option(
+    "--raw-config",
+    default=None,
+    help="Accepts raw config as a string, rather than searching a file for it.",
+)
+@click.option(
+    "--raw-config-format",
+    default="json",
+    help="The assumed format of --raw-config. Defaults to `json`. Must be one of: `yml`, `yaml`, `json`, `toml`.",
+    type=click.Choice(loaders),
+)
 @click.version_option()
 def cli(
     strict: bool,
@@ -86,6 +98,8 @@ def cli(
     location: Optional[str] = None,
     dry_run: bool = False,
     stats: bool = False,
+    raw_config: Optional[str] = None,
+    raw_config_format: str = "json",
 ):
     if color is False:
         os.environ["NO_COLOR"] = "true"
@@ -104,7 +118,12 @@ def cli(
     )
 
     try:
-        root_config = collect_config(cli_config, *config)
+        root_config = collect_config(
+            cli_config=cli_config,
+            file_names=config,
+            raw_config=raw_config,
+            raw_config_format=raw_config_format,
+        )
     except ConfigError as e:
         raise click.UsageError(*e.args)
 

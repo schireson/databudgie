@@ -1,22 +1,33 @@
-FROM python:3.9.6-slim-buster
+FROM python:3.9 as base
 
-WORKDIR /app
+RUN python3.9 -m venv /opt/venv
 
-ENV PATH="/root/.poetry/bin:${PATH}" VERSION=${VERSION}
+ENV PATH="/opt/venv/bin:/root/.local/bin:${PATH}" \
+    VIRTUAL_ENV="/opt/venv"
 
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install curl build-essential python3-dev libpq-dev -y \
-    && curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | POETRY_VERSION=1.1.8 python \
-    && poetry config virtualenvs.create false
+    && apt-get install --no-install-recommends -y \
+    curl build-essential libpq-dev postgresql-client \
+    && curl -sSL https://install.python-poetry.org/ | POETRY_VERSION=1.2.2 python3.9 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY poetry.lock pyproject.toml ./
+COPY poetry.lock pyproject.toml README.md ./
+COPY src src
 
-RUN poetry install -E psycopg2 --no-root
+RUN poetry build
+RUN (export version=$(find dist -name '*.whl'); \
+    pip install "${version}[s3,psycopg2]")
 
-COPY . .
+FROM python:3.9
 
-RUN poetry install
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH="/home/app/src:$PYTHONPATH" \
+    VIRTUAL_ENV=/opt/venv \
+    PATH="/opt/venv/bin:$PATH"
 
-# TODO: change this to entrypoint ["databudgie"] with command ["config"] with airflow 2.x
-CMD [ "databudgie" ]
+COPY --from=base /opt/venv /opt/venv
+
+ENTRYPOINT [ "databudgie" ]
+CMD [ "config"  ]

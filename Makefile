@@ -1,6 +1,6 @@
-.PHONY: install format lint test build
+.PHONY: install format lint test build publish
 
-VERSION=$(shell git rev-parse --short HEAD)
+VERSION=$(shell python -c 'from importlib import metadata; print(metadata.version("databudgie"))')
 
 install:
 	poetry install -E psycopg2-binary -E s3
@@ -28,7 +28,21 @@ build-docs:
 	pip install -r docs/requirements.txt
 	make -C docs html
 
-build: build-package
+build-image:
+	docker build \
+		-t databudgie \
+		-t databudgie:latest \
+		-t databudgie:$(VERSION) \
+		.
 
-publish: build
+build: build-package build-docs build-image
+
+## Publish
+publish-package: build-package
 	poetry publish -u __token__ -p '${PYPI_PASSWORD}' --no-interaction
+
+publish-image: build-image
+	docker push databudgie:latest
+	docker push databudgie:$(VERSION)
+
+publish: publish-package publish-image

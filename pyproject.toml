@@ -81,6 +81,10 @@ ignore_missing_imports = true
 warn_unused_ignores = true
 incremental = true
 
+[[tool.mypy.overrides]]
+module = 'tests.mockmodels.*'
+ignore_errors = true
+
 [tool.coverage.report]
 show_missing = true
 skip_covered = true
