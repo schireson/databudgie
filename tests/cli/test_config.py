@@ -10,7 +10,7 @@ from databudgie.cli.config import (
     CliConfig,
     collect_config,
     collect_env_config,
-    load_configs,
+    load_file_configs,
 )
 
 
@@ -56,7 +56,7 @@ class Test_collect_config:
         """
         cli_config = CliConfig(location="cli")
         with environ({"DATABUDGIE_LOCATION": "env"}), file_content(content):
-            root_config = collect_config(cli_config)
+            root_config = collect_config(cli_config=cli_config)
         assert root_config.backup.tables[0].location == "cli"
 
     def test_prefer_env_over_file(self):
@@ -65,7 +65,7 @@ class Test_collect_config:
          - foo
         """
         with environ({"DATABUDGIE_LOCATION": "env"}), file_content(content):
-            root_config = collect_config(CliConfig())
+            root_config = collect_config(cli_config=CliConfig())
         assert root_config.backup.tables[0].location == "env"
 
     def test_files_in_order(self):
@@ -82,7 +82,7 @@ class Test_collect_config:
             """,
         ]
         with environ({}), file_content(content):
-            root_config = collect_config(CliConfig(), "file1.yml", "file2.yml")
+            root_config = collect_config(cli_config=CliConfig(), file_names=["file1.yml", "file2.yml"])
         assert root_config.backup.tables[0].location == "file1"
 
     def test_env_false_value_coerced(self):
@@ -91,28 +91,28 @@ class Test_collect_config:
          - foo
         """
         with environ({"DATABUDGIE_BACKUP__DDL": ""}), file_content(content):
-            root_config = collect_config(CliConfig())
+            root_config = collect_config(cli_config=CliConfig())
         assert root_config.backup.tables[0].ddl is False
         assert root_config.restore.tables[0].ddl is True
 
 
-class Test_load_configs:
+class Test_load_file_configs:
     @pytest.mark.parametrize("name", ("foo.yaml", "bar.yml"))
-    def test_load_configs_yaml(self, name):
+    def test_load_file_configs_yaml(self, name):
         with file_content("tables: \n  - foo"):
-            configs = load_configs(name)
+            configs = load_file_configs(name)
 
         assert configs[0]["tables"] == ["foo"]
 
-    def test_load_configs_json(self):
+    def test_load_file_configs_json(self):
         with file_content('{"tables": ["foo"]}'):
-            configs = load_configs("foo.json")
+            configs = load_file_configs("foo.json")
 
         assert configs[0]["tables"] == ["foo"]
 
-    def test_load_configs_toml(self):
+    def test_load_file_configs_toml(self):
         with file_content('tables = ["foo"]'):
-            configs = load_configs("foo.toml")
+            configs = load_file_configs("foo.toml")
 
         assert configs[0]["tables"] == ["foo"]
 
@@ -126,7 +126,7 @@ class Test_load_configs:
         name = 'bar'
         """
         with file_content(content):
-            configs = load_configs("foo.toml")
+            configs = load_file_configs("foo.toml")
 
         expected_result = {"backup": {"tables": [{"name": "foo", "query": "select * from table"}, {"name": "bar"}]}}
         assert configs[0] == expected_result
