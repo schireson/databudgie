@@ -8,7 +8,6 @@ from os import isatty
 from pathlib import Path
 from typing import Iterable, MutableMapping
 
-import click
 from configly import Config, JsonLoader, TomlLoader, YamlLoader
 from rich.console import Console
 from rich.syntax import Syntax

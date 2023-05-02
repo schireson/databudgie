@@ -8,8 +8,8 @@ from databudgie.cli.base import resolver
 from databudgie.cli.config import (
     CliConfig,
     collect_config,
-    pretty_print,
     loaders,
+    pretty_print,
 )
 from databudgie.config import (
     BackupConfig,
