@@ -128,10 +128,10 @@ class RootConfig(Config):
 @dataclass
 class TableParentConfig(typing.Generic[T], Config):
     tables: list[T]
-    connections: dict[str, Connection]
+    connections: dict[str, Connection | str]
     ddl: DDLConfig
 
-    connection: Connection | None = None
+    connection: Connection | str = "default"
     manifest: str | None = None
 
     s3: S3Config | None = None
@@ -145,7 +145,7 @@ class TableParentConfig(typing.Generic[T], Config):
 
     @classmethod
     def from_stack(cls, stack: ConfigStack):
-        connection = Connection.from_raw(stack.get("url") or stack.get("connection"), name="default")
+        connection = Connection.from_raw(stack.get("url") or stack.get("connection"), name="default") or "default"
         root_location = stack.get("root_location")
 
         tables_config: list = normalize_table_config(stack.get("tables", []))
@@ -182,11 +182,14 @@ class Connection(Config):
     url: str | dict
 
     @classmethod
-    def from_raw(cls, raw: str | dict | None, *, name: str | None = None):
+    def from_raw(cls, raw: str | dict | None, *, name: str | None = None) -> Connection | str | None:
         if raw is None:
             return None
 
         if isinstance(raw, str):
+            if "://" not in raw:
+                return raw
+
             if name is None:
                 raise ConfigError(f"Connection '{raw}' requires a name")
             return cls(name="default", url=raw)
@@ -202,7 +205,7 @@ class Connection(Config):
         return cls(name=name or "default", url=url)
 
     @classmethod
-    def from_collection(cls, collection: list | dict | None) -> dict[str, Connection]:
+    def from_collection(cls, collection: list | dict | None) -> dict[str, Connection | str]:
         if collection is None:
             return {}
 
@@ -211,7 +214,10 @@ class Connection(Config):
             names = set()
             for c in collection:
                 connection = Connection.from_raw(c, name=c.get("name"))
-                assert connection is not None
+                if not isinstance(connection, Connection):
+                    raise ConfigError(
+                        "Connections must be a database connection string or a mapping of individual connection fields."
+                    )
 
                 if connection.name in names:
                     raise ConfigError(f"Detected more than one connection with the same name: {connection.name}")
@@ -220,7 +226,12 @@ class Connection(Config):
 
             return {c.name: c for c in connections}
 
-        return {k: Connection.from_raw(c, name=k) for k, c in collection.items()}
+        result = {}
+        for k, c in collection.items():
+            connection = Connection.from_raw(c, name=k)
+            if connection is not None:
+                result[k] = connection
+        return result
 
 
 @dataclass

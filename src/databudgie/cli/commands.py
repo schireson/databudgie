@@ -115,6 +115,7 @@ def cli(
         location=location,
         adapter=adapter,
         strict=strict,
+        connection=conn,
     )
 
     try:
@@ -131,7 +132,6 @@ def cli(
         root_config=root_config,
         verbosity=verbose,
         console=Console(verbosity=verbose),
-        connection_name=conn,
         dry_run=bool(dry_run),
         stats=stats if stats is not None else dry_run,
     )
