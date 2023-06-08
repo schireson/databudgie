@@ -211,7 +211,7 @@ def backup_tables(
                     console=console,
                 )
 
-    console.info("Finished Backing up tables")
+    console.info("Finished backing up tables")
 
 
 def backup(
