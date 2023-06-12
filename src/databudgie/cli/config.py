@@ -41,6 +41,7 @@ class CliConfig(DatabudgieConfig):
     location: str | None = None
     adapter: str | None = None
     strict: bool | None = None
+    connection: str | None = None
 
     def to_dict(self) -> dict:
         config = asdict(self)

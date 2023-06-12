@@ -1,4 +1,4 @@
-from databudgie.config import ConfigStack, RootConfig
+from databudgie.config import ConfigStack, Connection, RootConfig
 
 
 def test_only_leaf_values():
@@ -119,7 +119,7 @@ def test_root_level_tables():
         }
     )
 
-    assert config.backup.connection.url == "backup_url"
+    assert config.backup.connection == "backup_url"
     assert config.backup.tables[0].name == "root_table_1"
     assert config.backup.tables[0].query == "root_query"
     assert config.backup.tables[0].location == "root_location"
@@ -127,7 +127,7 @@ def test_root_level_tables():
     assert config.backup.tables[1].query == "root_query"
     assert config.backup.tables[1].location == "root_location"
 
-    assert config.restore.connection.url == "restore_url"
+    assert config.restore.connection == "restore_url"
     assert config.restore.tables[0].name == "root_table_1"
     assert config.restore.tables[0].strategy == "root_strategy"
     assert config.restore.tables[0].location == "root_location"
@@ -151,7 +151,7 @@ def test_tables_as_just_strings():
         }
     )
 
-    assert config.backup.connection.url == "root_url"
+    assert config.backup.connection == "root_url"
     assert config.backup.tables[0].name == "root_table_1"
     assert config.backup.tables[0].query == "root_query"
     assert config.backup.tables[0].location == "root_location"
@@ -174,7 +174,7 @@ def test_tables_mixed_str_dict():
         }
     )
 
-    assert config.backup.connection.url == "root_url"
+    assert config.backup.connection == "root_url"
     assert config.backup.tables[0].name == "table_1"
     assert config.backup.tables[0].query == "root_query"
     assert config.backup.tables[0].location == "root_location"
@@ -216,8 +216,8 @@ def test_configs_stack():
     )
     config = RootConfig.from_stack(config_stack)
 
-    assert config.backup.connection.url == "root_url"
-    assert config.restore.connection.url == "restore url"
+    assert config.backup.connection == "root_url"
+    assert config.restore.connection == "restore url"
 
     assert config.backup.tables[0].name == "1"
     assert config.backup.tables[0].query == "bar"
@@ -296,3 +296,25 @@ def test_parent_ddl_enabled():
     assert config.backup.tables[0].ddl is False
     assert config.restore.tables[0].name == "backup_table_1"
     assert config.restore.tables[0].ddl is False
+
+
+def test_connection_strings():
+    """Assert connection strings are parsed correctly."""
+
+    config = RootConfig.from_dict({"connection": None})
+    assert config.backup.connection == "default"
+
+    config = RootConfig.from_dict({"connection": "example"})
+    assert config.backup.connection == "example"
+
+    config = RootConfig.from_dict({"connection": "dialect://foo"})
+    assert isinstance(config.backup.connection, Connection)
+    assert config.backup.connection.url == "dialect://foo"
+
+    config = RootConfig.from_dict({"connection": {"url": "foo"}})
+    assert isinstance(config.backup.connection, Connection)
+    assert config.backup.connection.url == "foo"
+
+    config = RootConfig.from_dict({"connection": {"dialect": "postgres"}})
+    assert isinstance(config.backup.connection, Connection)
+    assert config.backup.connection.url == {"dialect": "postgres"}

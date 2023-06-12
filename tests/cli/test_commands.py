@@ -28,7 +28,7 @@ def run_command(command, assert_exit_code=0):
 @pytest.mark.parametrize("command", ("backup", "restore"))
 def test_no_default_file_warns_of_no_url(command):
     result = run_command(command, assert_exit_code=2)
-    assert "No config found for 'url' field" in result.output
+    assert "did not resolve to a connection" in result.output
 
 
 class TestConfigCommand:
@@ -43,7 +43,7 @@ class TestConfigCommand:
 
         for part in ["backup", "restore"]:
             config_part = config[part]
-            assert config_part["connection"] == {"name": "default", "url": "foo"}
+            assert config_part["connection"] == "foo"
             assert config_part["ddl"]["enabled"] is True
             assert config_part["tables"][0]["location"] == "bar"
             assert config_part["tables"][0]["name"] == "baz"
