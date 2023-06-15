@@ -37,29 +37,43 @@ restore:
 
 ## `url` / `connection`
 
-The field name can be **either** of `url` or `connection`. Either this field
-must be supplied in the configuration, or the `connections` field (described in
-the next section) must be supplied.
+Examples below use `url` or `connection` depending on which makes more sense in
+the scenario. In reality, these options are exactly equivalent.
 
-This field value can be given either by a `RFC-1738` compliant string, or by the
-component parts of that string:
+The field name can be **any** of:
 
-```yaml
-# This
-url: dialect+driver://username:password@host:port/database
+- A "url": `RFC-1738` style connection string (directly routed to SQLAlchemy),
+  or its component parts:
 
-# Is the same as this:
-url:
-  drivername: dialect+driver
-  username: username
-  password: password
-  host: host
-  port: port
-  database: database
+  ```yaml
+  url: dialect+driver://username:password@host:port/database
+  ```
 
-# And either option can be given as:
-connection: ...
-```
+- An inline "connection", broken out by the above url's component parts:
+
+  ```yaml
+  connection:
+    drivername: dialect+driver
+    username: username
+    password: password
+    host: host
+    port: port
+    database: database
+  ```
+
+- A connection's name:
+
+  ```yaml
+  connections:
+    foo: dialect+driver://username:password@host:port/database
+    bar:
+      host: host
+      # ...
+
+  connection: foo
+  # or
+  connection: bar
+  ```
 
 ## `connections`
 

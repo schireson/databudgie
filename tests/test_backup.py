@@ -5,6 +5,7 @@ import tempfile
 from typing import Any, Dict, List
 from unittest.mock import patch
 
+import faker
 import pytest
 
 from databudgie.backup import backup_all
@@ -12,6 +13,8 @@ from databudgie.config import RootConfig
 from databudgie.s3 import is_s3_path, S3Location
 from tests.mockmodels.models import Customer
 from tests.utils import s3_config
+
+fake = faker.Faker()
 
 
 def test_backup_all(pg, s3_resource):
