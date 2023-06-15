@@ -1,7 +1,6 @@
 import json
 from typing import Optional, Sequence, TYPE_CHECKING, Union
 
-import sqlalchemy
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -130,18 +129,18 @@ def restore_all_ddl(
         for schema_op in schema_ops:
             progress.update(task, description=f"Restoring schema DDL: {schema_op.name}")
 
-            restore_ddl(session, schema_op, ddl_path, storage=storage, console=console)
+            restore_ddl(adapter, schema_op, ddl_path, storage=storage, console=console)
 
         for table_op in table_ops:
             progress.update(task, description=f"Restoring DDL: {table_op.full_name}")
 
-            restore_ddl(session, table_op, ddl_path, storage=storage, console=console)
+            restore_ddl(adapter, table_op, ddl_path, storage=storage, console=console)
 
     console.info("Finished Restoring DDL")
 
 
 def restore_ddl(
-    session: Session,
+    adapter: Adapter,
     op: Union[TableOp, SchemaOp],
     ddl_path: str,
     storage: StorageBackend,
@@ -156,19 +155,9 @@ def restore_ddl(
             console.warn(f"Found no DDL backups under {path} to restore")
             return
 
-        query = file_object.content.read().decode("utf-8")
+        query = file_object.content.read()
 
-    query = "\n".join(
-        line
-        for line in query.splitlines()
-        # XXX: These should be being omitted at the backup stage, it's not the restore process' responsibility!
-        if not line.startswith("--")
-        and not line.startswith("SET")
-        and not line.startswith("SELECT pg_catalog")
-        and line
-    )
-    session.execute(sqlalchemy.text(query))
-    session.commit()
+    adapter.execute_sql(query, commit=True)
 
 
 def restore_sequences(

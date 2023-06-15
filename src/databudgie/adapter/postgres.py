@@ -31,6 +31,15 @@ def update_url(url, database=None):
 
 
 class PostgresAdapter(Adapter):
+    def execute_sql(self, sql: bytes, *, commit=False):
+        """Abstract the execution of SQL queries away from the calling code.
+
+        Additionally performs pg_dump-specific SQL "cleaning" to remove statements
+        which could/would cause issues or otherwise bloat the resultant query.
+        """
+        cleaned_sql = clean_sql(sql)
+        return super().execute_sql(cleaned_sql, commit=commit)
+
     def export_query(self, query: str) -> QueryResult:
         engine: Engine = cast(Engine, self.session.get_bind())
 
@@ -232,7 +241,7 @@ class PostgresAdapter(Adapter):
         return cast(int, self.session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar())
 
 
-def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:
+def pg_dump(url: URL, rest: str = "", no_comments=True, clean=True) -> bytes:
     parts = [f"pg_dump -h {url.host} -p {url.port} -U {url.username} -d {url.database} --no-password"]
 
     if no_comments:
@@ -251,4 +260,17 @@ def pg_dump(url: URL, rest: str = "", no_comments=True) -> bytes:
     except subprocess.CalledProcessError as e:
         raise RuntimeError(e.stderr)
 
-    return result.stdout
+    output = result.stdout
+
+    return clean_sql(output)
+
+
+def clean_sql(sql: bytes) -> bytes:
+    return b"\n".join(
+        line
+        for line in sql.splitlines()
+        if not line.startswith(b"--")
+        and not line.startswith(b"SET")
+        and not line.startswith(b"SELECT pg_catalog")
+        and line
+    )
