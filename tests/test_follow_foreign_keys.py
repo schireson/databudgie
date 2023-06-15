@@ -72,7 +72,7 @@ def test_backup_follow_foreign_keys(pg, s3_resource):
 
     backup_all(pg, config.backup)
 
-    all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    all_object_keys = sorted([obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()])
     assert all_object_keys == [
         "public.t0_address/2021-04-26T09:00:00.csv",
         "public.t0_address/public.t0_customer/2021-04-26T09:00:00.csv",

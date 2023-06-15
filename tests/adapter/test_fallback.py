@@ -15,12 +15,16 @@ def test_backup(pg, mf, s3_resource):
 
         config = RootConfig.from_dict(
             {
-                "tables": {"public.customer": {"location": "s3://sample-bucket/public.customer"}},
+                "tables": {"public.customer": {"location": "s3://sample-bucket/public.customer/"}},
                 "sequences": False,
                 **s3_config,
             }
         )
         backup_all(pg, config.backup)
+
+        all_files = list(s3_resource.Bucket("sample-bucket").objects.all())
+        assert len(all_files) == 1
+        assert all_files[0].key == "public.customer/2021-04-26T09:00:00.csv"
 
         _validate_backup_contents(
             get_file_buffer("s3://sample-bucket/public.customer/2021-04-26T09:00:00.csv", s3_resource),

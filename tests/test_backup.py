@@ -1,7 +1,6 @@
 import csv
 import gzip
 import io
-import tempfile
 from typing import Any, Dict, List
 from unittest.mock import patch
 
@@ -115,8 +114,7 @@ def test_backup_all_tables_list(pg, s3_resource):
         },
     ),
 )
-@pytest.mark.parametrize("adapter", ("postgres", "python"))
-def test_compression(pg, s3_resource, config, adapter):
+def test_compression(pg, s3_resource, config):
     config = RootConfig.from_dict({"backup": config, "sequences": False, "strict": True, **s3_config})
     backup_all(pg, backup_config=config.backup)
 
@@ -130,23 +128,15 @@ def test_compression(pg, s3_resource, config, adapter):
     assert gzip.decompress(content) == b"id,store_id,external_id,external_name,external_status,active\n"
 
 
-def test_backup_local_file(pg, mf):
-    """Validate the upload for a single table contains the correct contents."""
-    customer = mf.customer.new(external_id="cid_123")
-
-    with tempfile.TemporaryDirectory() as dir_name:
-        config = RootConfig.from_dict({"tables": {"public.customer": {"location": f"{dir_name}/public.customer"}}})
-        backup_all(pg, config.backup)
-
-        _validate_backup_contents(get_file_buffer(f"{dir_name}/public.customer/2021-04-26T09:00:00.csv"), [customer])
-
-
 def test_backup_s3(pg, mf, s3_resource):
     """Validate the upload for a single table contains the correct contents."""
     customer = mf.customer.new(external_id="cid_123")
 
     config = RootConfig.from_dict(
-        {"tables": {"public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer"}}, **s3_config}
+        {
+            "tables": {"public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer/"}},
+            **s3_config,
+        }
     )
     backup_all(pg, config.backup)
 

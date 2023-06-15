@@ -94,7 +94,7 @@ class DDLConfig(Config):
 
         # Splat into a new dict so we can override `location` without mutating
         # the original input (which may be re-read later in config parsing)
-        final_ddl_config = {**expanded_ddl_config, "location": location}
+        final_ddl_config: dict[str, Any] = {**expanded_ddl_config, "location": location}
 
         if "clean" in final_ddl_config:
             final_ddl_config["clean"] = bool(final_ddl_config["clean"])
@@ -380,7 +380,7 @@ class S3Config(Config):
         )
 
 
-def compose_root_location(root_location, location, *, default):
+def compose_root_location(root_location, location, *, default) -> str:
     if root_location is None:
         return location or default
 
