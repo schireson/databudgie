@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import os
 import typing
 from dataclasses import dataclass, field, fields
 from typing import Any
@@ -89,7 +90,7 @@ class DDLConfig(Config):
         else:
             expanded_ddl_config = ddl_config
 
-        location = compose_root_location(root_location, expanded_ddl_config.get("location"), default="backups/ddl")
+        location = compose_root_location(root_location, expanded_ddl_config.get("location"), default=cls.location)
 
         # Splat into a new dict so we can override `location` without mutating
         # the original input (which may be re-read later in config parsing)
@@ -172,8 +173,8 @@ class TableParentConfig(typing.Generic[T], Config):
             connection=connection,
             tables=tables,
             manifest=manifest,
-            s3=s3,
             ddl=ddl,
+            s3=s3,
             root_location=root_location,
             adapter=adapter,
             connections=connections,
@@ -245,7 +246,7 @@ class TableConfig(Config):
     filename: str = "{timestamp}.{ext}"
     compression: str | None = None
     exclude: list = field(default_factory=list)
-    ddl: bool = True
+    ddl: DDLConfig = field(default_factory=DDLConfig)
     sequences: bool = True
     data: bool = True
     follow_foreign_keys: bool = False
@@ -273,6 +274,22 @@ class TableConfig(Config):
             "strict": bool(stack.get("strict", False)),
         }
 
+    @classmethod
+    def expand_location(cls, root_location: str | None, location: str | None, filename: str | None) -> tuple[str, str]:
+        location = compose_root_location(root_location, location, default=cls.location)
+
+        if not filename:
+            location_path, ext = os.path.splitext(location)
+            if ext:
+                location = os.path.dirname(location_path)
+                filename = os.path.basename(location_path)
+                return (location, filename)
+
+            filename = cls.filename
+            return (location, filename)
+
+        return (location, filename)
+
 
 @dataclass
 class BackupTableConfig(TableConfig):
@@ -282,7 +299,6 @@ class BackupTableConfig(TableConfig):
     @classmethod
     def from_stack(cls, stack: ConfigStack, root_location: str | None = None):
         values = cls.collect_values(stack, root_location)
-
         return from_partial(
             cls,
             **values,
@@ -306,7 +322,6 @@ class RestoreTableConfig(TableConfig):
     @classmethod
     def from_stack(cls, stack: ConfigStack, root_location: str | None = None):
         values = cls.collect_values(stack, root_location)
-
         return from_partial(
             cls,
             **values,
