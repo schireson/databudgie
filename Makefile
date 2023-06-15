@@ -30,9 +30,9 @@ build-docs:
 
 build-image:
 	docker build \
-		-t databudgie \
-		-t databudgie:latest \
-		-t databudgie:$(VERSION) \
+		-t schireson/databudgie \
+		-t schireson/databudgie:latest \
+		-t schireson/databudgie:$(VERSION) \
 		.
 
 build: build-package build-docs build-image
@@ -42,7 +42,7 @@ publish-package: build-package
 	poetry publish -u __token__ -p '${PYPI_PASSWORD}' --no-interaction
 
 publish-image: build-image
-	docker push databudgie:latest
-	docker push databudgie:$(VERSION)
+	docker push schireson/databudgie:latest
+	docker push schireson/databudgie:$(VERSION)
 
 publish: publish-package publish-image
