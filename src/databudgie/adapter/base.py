@@ -102,6 +102,15 @@ class Adapter:
             conn.execute(table_ref.insert(), prepared_rows)
             conn.execute(text("commit"))
 
+    def execute_sql(self, sql: bytes, *, commit=False):
+        """Abstract the execution of SQL queries away from the calling code."""
+        text_sql = sql.decode("utf-8")
+        result = self.session.execute(sqlalchemy.text(text_sql))
+        if commit:
+            self.session.commit()
+
+        return result
+
     def export_schema_ddl(self, name: str):
         raise NotImplementedError()  # pragma: no cover
 
@@ -172,7 +181,8 @@ class Adapter:
             dependent_tables = self.collect_table_dependencies(table_op=table_op, console=console)
             for dependent_table in dependent_tables:
                 if dependent_table not in tables:
-                    table_location = join_paths(table_op.location(), "{table}")
+                    concrete_parent_location = table_op.location().format(table=table_op.full_name)
+                    table_location = join_paths(concrete_parent_location, "{table}")
                     conf = replace(table_op.raw_conf, name=dependent_table, location=table_location)
 
                     dependent_table_op = TableOp.from_name(dependent_table, conf)
