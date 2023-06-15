@@ -4,9 +4,9 @@ from databudgie.adapter import Adapter
 from databudgie.backup import backup_all
 from databudgie.config import RootConfig
 from tests.adapter import test_postgres
-from tests.test_backup import _get_file_buffer, _validate_backup_contents
+from tests.test_backup import _validate_backup_contents
 from tests.test_restore import test_restore_one
-from tests.utils import s3_config
+from tests.utils import get_file_buffer, s3_config
 
 
 def test_backup(pg, mf, s3_resource):
@@ -23,7 +23,7 @@ def test_backup(pg, mf, s3_resource):
         backup_all(pg, config.backup)
 
         _validate_backup_contents(
-            _get_file_buffer("s3://sample-bucket/public.customer/2021-04-26T09:00:00.csv", s3_resource),
+            get_file_buffer("s3://sample-bucket/public.customer/2021-04-26T09:00:00.csv", s3_resource),
             [customer],
         )
 

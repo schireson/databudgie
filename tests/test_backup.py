@@ -10,9 +10,8 @@ import pytest
 
 from databudgie.backup import backup_all
 from databudgie.config import RootConfig
-from databudgie.s3 import is_s3_path, S3Location
 from tests.mockmodels.models import Customer
-from tests.utils import s3_config
+from tests.utils import get_file_buffer, s3_config
 
 fake = faker.Faker()
 
@@ -139,7 +138,7 @@ def test_backup_local_file(pg, mf):
         config = RootConfig.from_dict({"tables": {"public.customer": {"location": f"{dir_name}/public.customer"}}})
         backup_all(pg, config.backup)
 
-        _validate_backup_contents(_get_file_buffer(f"{dir_name}/public.customer/2021-04-26T09:00:00.csv"), [customer])
+        _validate_backup_contents(get_file_buffer(f"{dir_name}/public.customer/2021-04-26T09:00:00.csv"), [customer])
 
 
 def test_backup_s3(pg, mf, s3_resource):
@@ -152,7 +151,7 @@ def test_backup_s3(pg, mf, s3_resource):
     backup_all(pg, config.backup)
 
     _validate_backup_contents(
-        _get_file_buffer("s3://sample/databudgie/test/public.customer/2021-04-26T09:00:00.csv", s3_resource), [customer]
+        get_file_buffer("s3://sample/databudgie/test/public.customer/2021-04-26T09:00:00.csv", s3_resource), [customer]
     )
 
 
@@ -176,21 +175,6 @@ def test_backup_failure(pg):
             loose_config = RootConfig.from_dict({**config, "strict": False})
             backup_all(pg, backup_config=loose_config.backup)
             assert console.call_count == 2
-
-
-def _get_file_buffer(filename, s3_resource=None):
-    buffer = io.BytesIO()
-
-    if is_s3_path(filename) and s3_resource:
-        location = S3Location(filename)
-        uploaded_object = s3_resource.Object("sample-bucket", location.key)
-        uploaded_object.download_fileobj(buffer)
-    else:
-        with open(filename, "rb") as f:
-            buffer.write(f.read())
-    buffer.seek(0)
-
-    return buffer
 
 
 def _validate_backup_contents(buffer, expected_contents: List[Customer]):
