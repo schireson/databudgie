@@ -8,7 +8,8 @@ from os import isatty
 from pathlib import Path
 from typing import Iterable, MutableMapping
 
-from configly import Config, JsonLoader, TomlLoader, YamlLoader
+import click
+from configly import Config, loaders
 from rich.console import Console
 from rich.syntax import Syntax
 from ruamel.yaml import YAML
@@ -24,12 +25,11 @@ DEFAULT_CONFIG_FILES = (
     "databudgie.toml",
 )
 
-loaders: dict[str, type[JsonLoader | TomlLoader | YamlLoader]] = {
-    "yaml": YamlLoader,
-    "yml": YamlLoader,
-    "json": JsonLoader,
-    "toml": TomlLoader,
-}
+file_loaders: dict[str, type] = {}
+for ext, loader_name in [("yaml", "YamlLoader"), ("yml", "YamlLoader"), ("json", "JsonLoader"), ("toml", "TomlLoader")]:
+    loader = getattr(loaders, loader_name)
+    if loader:
+        file_loaders[ext] = loader
 
 
 @dataclass
@@ -145,8 +145,12 @@ def load_file_configs(*file_names: str):
 
 
 def collect_raw_config(*, format: str, content: str | None = None, file: str | None = None) -> dict:
-    loader_cls = loaders[format]
-    config: Config = Config.from_loader(loader_cls(), file=file, content=content)  # type: ignore
+    loader_cls = file_loaders.get(format)
+    if loader_cls is None:
+        formats = ", ".join(file_loaders.keys())
+        raise click.UsageError(f"File format must be one of: {formats}")
+
+    config: Config = Config.from_loader(loader_cls(), file=file, content=content)
     return config.to_dict()
 
 

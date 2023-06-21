@@ -8,7 +8,7 @@ from databudgie.cli.base import resolver
 from databudgie.cli.config import (
     CliConfig,
     collect_config,
-    loaders,
+    file_loaders,
     pretty_print,
 )
 from databudgie.config import (
@@ -81,7 +81,7 @@ from databudgie.storage import StorageBackend
     "--raw-config-format",
     default="json",
     help="The assumed format of --raw-config. Defaults to `json`. Must be one of: `yml`, `yaml`, `json`, `toml`.",
-    type=click.Choice(loaders),
+    type=click.Choice(file_loaders),
 )
 @click.version_option()
 def cli(
