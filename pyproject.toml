@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databudgie"
-version = "2.8.2"
+version = "2.8.3"
 packages = [
     { include = "databudgie", from = "src" },
 ]
