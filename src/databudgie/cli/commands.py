@@ -1,13 +1,11 @@
-import os
 from typing import Iterable, Optional, Tuple
 
 import click
 from sqlalchemy.orm import Session
 
+from databudgie import api
 from databudgie.cli.base import resolver
 from databudgie.cli.config import (
-    CliConfig,
-    collect_config,
     file_loaders,
     pretty_print,
 )
@@ -19,7 +17,6 @@ from databudgie.config import (
 )
 from databudgie.manifest.manager import Manifest
 from databudgie.output import Console
-from databudgie.storage import StorageBackend
 
 
 @resolver.group()
@@ -85,8 +82,8 @@ from databudgie.storage import StorageBackend
 )
 @click.version_option()
 def cli(
-    strict: bool,
-    config: Iterable[str],
+    strict: bool = False,
+    config: Iterable[str] = (),
     verbose: int = 0,
     color: bool = True,
     conn: Optional[str] = None,
@@ -101,27 +98,18 @@ def cli(
     raw_config: Optional[str] = None,
     raw_config_format: str = "json",
 ):
-    if color is False:
-        os.environ["NO_COLOR"] = "true"
-
-    if conn and url:
-        raise click.UsageError("--url and --connection are mutually exclusive options")
-
-    cli_config = CliConfig(
-        ddl=ddl,
-        tables=list(table) if table else None,
-        exclude=list(exclude) if exclude else None,
-        url=url,
-        location=location,
-        adapter=adapter,
-        strict=strict,
-        connection=conn,
-    )
-
     try:
-        root_config = collect_config(
-            cli_config=cli_config,
-            file_names=config,
+        root_config = api.root_config(
+            strict=strict,
+            config=config,
+            color=color,
+            conn=conn,
+            adapter=adapter,
+            ddl=ddl,
+            url=url,
+            table=table,
+            exclude=exclude,
+            location=location,
             raw_config=raw_config,
             raw_config_format=raw_config_format,
         )
@@ -149,26 +137,19 @@ def backup_cli(
     dry_run: bool = False,
 ):
     """Perform backup."""
-    from databudgie.backup import backup_all
-
-    if backup_manifest and backup_id:
-        backup_manifest.set_transaction_id(backup_id)
-
-    storage = StorageBackend.from_config(
-        backup_config,
-        manifest=backup_manifest,
-        record_stats=stats,
-        perform_writes=not dry_run,
-    )
-
     try:
-        backup_all(backup_db, backup_config, storage=storage, console=console)
+        api.backup(
+            backup_db,
+            backup_config,
+            manifest=backup_manifest,
+            console=console,
+            stats=stats,
+            dry_run=dry_run,
+            transaction_id=backup_id,
+        )
     except Exception as e:
         console.trace(e)
         raise click.ClickException(str(e))
-
-    if stats:
-        storage.print_stats()
 
 
 @resolver.command(cli, "restore")
@@ -198,36 +179,25 @@ def restore_cli(
     dry_run: bool = False,
 ):
     """Perform restore."""
-    from databudgie.restore import restore_all
-
-    if restore_manifest and restore_id:
-        restore_manifest.set_transaction_id(restore_id)
-
-    restore_config.ddl.clean = clean or restore_config.ddl.clean
-
-    if not yes and restore_config.ddl.clean:
+    if not yes and (clean or restore_config.ddl.clean):
         message = "About to delete the database! input 'y' if that's what you want: "
         if input(message) != "y":  # nosec
             return
 
-    if dry_run:
-        raise click.UsageError("--dry-run is not (yet) supported for restore")
-
-    storage = StorageBackend.from_config(
-        restore_config,
-        manifest=restore_manifest,
-        record_stats=stats,
-        perform_writes=not dry_run,
-    )
-
     try:
-        restore_all(restore_db, restore_config=restore_config, storage=storage, console=console)
+        api.restore(
+            db=restore_db,
+            config=restore_config,
+            console=console,
+            manifest=restore_manifest,
+            transaction_id=restore_id,
+            clean=clean,
+            stats=stats,
+            dry_run=dry_run,
+        )
     except Exception as e:
         console.trace(e)
         raise click.ClickException(*e.args)
-
-    if stats:
-        storage.print_stats()
 
 
 @resolver.command(cli, "config")
