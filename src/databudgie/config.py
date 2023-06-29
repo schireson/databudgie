@@ -236,7 +236,7 @@ class Connection(Config):
 
 @dataclass
 class BackupTableConfig(Config):
-    name: str
+    name: str | None = None
     location: str = "backups/{table}"
     query: str = "select * from {table}"
     compression: str | None = None

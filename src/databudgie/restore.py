@@ -113,7 +113,7 @@ def restore_all_ddl(
 
     for table_op in table_ops:
         schema_op = table_op.schema_op()
-        if schema_op.name in schema_names:
+        if not schema_op or schema_op.name in schema_names:
             continue
 
         if not table_op.raw_conf.ddl:
@@ -199,7 +199,7 @@ def truncate_tables(table_ops: Sequence[TableOp], adapter: Adapter, console: Con
         for table_op in table_ops:
             data = table_op.raw_conf.data
             truncate = table_op.raw_conf.truncate
-            if not data or not truncate:
+            if not data or not truncate or table_op.full_name is None:
                 continue
 
             progress.update(task, description=f"[trace]Truncating {table_op.full_name}[/trace]", advance=1)
@@ -220,7 +220,7 @@ def restore_tables(
         task = progress.add_task("Restoring tables", total=len(table_ops))
 
         for table_op in table_ops:
-            if not table_op.raw_conf.data:
+            if not table_op.full_name or not table_op.raw_conf.data:
                 continue
 
             progress.update(task, description=f"Restoring table: {table_op.full_name}")
@@ -246,6 +246,8 @@ def restore(
     console: Console = default_console,
 ) -> None:
     """Restore a CSV file from S3 to the database."""
+    assert table_op.full_name
+
     # Force table_name to be fully qualified
     schema, table = parse_table(table_op.full_name)
     table_name = f"{schema}.{table}"

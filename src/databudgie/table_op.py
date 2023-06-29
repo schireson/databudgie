@@ -41,9 +41,9 @@ class TableOp(Generic[T]):
     table matching that criteria.
     """
 
-    schema: str
-    table_name: str
-    full_name: str
+    schema: str | None
+    table_name: str | None
+    full_name: str | None
     raw_conf: T
 
     @classmethod
@@ -61,8 +61,19 @@ class TableOp(Generic[T]):
 
         return query.format(table=self.full_name)
 
-    def schema_op(self) -> SchemaOp:
+    def schema_op(self) -> SchemaOp | None:
+        if self.schema is None:
+            return None
+
         return SchemaOp(self.schema, self.raw_conf)
+
+    @property
+    def pretty_name(self) -> str:
+        if self.full_name:
+            return self.full_name
+
+        assert isinstance(self.raw_conf, BackupTableConfig)
+        return self.raw_conf.query
 
 
 def expand_table_ops(
@@ -89,8 +100,13 @@ def expand_table_ops(
 
     # expand table globs into fully qualified mappings to the config.
     matching_tables: dict[str, list[T]] = {}
+    unnamed_tables: list[T] = []
     for table_conf in tables:
         pattern = table_conf.name
+        if pattern is None:
+            unnamed_tables.append(table_conf)
+            continue
+
         if "." not in pattern:
             pattern = f"{default_schema_name}.{pattern}"
 
@@ -127,5 +143,8 @@ def expand_table_ops(
         for table_conf in table_confs:
             table_op = TableOp.from_name(table, raw_conf=table_conf)
             result.append(table_op)
+
+    for unnamed_table in unnamed_tables:
+        result.append(TableOp(None, None, None, unnamed_table))
 
     return result

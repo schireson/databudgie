@@ -47,6 +47,21 @@ tables:
   - '*.*'
 ```
 
+````{note}
+`name` **can** also be omitted entirely, with some caveats. The "name" field
+populates the `{table}` templated into queries and location paths (**both**
+of which default to including the `{table}` template value).
+
+Thus, if you omit the "name" field, you must have also provided a concrete "query"
+and "location" field.
+
+```yaml
+tables:
+  - query: select * from for_example_a_view
+    location: backups/public.for_example_a_view
+```
+````
+
 ### Globbing
 
 Using common globbing rules:

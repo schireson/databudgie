@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from typing import List
 
+from botocore.exceptions import ClientError
 from mypy_boto3_s3.service_resource import S3ServiceResource
 
 from databudgie.s3 import is_s3_path, S3Location
@@ -49,7 +50,13 @@ def get_file_buffer(filename, s3_resource=None):
         assert s3_resource
         location = S3Location(filename)
         uploaded_object = s3_resource.Object("sample-bucket", location.key)
-        uploaded_object.download_fileobj(buffer)
+
+        try:
+            uploaded_object.download_fileobj(buffer)
+        except ClientError:
+            log.info(str(list(s3_resource.Bucket("sample-bucket").objects.all())))
+
+            raise
     else:
         try:
             with open(filename, "rb") as f:

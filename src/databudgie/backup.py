@@ -85,7 +85,7 @@ def backup_ddl(
 
     for table_op in table_ops:
         schema_op = table_op.schema_op()
-        if schema_op.name in schemas:
+        if not schema_op or schema_op.name in schemas:
             continue
 
         if not table_op.raw_conf.ddl:
@@ -115,10 +115,10 @@ def backup_ddl(
         console.info("Finished backing up schema DDL")
 
         for table_op in table_ops:
-            if not table_op.raw_conf.ddl:
+            if not table_op.full_name or not table_op.raw_conf.ddl:
                 continue
 
-            progress.update(task, description=f"Backing up DDL: {table_op.full_name}")
+            progress.update(task, description=f"Backing up DDL: {table_op.pretty_name}")
             result = adapter.export_table_ddl(table_op.full_name)
 
             filename = storage.write_buffer(
@@ -128,7 +128,7 @@ def backup_ddl(
                 name=table_op.full_name,
             )
 
-            console.trace(f"Uploaded {table_op.full_name} to {filename}")
+            console.trace(f"Uploaded {table_op.pretty_name} to {filename}")
             table_names.append(table_op.full_name)
 
     console.info("Finished backing up DDL")
@@ -158,10 +158,10 @@ def backup_sequences(
         task = progress.add_task("Backing up sequence positions", total=len(table_ops))
 
         for table_op in table_ops:
-            progress.update(task, description=f"Backing up sequence position: {table_op.full_name}")
-
-            if not table_op.raw_conf.sequences:
+            if not table_op.full_name or not table_op.raw_conf.sequences:
                 continue
+
+            progress.update(task, description=f"Backing up sequence position: {table_op.pretty_name}")
 
             sequences = table_sequences.get(table_op.full_name)
             if not sequences:
@@ -182,7 +182,7 @@ def backup_sequences(
                 name=table_op.full_name,
             )
 
-            console.trace(f"Wrote {table_op.full_name} sequences to {filename}")
+            console.trace(f"Wrote {table_op.pretty_name} sequences to {filename}")
 
     console.info("Finished backing up sequence positions")
 
@@ -198,7 +198,7 @@ def backup_tables(
         task = progress.add_task("Backing up tables", total=len(table_ops))
 
         for table_op in table_ops:
-            progress.update(task, description=f"Backing up table: {table_op.full_name}")
+            progress.update(task, description=f"Backing up table: {table_op.pretty_name}")
 
             if not table_op.raw_conf.data:
                 continue
@@ -233,7 +233,7 @@ def backup(
     path = table_op.location()
 
     if table_op.raw_conf.skip_if_exists and storage.path_exists(path):
-        console.trace(f"Skipping {table_op.full_name} due to `skip_if_exists`")
+        console.trace(f"Skipping {table_op.pretty_name} due to `skip_if_exists`")
         return
 
     buffer = adapter.export_query(table_op.query())
@@ -245,4 +245,4 @@ def backup(
         path, buffer, file_type=FileTypes.data, name=table_op.full_name, compression=compression
     )
 
-    console.trace(f"Uploaded {table_op.full_name} to {filename}")
+    console.trace(f"Uploaded {table_op.pretty_name} to {filename}")
