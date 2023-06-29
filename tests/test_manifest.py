@@ -9,10 +9,9 @@ from databudgie.restore import restore_all
 from databudgie.storage import StorageBackend
 from tests.mockmodels.models import DatabudgieManifest
 from tests.test_backup import (
-    _get_file_buffer,
     _validate_backup_contents,
 )
-from tests.utils import mock_s3_csv, s3_config
+from tests.utils import get_file_buffer, mock_s3_csv, s3_config
 
 fake = faker.Faker()
 
@@ -29,7 +28,7 @@ def test_manifest_backup(pg, mf, s3_resource):
     backup_all(pg, config.backup, storage)
 
     _validate_backup_contents(
-        _get_file_buffer("s3://sample/databudgie/test/public.customer/2021-04-26T09:00:00.csv", s3_resource), [customer]
+        get_file_buffer("s3://sample/databudgie/test/public.customer/2021-04-26T09:00:00.csv", s3_resource), [customer]
     )
 
     row = pg.query(DatabudgieManifest).first()

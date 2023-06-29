@@ -12,7 +12,7 @@ class Test_join_paths:
 
     def test_non_first_component_absolute_path(self):
         path = join_paths("first", "/2nd/")
-        assert path == "first/2nd"
+        assert path == "first/2nd/"
 
     def test_bad_first_component(self):
         path = join_paths(None, "/first")

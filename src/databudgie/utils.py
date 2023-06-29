@@ -81,14 +81,25 @@ def join_paths(*components: Optional[str]) -> str:
     if len(real_components) == 1:
         return real_components[0]
 
-    first_component, *rest_components = real_components
+    bucket = None
     normalized_components = []
-    for c in rest_components:
+    for index, c in enumerate(real_components):
+        normalized_c = c
         if is_s3_path(c):
-            normalized_c = S3Location(c).key
+            s3_location = S3Location(c)
+            if bucket is None:
+                bucket = s3_location.bucket
+            else:
+                if bucket != s3_location.bucket:
+                    raise ValueError(f"Path contains two different buckets: {bucket}, {s3_location.bucket}")
+            normalized_c = s3_location.key
         else:
-            normalized_c = c.strip("/")
+            if index != 0:
+                normalized_c = c.lstrip("/")
 
         normalized_components.append(normalized_c)
 
-    return os.path.join(first_component, *normalized_components)
+    if bucket:
+        normalized_components.insert(0, f"s3://{bucket}")
+
+    return os.path.join(*normalized_components)
