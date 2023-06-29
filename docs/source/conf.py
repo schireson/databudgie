@@ -9,7 +9,7 @@
 project = "Databudgie"
 copyright = "2022, Known"
 author = "Known"
-release = "2.5.1"
+release = "2.8.4"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
