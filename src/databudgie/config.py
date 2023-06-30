@@ -78,6 +78,7 @@ def from_partial(cls: typing.Callable[..., F], **kwargs) -> F:
 class DDLConfig(Config):
     enabled: bool = False
     location: str = "backups/ddl"
+    filename: str = "{timestamp}.{ext}"
     clean: bool = False
     strategy: str = "use_latest_filename"
 
@@ -98,6 +99,9 @@ class DDLConfig(Config):
             final_ddl_config["clean"] = bool(final_ddl_config["clean"])
 
         return from_partial(cls, **final_ddl_config)
+
+    def full_path(self):
+        return join_paths(self.location, self.filename)
 
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -235,10 +239,10 @@ class Connection(Config):
 
 
 @dataclass
-class BackupTableConfig(Config):
+class TableConfig(Config):
     name: str | None = None
     location: str = "backups/{table}"
-    query: str = "select * from {table}"
+    filename: str = "{timestamp}.{ext}"
     compression: str | None = None
     exclude: list = field(default_factory=list)
     ddl: bool = True
@@ -246,28 +250,43 @@ class BackupTableConfig(Config):
     data: bool = True
     follow_foreign_keys: bool = False
     strict: bool = False
-    skip_if_exists: bool = False
 
     @classmethod
-    def from_stack(cls, stack: ConfigStack, root_location: str | None = None):
+    def collect_values(cls, stack: ConfigStack, root_location: str | None = None):
         ddl = stack.get("ddl", True)
         if isinstance(ddl, dict):
             ddl = ddl["enabled"]
 
-        location = compose_root_location(root_location, stack.get("location"), default="backups/{table}")
+        location = compose_root_location(root_location, stack.get("location"), default=cls.location)
+        filename = stack.get("filename", cls.filename)
+
+        return {
+            "name": stack.get("name"),
+            "location": location,
+            "filename": filename,
+            "compression": stack.get("compression"),
+            "exclude": stack.get("exclude"),
+            "sequences": bool(stack.get("sequences", True)),
+            "data": bool(stack.get("data", True)),
+            "ddl": bool(ddl),
+            "follow_foreign_keys": bool(stack.get("follow_foreign_keys", False)),
+            "strict": bool(stack.get("strict", False)),
+        }
+
+
+@dataclass
+class BackupTableConfig(TableConfig):
+    query: str = "select * from {table}"
+    skip_if_exists: bool = False
+
+    @classmethod
+    def from_stack(cls, stack: ConfigStack, root_location: str | None = None):
+        values = cls.collect_values(stack, root_location)
 
         return from_partial(
             cls,
-            name=stack.get("name"),
-            location=location,
+            **values,
             query=stack.get("query"),
-            compression=stack.get("compression"),
-            exclude=stack.get("exclude"),
-            sequences=bool(stack.get("sequences", True)),
-            data=bool(stack.get("data", True)),
-            ddl=bool(ddl),
-            follow_foreign_keys=bool(stack.get("follow_foreign_keys", False)),
-            strict=bool(stack.get("strict", False)),
             skip_if_exists=bool(stack.get("skip_if_exists", False)),
         )
 
@@ -280,40 +299,19 @@ class BackupConfig(TableParentConfig[BackupTableConfig]):
 
 
 @dataclass
-class RestoreTableConfig(Config):
-    name: str
-    location: str = "backups/{table}"
+class RestoreTableConfig(TableConfig):
     strategy: str = "use_latest_filename"
-    compression: str | None = None
-    exclude: list = field(default_factory=list)
-    ddl: bool = True
-    sequences: bool = True
     truncate: bool = False
-    data: bool = True
-    follow_foreign_keys: bool = False
-    strict: bool = False
 
     @classmethod
     def from_stack(cls, stack: ConfigStack, root_location: str | None = None):
-        ddl = stack.get("ddl", True)
-        if isinstance(ddl, dict):
-            ddl = ddl["enabled"]
-
-        location = compose_root_location(root_location, stack.get("location"), default="backups/{table}")
+        values = cls.collect_values(stack, root_location)
 
         return from_partial(
             cls,
-            name=stack.get("name"),
-            location=location,
+            **values,
             strategy=stack.get("strategy"),
             truncate=stack.get("truncate"),
-            compression=stack.get("compression"),
-            exclude=stack.get("exclude"),
-            sequences=bool(stack.get("sequences", True)),
-            data=bool(stack.get("data", True)),
-            ddl=bool(ddl),
-            follow_foreign_keys=bool(stack.get("follow_foreign_keys", False)),
-            strict=bool(stack.get("strict", False)),
         )
 
 

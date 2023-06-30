@@ -11,7 +11,7 @@ from databudgie.config import BackupConfig, BackupTableConfig
 from databudgie.output import Console, default_console, Progress
 from databudgie.storage import FileTypes, StorageBackend
 from databudgie.table_op import expand_table_ops, TableOp
-from databudgie.utils import capture_failures, join_paths
+from databudgie.utils import capture_failures
 
 
 def backup_all(
@@ -105,9 +105,10 @@ def backup_ddl(
 
             buffer = io.BytesIO(adapter.export_schema_ddl(schema_op.name))
             filename = storage.write_buffer(
-                join_paths(backup_config.ddl.location, schema_op.location()),
+                schema_op.full_path("ddl"),
                 buffer,
                 file_type=FileTypes.ddl,
+                name=schema_op.name,
             )
 
             console.trace(f"Wrote {schema_op.name} to {filename}")
@@ -122,13 +123,13 @@ def backup_ddl(
             result = adapter.export_table_ddl(table_op.full_name)
 
             filename = storage.write_buffer(
-                join_paths(backup_config.ddl.location, table_op.location()),
+                table_op.full_path("ddl"),
                 io.BytesIO(result),
                 file_type=FileTypes.ddl,
                 name=table_op.full_name,
             )
 
-            console.trace(f"Uploaded {table_op.pretty_name} to {filename}")
+            console.trace(f"Wrote {table_op.pretty_name} to {filename}")
             table_names.append(table_op.full_name)
 
     console.info("Finished backing up DDL")
@@ -136,9 +137,10 @@ def backup_ddl(
     # On the restore-side, the tables may not already exist (at the extreme, you
     # might start with an empty database), so we need to record the set of tables
     # being backed up.
-    manifest_data = json.dumps(table_names).encode("utf-8")
-    with io.BytesIO(manifest_data) as buffer:
-        storage.write_buffer(backup_config.ddl.location, buffer, file_type=FileTypes.manifest)
+    if table_names:
+        manifest_data = json.dumps(table_names).encode("utf-8")
+        with io.BytesIO(manifest_data) as buffer:
+            filename = storage.write_buffer(backup_config.ddl.full_path(), buffer, file_type=FileTypes.manifest)
 
 
 def backup_sequences(
@@ -153,6 +155,8 @@ def backup_sequences(
         return
 
     table_sequences = adapter.collect_table_sequences()
+    if not table_sequences:
+        return
 
     with Progress(console) as progress:
         task = progress.add_task("Backing up sequence positions", total=len(table_ops))
@@ -173,10 +177,8 @@ def backup_sequences(
 
             result = json.dumps(sequence_values).encode("utf-8")
 
-            path = table_op.location()
-
             filename = storage.write_buffer(
-                join_paths(path, "sequences"),
+                table_op.full_path("sequences"),
                 io.BytesIO(result),
                 file_type=FileTypes.sequences,
                 name=table_op.full_name,
@@ -230,19 +232,27 @@ def backup(
         storage: the storage backend to use for backing up the data.
         console: Console used for output
     """
-    path = table_op.location()
+    compression = table_op.raw_conf.compression
 
-    if table_op.raw_conf.skip_if_exists and storage.path_exists(path):
+    path_exists = storage.path_exists(
+        table_op.full_path(),
+        file_type=FileTypes.data,
+        name=table_op.full_name,
+        compression=compression,
+    )
+
+    if table_op.raw_conf.skip_if_exists and path_exists:
         console.trace(f"Skipping {table_op.pretty_name} due to `skip_if_exists`")
         return
 
     buffer = adapter.export_query(table_op.query())
 
-    # path.join will handle optionally trailing slashes in the location
-    compression = table_op.raw_conf.compression
-
     filename = storage.write_buffer(
-        path, buffer, file_type=FileTypes.data, name=table_op.full_name, compression=compression
+        table_op.full_path(),
+        buffer,
+        file_type=FileTypes.data,
+        name=table_op.full_name,
+        compression=compression,
     )
 
-    console.trace(f"Uploaded {table_op.pretty_name} to {filename}")
+    console.trace(f"Wrote {table_op.pretty_name} to {filename}")
