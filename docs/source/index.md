@@ -4,9 +4,10 @@
 ```
 
 ```{toctree}
-config/index
-backup
-restore
+Config <config/index>
+Backup <backup>
+Restore <restore>
+API <api>
 ```
 
 ```{toctree}
