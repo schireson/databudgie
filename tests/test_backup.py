@@ -177,6 +177,26 @@ def test_backup_failure(pg):
             assert console.call_count == 2
 
 
+def test_backup_unnamed_table(pg, mf, s3_resource):
+    """Validate unnamed table can be backed up."""
+    customer = mf.customer.new(external_id="cid_123")
+
+    config = RootConfig.from_dict(
+        {
+            "backup": {
+                "location": "s3://sample-bucket/databudgie/test/{table}",
+                "tables": [{"query": "select * from public.customer"}],
+                **s3_config,
+            },
+        }
+    )
+    backup_all(pg, config.backup)
+
+    _validate_backup_contents(
+        get_file_buffer("s3://sample/databudgie/test/None/2021-04-26T09:00:00.csv", s3_resource), [customer]
+    )
+
+
 def _validate_backup_contents(buffer, expected_contents: List[Customer]):
     """Validate the contents of a backup file. Columns from the file will be raw."""
 

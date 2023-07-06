@@ -1,3 +1,5 @@
+import logging
+
 import boto3
 import pytest
 from freezegun import freeze_time
@@ -6,6 +8,8 @@ from pytest_mock_resources import create_postgres_fixture, PostgresConfig
 
 from databudgie.config import RootConfig
 from tests.mockmodels.models import Base
+
+logging.basicConfig(level="INFO")
 
 
 @pytest.fixture(scope="session")

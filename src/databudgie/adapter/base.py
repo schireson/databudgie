@@ -173,6 +173,9 @@ class Adapter:
         tables = set()
         dependent_table_ops = []
         for table_op in table_ops:
+            if table_op.full_name is None:
+                continue
+
             tables.add(table_op.full_name)
 
             if not table_op.raw_conf.follow_foreign_keys:
