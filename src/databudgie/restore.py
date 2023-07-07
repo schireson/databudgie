@@ -9,7 +9,7 @@ from databudgie.config import RestoreConfig
 from databudgie.output import Console, default_console, Progress
 from databudgie.storage import FileTypes, StorageBackend
 from databudgie.table_op import expand_table_ops, SchemaOp, TableOp
-from databudgie.utils import capture_failures, join_paths, parse_table, wrap_buffer
+from databudgie.utils import capture_failures, wrap_buffer
 
 if TYPE_CHECKING:
     pass
@@ -89,11 +89,11 @@ def restore_all_ddl(
     if not restore_config.ddl.enabled:
         return
 
-    ddl_path = restore_config.ddl.location
+    ddl_path = restore_config.ddl.full_path()
     strategy = restore_config.ddl.strategy
 
     with storage.get_file_content(ddl_path, strategy, file_type=FileTypes.manifest) as file_object:
-        if not file_object:
+        if not file_object.content:
             console.info("Found no DDL manifest to restore")
             return
 
@@ -129,12 +129,12 @@ def restore_all_ddl(
         for schema_op in schema_ops:
             progress.update(task, description=f"Restoring schema DDL: {schema_op.name}")
 
-            restore_ddl(adapter, schema_op, ddl_path, storage=storage, console=console)
+            restore_ddl(adapter, schema_op, storage=storage, console=console)
 
         for table_op in table_ops:
             progress.update(task, description=f"Restoring DDL: {table_op.full_name}")
 
-            restore_ddl(adapter, table_op, ddl_path, storage=storage, console=console)
+            restore_ddl(adapter, table_op, storage=storage, console=console)
 
     console.info("Finished Restoring DDL")
 
@@ -142,16 +142,14 @@ def restore_all_ddl(
 def restore_ddl(
     adapter: Adapter,
     op: Union[TableOp, SchemaOp],
-    ddl_path: str,
     storage: StorageBackend,
     console: Console = default_console,
 ):
-    location = op.location()
     strategy: str = op.raw_conf.strategy
 
-    path = join_paths(ddl_path, location)
-    with storage.get_file_content(path, strategy, file_type=FileTypes.ddl) as file_object:
-        if not file_object:
+    path = op.full_path("ddl")
+    with storage.get_file_content(path, strategy, file_type=FileTypes.ddl, name=op.full_name) as file_object:
+        if not file_object.content:
             console.warn(f"Found no DDL backups under {path} to restore")
             return
 
@@ -175,12 +173,13 @@ def restore_sequences(
             if not table_op.raw_conf.sequences:
                 continue
 
-            location = table_op.location()
             strategy: str = table_op.raw_conf.strategy
 
-            path = join_paths(location, "sequences")
-            with storage.get_file_content(path, strategy, file_type=FileTypes.sequences) as file_object:
-                if not file_object:
+            path = table_op.full_path("sequences")
+            with storage.get_file_content(
+                path, strategy, file_type=FileTypes.sequences, name=table_op.full_name
+            ) as file_object:
+                if not file_object.content:
                     continue
 
                 sequences = json.load(file_object.content)
@@ -248,22 +247,18 @@ def restore(
     """Restore a CSV file from S3 to the database."""
     assert table_op.full_name
 
-    # Force table_name to be fully qualified
-    schema, table = parse_table(table_op.full_name)
-    table_name = f"{schema}.{table}"
-
     strategy: str = table_op.raw_conf.strategy
     compression = table_op.raw_conf.compression
 
     with storage.get_file_content(
-        table_op.location(),
+        table_op.full_path(),
         strategy,
         file_type=FileTypes.data,
         name=table_op.full_name,
         compression=compression,
     ) as file_object:
-        if not file_object:
-            console.warn(f"Found no backups for {table_name} to restore")
+        if not file_object.content:
+            console.warn(f"Found no backups for {table_op.pretty_name} to restore")
             return
 
         with wrap_buffer(file_object.content) as wrapper:
@@ -274,4 +269,4 @@ def restore(
             else:
                 session.commit()
 
-    console.trace(f"Restored {table_name} from {file_object.path}")
+    console.trace(f"Restored {table_op.pretty_name} from {file_object.path}")

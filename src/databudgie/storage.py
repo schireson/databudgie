@@ -6,6 +6,7 @@ import enum
 import io
 import os
 import pathlib
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, Generator, Iterable, Optional, TYPE_CHECKING
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket, S3ServiceResource
 
 DATETIME_FORMAT = r"%Y-%m-%dT%H:%M:%S"
+DATE_FORMAT = r"%Y-%m-%d"
 
 
 @enum.unique
@@ -58,21 +60,21 @@ class LocalStorage:
 
         return any(dir_entry for dir_entry in os.scandir(path) if dir_entry.is_file())
 
-    def get_file_content(
-        self, path: str, selection_strategy: SelectionStrategy, file_type: FileTypes, compression: str | None = None
-    ) -> FileObject | None:
+    def get_file_content(self, path: str, selection_strategy: SelectionStrategy) -> FileObject | None:
+        parent_path = pathlib.PurePath(path).parent
+
         try:
-            files = os.scandir(path)
+            files = os.scandir(parent_path)
         except FileNotFoundError:
             return None
 
         object_generator = (
-            FileStat.from_stat(os.path.sep.join([path, dir_entry.name]), dir_entry.stat())
+            FileStat.from_stat(dir_entry.path, dir_entry.stat())
             for dir_entry in files
-            if dir_entry.is_file()
+            if dir_entry.is_file() and match_path(dir_entry.path, path)
         )
 
-        target_object = selection_strategy(object_generator, file_type, compression)
+        target_object = selection_strategy(object_generator)
         if not target_object:
             return None
 
@@ -107,9 +109,7 @@ class S3Storage:
         matching_objects = list(s3_bucket.objects.filter(Prefix=s3_location.key).all())
         return len(matching_objects) >= 1
 
-    def get_file_content(
-        self, path: str, selection_strategy: SelectionStrategy, file_type: FileTypes, compression: str | None = None
-    ) -> FileObject | None:
+    def get_file_content(self, path: str, selection_strategy: SelectionStrategy) -> FileObject | None:
         buffer = io.BytesIO()
 
         # this path.key should be a folder
@@ -117,7 +117,7 @@ class S3Storage:
         s3_bucket: Bucket = self.resource.Bucket(s3_location.bucket)
 
         object_generator = self._generate_s3_object_summaries(s3_bucket, s3_location)
-        target_object = selection_strategy(object_generator, file_type, compression)
+        target_object = selection_strategy(object_generator)
         if not target_object:
             return None
 
@@ -128,9 +128,10 @@ class S3Storage:
         return FileObject(path, buffer)
 
     def _generate_s3_object_summaries(self, s3_bucket, s3_location):
-        for o in s3_bucket.objects.filter(Prefix=s3_location.key):
+        parent_path = str(pathlib.PurePath(s3_location.key).parent)
+        for o in s3_bucket.objects.filter(Prefix=parent_path):
             object_summary = FileStat(o.key, o.last_modified)
-            if str(object_summary.path.parent) == s3_location.key:
+            if match_path(str(object_summary.path), s3_location.key):
                 yield object_summary
 
 
@@ -177,7 +178,7 @@ class StorageBackend:
 
     def write_buffer(
         self,
-        path: str,
+        filename: str,
         _buffer: io.BytesIO | QueryResult,
         *,
         file_type: FileTypes,
@@ -198,7 +199,8 @@ class StorageBackend:
                 row_count = _buffer.row_count
                 table_info.rows = row_count
 
-        filename = join_paths(path, generate_filename(self.timestamp, file_type=file_type, compression=compression))
+        filename = self.format_path(filename, name=name, file_type=file_type, compression=compression)
+
         if self.perform_writes:
             final_buffer = Compressor.get_with_name(compression).compress(buffer)
 
@@ -212,9 +214,30 @@ class StorageBackend:
 
         return filename
 
-    def path_exists(self, path: str) -> bool:
-        storage = self.choose_storage(path)
-        return storage.path_exists(path)
+    def format_path(
+        self,
+        *segments: str,
+        file_type: FileTypes,
+        name: str | None = None,
+        compression=None,
+        format_timestamp: bool = True,
+    ):
+        base_extension = file_type.extension
+        full_extension = Compressor.get_with_name(compression).compose_filetype(base_extension)
+        filename_template = join_paths(*segments)
+        if format_timestamp:
+            timestamp = self.timestamp.strftime(DATETIME_FORMAT)
+            date = self.timestamp.strftime(DATE_FORMAT)
+        else:
+            timestamp = "{timestamp}"
+            date = "{date}"
+
+        return filename_template.format(table=name, timestamp=timestamp, ext=full_extension, date=date)
+
+    def path_exists(self, path: str, *, file_type: FileTypes, name: str | None = None, compression=None) -> bool:
+        full_path = self.format_path(path, name=name, file_type=file_type, compression=compression)
+        storage = self.choose_storage(full_path)
+        return storage.path_exists(full_path)
 
     @contextlib.contextmanager
     def get_file_content(
@@ -222,21 +245,25 @@ class StorageBackend:
         path: str,
         strategy: str,
         *,
-        name: str | None = None,
         file_type: FileTypes,
+        name: str | None = None,
         compression=None,
-    ) -> Generator[FileObject | None, None, None]:
-        storage = self.choose_storage(path)
+    ) -> Generator[FileObject, None, None]:
+        full_path = self.format_path(
+            path, name=name, file_type=file_type, compression=compression, format_timestamp=False
+        )
+        storage = self.choose_storage(full_path)
         selection_strategy = FileSelectionStrategy.by_name(strategy)
 
-        file_object = storage.get_file_content(path, selection_strategy, file_type=file_type, compression=compression)
-        if not file_object:
-            yield None
+        cbuffer = None
+        file_object = storage.get_file_content(full_path, selection_strategy)
+
+        if file_object:
+            cbuffer = Compressor.get_with_name(compression).extract(file_object.content)
+
+        yield FileObject(path=full_path, content=cbuffer)
+        if not cbuffer:
             return
-
-        cbuffer = Compressor.get_with_name(compression).extract(file_object.content)
-
-        yield FileObject(path=path, content=cbuffer)
 
         if name and self.record_stats:
             table_info = self.events.setdefault(name, TableInfo(name=name))
@@ -247,7 +274,7 @@ class StorageBackend:
                 row_count = len(list(csv.DictReader(io.TextIOWrapper(cbuffer))))
                 table_info.rows = row_count
 
-        if self.manifest and name and self.perform_writes and file_type == file_type.data:
+        if self.manifest and self.perform_writes and file_type == file_type.data and name and file_object:
             self.manifest.record(name, file_object.path)
         cbuffer.close()
 
@@ -292,7 +319,7 @@ class TableInfo:
 @dataclass(frozen=True)
 class FileObject:
     path: str
-    content: io.BytesIO
+    content: io.BytesIO | None
 
 
 @dataclass(frozen=True)
@@ -309,7 +336,7 @@ class FileStat:
         return cls(name, datetime.fromtimestamp(stat.st_mtime))
 
 
-SelectionStrategy = Callable[[Iterable[FileStat], FileTypes, Optional[str]], Optional[FileStat]]
+SelectionStrategy = Callable[[Iterable[FileStat]], Optional[FileStat]]
 
 
 class FileSelectionStrategy:
@@ -322,29 +349,16 @@ class FileSelectionStrategy:
         return valid_strategies[name]
 
     @staticmethod
-    def use_filename_strategy(
-        available_objects: Iterable[FileStat], file_type: FileTypes, compression=None
-    ) -> FileStat | None:
-        def restore_filename(timestamp, *, file_type: FileTypes, compression=None):
-            extension = file_type.extension
-            filetype = Compressor.get_with_name(compression).compose_filetype(extension)
-            return datetime.strptime(timestamp, f"{DATETIME_FORMAT}.{filetype}")
-
+    def use_filename_strategy(available_objects: Iterable[FileStat]) -> FileStat | None:
         objects_by_filename = {obj.path.name: obj for obj in available_objects}
-        ordered_filenames = sorted(
-            objects_by_filename.keys(),
-            key=lambda x: restore_filename(x, file_type=file_type, compression=compression),
-            reverse=True,
-        )
+        ordered_filenames = sorted(objects_by_filename.keys(), reverse=True)
 
         if ordered_filenames:
             return objects_by_filename[ordered_filenames[0]]
         return None
 
     @staticmethod
-    def use_metadata_strategy(
-        available_objects: Iterable[FileStat], file_type: FileTypes, compression=None
-    ) -> FileStat | None:
+    def use_metadata_strategy(available_objects: Iterable[FileStat]) -> FileStat | None:
         objects_by_last_modified_date = {s3_object.last_modified: s3_object for s3_object in available_objects}
         ordered_last_modified_dates = sorted(objects_by_last_modified_date.keys(), reverse=True)
 
@@ -353,7 +367,10 @@ class FileSelectionStrategy:
         return None
 
 
-def generate_filename(timestamp, *, file_type: FileTypes, compression=None):
-    extension = file_type.extension
-    filetype = Compressor.get_with_name(compression).compose_filetype(extension)
-    return timestamp.strftime(f"{DATETIME_FORMAT}.{filetype}")
+def match_path(path: str, pattern: str) -> bool:
+    escaped_pattern = (
+        re.escape(pattern)
+        .replace(r"\{timestamp\}", r"\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\d")
+        .replace(r"\{date\}", r"\d\d\d\d-\d\d-\d\d")
+    )
+    return bool(re.match(escaped_pattern, path))

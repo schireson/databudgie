@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from databudgie.config import BackupTableConfig, RestoreTableConfig
 from databudgie.match import expand_table_globs
 from databudgie.output import Console, default_console
-from databudgie.utils import parse_table
+from databudgie.utils import join_paths, parse_table
 
 if TYPE_CHECKING:
     from databudgie.storage import StorageBackend
@@ -22,8 +22,17 @@ class SchemaOp(Generic[T]):
     name: str
     raw_conf: T
 
-    def location(self) -> str:
-        return self.raw_conf.location.format(table=self.name)
+    @property
+    def full_name(self) -> str:
+        return self.name
+
+    def location(self, *segments: str) -> str:
+        return join_paths(self.raw_conf.location, *segments)
+
+    def full_path(self, *segments) -> str:
+        location = self.location(*segments)
+        filename = self.raw_conf.filename
+        return join_paths(location, filename)
 
 
 @dataclass
@@ -51,8 +60,14 @@ class TableOp(Generic[T]):
         schema, table_name = parse_table(full_name)
         return cls(schema=schema, table_name=table_name, full_name=full_name, raw_conf=raw_conf)
 
-    def location(self) -> str:
-        return self.raw_conf.location.format(table=self.full_name)
+    def location(self, *segments) -> str:
+        location = self.raw_conf.location
+        return join_paths(location, *segments)
+
+    def full_path(self, *segments) -> str:
+        location = self.location(*segments)
+        filename = self.raw_conf.filename
+        return join_paths(location, filename)
 
     def query(self) -> str:
         query = getattr(self.raw_conf, "query")  # RestoreTableConfig has no query attribute
