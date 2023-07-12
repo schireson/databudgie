@@ -12,12 +12,10 @@ def test_backup_local_file(pg, mf):
     mf.store.new(id=1, name="example")
 
     with tempfile.TemporaryDirectory() as dir_name:
-        config = RootConfig.from_dict(
-            {"root_location": dir_name, "tables": {"public.store": {"location": "public.store/"}}}
-        )
+        config = RootConfig.from_dict({"root_location": dir_name, "tables": ["public.store"]})
         backup_all(pg, config.backup)
 
-        content = get_file_buffer(f"{dir_name}/public.store/2021-04-26T09:00:00.csv").read()
+        content = get_file_buffer(f"{dir_name}/backups/public.store/2021-04-26T09:00:00.csv").read()
     assert content == b"id,name\n1,example\n"
 
 

@@ -232,7 +232,7 @@ def test_default_location():
         {"tables": [{"name": "1"}]},
     )
     config = RootConfig.from_stack(config_stack)
-    assert config.backup.tables[0].location == "backups/{table}"
+    assert config.backup.tables[0].location == "backups/{table}/"
 
 
 def test_config_url():
@@ -293,9 +293,9 @@ def test_parent_ddl_enabled():
         }
     )
     assert config.backup.tables[0].name == "backup_table_1"
-    assert config.backup.tables[0].ddl is False
+    assert config.backup.tables[0].ddl.enabled is False
     assert config.restore.tables[0].name == "backup_table_1"
-    assert config.restore.tables[0].ddl is False
+    assert config.restore.tables[0].ddl.enabled is False
 
 
 def test_connection_strings():
