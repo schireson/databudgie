@@ -10,13 +10,13 @@ authors = [
 [tool.poetry.dependencies]
 python = "^3.9"
 
-furo = "^2022.4.7"
+furo = "^2024.1.29"
 linkify-it-py = "*"
-myst-parser = {version = "^0.17.2", extras = ["linkify"]}
-sphinx = "^4.5.0"
-sphinx-autoapi = "^1.8.4"
-sphinx-autobuild = "^2021.3.14"
-sphinx-autodoc-typehints = "^1.18.1"
+myst-parser = {version = "^2.0.0", extras = ["linkify"]}
+sphinx = "~7.1.2"
+sphinx-autoapi = "^3.0.0"
+sphinx-autobuild = "^2024.2.4"
+sphinx-autodoc-typehints = "^2.0.0"
 sphinx-copybutton = "*"
 sphinx-pyproject = "~0.3.0"
 
