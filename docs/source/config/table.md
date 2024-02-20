@@ -96,6 +96,12 @@ Defaults to `backups/{table}`
 `location` paths use URI protocols for determining (on a per path basis) what
 protocol to use for the backup/restore of that path.
 
+```{tip}
+Output files default to being separated into table-specific folder through
+`{table}`. They can be colocated regardless of folder by removing that template
+source e.x. `backups/`.
+```
+
 ### Local files
 
 Note an otherwise unadorned path will be assumed to be a local file path, for
@@ -116,6 +122,20 @@ S3 paths make use of the [s3](backup_restore.md#s3) config for authorization
 against the included bucket. Alternatively, the common environment variables
 recognized by the `aws` CLI (i.e. `AWS_PROFILE`, `AWS_REGION`,
 `AWS_SECRET_ACCESS_KEY`, `AWS_ACCESS_KEY_ID`, etc) will be automatically read.
+
+## `filename`
+
+Defaults to `{timestamp}.{ext}`.
+
+Coupled with the "location" configuration, a fully templated path will result as
+(by default) `backups/{table}/{timestamp}.{ext}`. This yields a new file each
+time a command is run.
+
+```{tip}
+`{timestamp}` is a "variable" template source, meaning a new value will be yielded
+each time. In order to reference a static filename, configure a filename without
+a variable source, e.x. `{table}.{ext}`.
+```
 
 ## `strategy`
 
