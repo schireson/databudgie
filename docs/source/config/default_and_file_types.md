@@ -80,7 +80,7 @@ url = "postgresql://postgres:postgres@localhost:5432/postgres"
 [[backup.tables]]
 name = "public.product"
 query = "select * from {table} where store_id = 4"
-location = s3://my-s3-bucket/databudgie/public.product
+location = "s3://my-s3-bucket/databudgie/public.product"
 
 [backup]
 url = "postgresql://postgres:postgres@localhost:5432/postgres"
@@ -88,5 +88,5 @@ url = "postgresql://postgres:postgres@localhost:5432/postgres"
 [[restore.tables]]
 name = "public.product"
 query = "select * from {table} where store_id = 4"
-location = s3://my-s3-bucket/databudgie/public.product
+location = "s3://my-s3-bucket/databudgie/public.product"
 ```
