@@ -57,4 +57,4 @@ jobs:
       - name: Publish Dockerhub
         run: |
           make install
-          make publish-image
+          poetyr run make publish-image
