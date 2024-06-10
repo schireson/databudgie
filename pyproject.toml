@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "databudgie"
-version = "2.8.5"
+version = "2.9.0"
 packages = [
     { include = "databudgie", from = "src" },
 ]
@@ -27,7 +27,7 @@ repository = "https://github.com/schireson/databudgie"
 databudgie = "databudgie.__main__:run"
 
 [tool.poetry.dependencies]
-python = ">=3.7,<4"
+python = ">=3.8,<4"
 
 rich = "*"
 configly = {version = ">=1.0.0", extras = ["yaml"]}
@@ -38,13 +38,11 @@ typing-extensions = {version = ">=3.10.0", python = "<3.8"}
 importlib-metadata = {version = "*", python = "<3.8"}
 
 boto3 = { version = "*", optional = true }
-psycopg2 = { version = ">=2.7", optional = true }
-psycopg2-binary = { version = ">=2.7", optional = true }
+psycopg = { version = ">=2.7" }
 
 [tool.poetry.extras]
 s3 = ["boto3"]
-psycopg2 = ["psycopg2"]
-psycopg2-binary = ["psycopg2-binary"]
+postgres = ["psycopg"]
 
 [tool.poetry.dev-dependencies]
 boto3 = "^1.16.10,<1.17.72"
@@ -52,7 +50,7 @@ black = "22.3.0"
 boto3-stubs = {extras = ["s3"], version = "^1.18.38"}
 coverage = ">=5"
 freezegun = "*"
-mypy = "^0.991"
+mypy = "^1.10.0"
 pytest = ">=6.2.4"
 pytest-mock-resources = {version = ">=2.1.10", extras = ["docker"]}
 responses = "^0.10.9"

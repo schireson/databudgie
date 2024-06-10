@@ -3,7 +3,7 @@
 VERSION=$(shell python -c 'from importlib import metadata; print(metadata.version("databudgie"))')
 
 install:
-	poetry install -E psycopg2-binary -E s3
+	poetry install -E postgres -E s3
 
 
 format:
