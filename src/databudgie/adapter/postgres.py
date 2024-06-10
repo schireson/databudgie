@@ -6,7 +6,7 @@ import shutil
 import subprocess  # nosec
 from typing import cast, Dict, List
 
-from psycopg2._psycopg import cursor
+from psycopg import Cursor, sql
 from sqlalchemy import text
 from sqlalchemy.engine import create_engine, Engine
 from sqlalchemy.engine.url import URL
@@ -46,11 +46,13 @@ class PostgresAdapter(Adapter):
         result = QueryResult()
         with result.binary_buffer() as buffer:
             with contextlib.closing(engine.raw_connection()) as conn:
-                with cast(cursor, conn.cursor()) as cursor_:
-                    copy = f"COPY ({query}) TO STDOUT CSV HEADER"
+                with cast(Cursor, conn.cursor()) as cursor:
+                    command = sql.SQL(f"COPY ({query}) TO STDOUT CSV HEADER")
+                    with cursor.copy(command) as copy:
+                        for data in copy:
+                            buffer.write(data)
 
-                    cursor_.copy_expert(copy, buffer)
-                    result.row_count = cursor_.rowcount
+                    result.row_count = cursor.rowcount
 
         return result
 
@@ -59,11 +61,14 @@ class PostgresAdapter(Adapter):
 
         # Reading the header line from the buffer removes it for the ingest
         columns: List[str] = [f'"{c}"' for c in csv_file.readline().strip().split(",")]
-        copy = "COPY {table} ({columns}) FROM STDIN CSV".format(table=table, columns=",".join(columns))
+        command = sql.SQL("COPY {table} ({columns}) FROM STDIN CSV".format(table=table, columns=",".join(columns)))
 
         with contextlib.closing(engine.raw_connection()) as conn:
-            with cast(cursor, conn.cursor()) as cursor_:
-                cursor_.copy_expert(copy, csv_file)
+            with cast(Cursor, conn.cursor()) as cursor:
+                with cursor.copy(command) as copy:
+                    while data := csv_file.read():
+                        copy.write(data)
+
                 conn.commit()
 
     def export_schema_ddl(self, name: str, console: Console = default_console) -> bytes:
