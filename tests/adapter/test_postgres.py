@@ -24,7 +24,7 @@ def test_type_conversion(pg, mf, s3_resource):
         for s in sales
     }
 
-    location = "s3://sample-bucket/public.sales"
+    location = "s3://sample-bucket/public.sales/"
 
     config = RootConfig.from_dict(
         {

@@ -165,6 +165,7 @@ def restore_sequences(
     storage: StorageBackend,
     console: Console = default_console,
 ):
+    restored = False
     with Progress(console) as progress:
         task = progress.add_task("Restoring sequence positions", total=len(table_ops))
 
@@ -187,11 +188,15 @@ def restore_sequences(
             for sequence, value in sequences.items():
                 adapter.restore_sequence_value(sequence, value)
 
-    console.info("Finished restoring sequence positions")
-    session.commit()
+            restored = True
+
+    if restored:
+        console.info("Finished restoring sequence positions")
+        session.commit()
 
 
 def truncate_tables(table_ops: Sequence[TableOp], adapter: Adapter, console: Console):
+    truncated = False
     with Progress(console) as progress:
         task = progress.add_task("Truncating Tables", total=len(table_ops))
 
@@ -203,8 +208,10 @@ def truncate_tables(table_ops: Sequence[TableOp], adapter: Adapter, console: Con
 
             progress.update(task, description=f"[trace]Truncating {table_op.full_name}[/trace]", advance=1)
             adapter.truncate_table(table_op.full_name)
+            truncated = True
 
-    console.info("Finished truncating tables")
+    if truncated:
+        console.info("Finished truncating tables")
 
 
 def restore_tables(

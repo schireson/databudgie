@@ -76,9 +76,6 @@ def backup_ddl(
     storage: StorageBackend,
     console: Console = default_console,
 ):
-    if not backup_config.ddl.enabled:
-        return
-
     # Backup schemas first
     schema_names = set()
     schemas = []
@@ -88,7 +85,7 @@ def backup_ddl(
         if not schema_op or schema_op.name in schemas:
             continue
 
-        if not table_op.raw_conf.ddl:
+        if not table_op.raw_conf.ddl.enabled:
             continue
 
         schema_names.add(schema_op.name)
@@ -97,24 +94,26 @@ def backup_ddl(
     with Progress(console) as progress:
         table_names = []
 
-        total = len(schemas) + len(table_ops)
-        task = progress.add_task("Backing up schema DDL", total=total)
+        if schemas:
+            task = progress.add_task("Backing up schema DDL", total=len(schemas))
 
-        for schema_op in schemas:
-            progress.update(task, description=f"Backing up schema DDL: {schema_op.name}")
+            for schema_op in schemas:
+                progress.update(task, description=f"Backing up schema DDL: {schema_op.name}")
 
-            buffer = io.BytesIO(adapter.export_schema_ddl(schema_op.name))
-            filename = storage.write_buffer(
-                schema_op.full_path("ddl"),
-                buffer,
-                file_type=FileTypes.ddl,
-                name=schema_op.name,
-            )
+                buffer = io.BytesIO(adapter.export_schema_ddl(schema_op.name))
+                filename = storage.write_buffer(
+                    schema_op.full_path("ddl"),
+                    buffer,
+                    file_type=FileTypes.ddl,
+                    name=schema_op.name,
+                    record_stats=False,
+                )
 
-            console.trace(f"Wrote {schema_op.name} to {filename}")
+                console.trace(f"Wrote {schema_op.name} to {filename}")
 
-        console.info("Finished backing up schema DDL")
+            console.info("Finished backing up schema DDL")
 
+        task = progress.add_task("Backing up table DDL", total=len(table_ops))
         for table_op in table_ops:
             if not table_op.full_name or not table_op.raw_conf.ddl:
                 continue
@@ -124,6 +123,7 @@ def backup_ddl(
 
             filename = storage.write_buffer(
                 table_op.full_path("ddl"),
+                table_op.full_path(table_op.raw_conf.ddl.location),
                 io.BytesIO(result),
                 file_type=FileTypes.ddl,
                 name=table_op.full_name,
@@ -132,15 +132,20 @@ def backup_ddl(
             console.trace(f"Wrote {table_op.pretty_name} to {filename}")
             table_names.append(table_op.full_name)
 
-    console.info("Finished backing up DDL")
-
     # On the restore-side, the tables may not already exist (at the extreme, you
     # might start with an empty database), so we need to record the set of tables
     # being backed up.
     if table_names:
         manifest_data = json.dumps(table_names).encode("utf-8")
         with io.BytesIO(manifest_data) as buffer:
-            filename = storage.write_buffer(backup_config.ddl.full_path(), buffer, file_type=FileTypes.manifest)
+            filename = storage.write_buffer(
+                backup_config.ddl.full_path(),
+                buffer,
+                file_type=FileTypes.manifest,
+                record_stats=False,
+            )
+
+        console.info("Finished backing up DDL")
 
 
 def backup_sequences(

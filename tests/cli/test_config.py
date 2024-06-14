@@ -90,10 +90,10 @@ class Test_collect_config:
         tables:
          - foo
         """
-        with environ({"DATABUDGIE_BACKUP__DDL": ""}), file_content(content):
+        with environ({"DATABUDGIE_BACKUP__SEQUENCES": ""}), file_content(content):
             root_config = collect_config(cli_config=CliConfig())
-        assert root_config.backup.tables[0].ddl is False
-        assert root_config.restore.tables[0].ddl is True
+        assert root_config.backup.tables[0].sequences is False
+        assert root_config.restore.tables[0].sequences is True
 
 
 class Test_load_file_configs:

@@ -38,9 +38,9 @@ def test_restore_all(pg, s3_resource):
             "strict": True,
             "restore": {
                 "tables": {
-                    "public.store": {"location": "s3://sample-bucket/public.store", "strategy": "use_latest_filename"},
+                    "public.store": {"location": "s3://sample-bucket/public.store/", "strategy": "use_latest_filename"},
                     "public.product": {
-                        "location": "s3://sample-bucket/public.product",
+                        "location": "s3://sample-bucket/public.product/",
                         "strategy": "use_latest_metadata",
                     },
                 },
@@ -257,7 +257,7 @@ def test_reset_database(pg):
             "compression": "gzip",
             "tables": {
                 "public.store": {
-                    "location": "s3://sample-bucket/public.store",
+                    "location": "s3://sample-bucket/public.store/",
                     "strategy": "use_latest_filename",
                 },
             },
@@ -265,7 +265,7 @@ def test_reset_database(pg):
         {
             "tables": {
                 "public.store": {
-                    "location": "s3://sample-bucket/public.store",
+                    "location": "s3://sample-bucket/public.store/",
                     "strategy": "use_latest_filename",
                     "compression": "gzip",
                 },
