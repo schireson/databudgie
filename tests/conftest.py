@@ -3,7 +3,7 @@ import logging
 import boto3
 import pytest
 from freezegun import freeze_time
-from moto import mock_s3
+from moto import mock_aws
 from pytest_mock_resources import create_postgres_fixture, PostgresConfig
 
 from databudgie.config import RootConfig
@@ -43,7 +43,7 @@ def s3_config():
 
 @pytest.fixture()
 def s3_resource():
-    with mock_s3():
+    with mock_aws():
         s3 = boto3.resource("s3", region_name="us-east-1")
         s3.create_bucket(Bucket="sample-bucket")
         yield s3
