@@ -9,7 +9,10 @@ from pytest_mock_resources import create_postgres_fixture, PostgresConfig
 from databudgie.config import RootConfig
 from tests.mockmodels.models import Base
 
-logging.basicConfig(level="INFO")
+logging.basicConfig(level="DEBUG")
+logging.getLogger("boto3").setLevel("INFO")
+logging.getLogger("botocore").setLevel("INFO")
+logging.getLogger("s3transfer").setLevel("INFO")
 
 
 @pytest.fixture(scope="session")

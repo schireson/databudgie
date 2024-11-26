@@ -61,10 +61,8 @@ class LocalStorage:
         return any(dir_entry for dir_entry in os.scandir(path) if dir_entry.is_file())
 
     def get_file_content(self, path: str, selection_strategy: SelectionStrategy) -> FileObject | None:
-        parent_path = pathlib.PurePath(path).parent
-
         try:
-            files = os.scandir(parent_path)
+            files = os.scandir(path)
         except FileNotFoundError:
             return None
 
@@ -184,13 +182,14 @@ class StorageBackend:
         file_type: FileTypes,
         name: str | None = None,
         compression: str | None = None,
+        record_stats: bool = True,
     ):
         if isinstance(_buffer, QueryResult):
             buffer = _buffer.buffer
         else:
             buffer = _buffer
 
-        if name and self.record_stats:
+        if self.record_stats and name and record_stats:
             table_info = self.events.setdefault(name, TableInfo(name=name))
             table_info.note_file_type(file_type)
 
@@ -276,6 +275,7 @@ class StorageBackend:
 
         if self.manifest and self.perform_writes and file_type == file_type.data and name and file_object:
             self.manifest.record(name, file_object.path)
+
         cbuffer.close()
 
     def print_stats(self, console: Console = default_console):

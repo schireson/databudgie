@@ -20,7 +20,7 @@ def mock_s3_json(s3_resource: S3ServiceResource, key: str, data: dict):
 table_config = {
     "tables": {
         "public.product": {
-            "location": "s3://sample-bucket/{table}",
+            "location": "s3://sample-bucket/{table}/",
         },
     }
 }

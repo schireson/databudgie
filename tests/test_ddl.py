@@ -77,9 +77,10 @@ def test_backup_ddl_disabled(pg, s3_resource):
 def test_backup_ddl(pg, s3_resource):
     config = RootConfig.from_dict(
         {
-            "location": "s3://sample-bucket/{table}",
-            "ddl": {"enabled": True, "location": "s3://sample-bucket/ddl"},
+            "root_location": "s3://sample-bucket/",
+            "location": "{table}/",
             "tables": ["public.*"],
+            "ddl": True,
             "sequences": False,
             "strict": True,
             **s3_config,
@@ -88,7 +89,7 @@ def test_backup_ddl(pg, s3_resource):
 
     backup_all(pg, config.backup)
 
-    all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    all_object_keys = sorted([obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()])
     assert all_object_keys == [
         "ddl/2021-04-26T09:00:00.json",
         "public.customer/2021-04-26T09:00:00.csv",
