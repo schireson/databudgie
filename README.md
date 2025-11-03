@@ -1,7 +1,7 @@
 # Databudgie
 
 ![Github Actions Build](https://github.com/schireson/databudgie/actions/workflows/build.yml/badge.svg)
-[![Coverage Status](https://coveralls.io/repos/github/schireson/databudgie/badge.svg?branch=main&t=6I0aU6)](https://coveralls.io/github/schireson/databudgie?branch=main)
+[![codecov](https://codecov.io/gh/schireson/databudgie/graph/badge.svg?token=LgwUz062Sl)](https://codecov.io/gh/schireson/databudgie)
 [![Documentation
 Status](https://readthedocs.org/projects/databudgie/badge/?version=latest)](https://databudgie.readthedocs.io)
 

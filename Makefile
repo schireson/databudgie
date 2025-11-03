@@ -3,26 +3,26 @@
 VERSION=$(shell python -c 'from importlib import metadata; print(metadata.version("databudgie"))')
 
 install:
-	poetry install -E psycopg2-binary -E s3
+	uv sync --extra psycopg2-binary --extra s3
 
 
 format:
-	ruff --fix src tests
-	black src tests
+	uv run ruff check --fix src tests
+	uv run black src tests
 
 lint:
-	ruff src tests || exit 1
-	mypy --namespace-packages src tests || exit 1
-	black --check --diff src tests || exit 1
+	uv run ruff check src tests || exit 1
+	uv run mypy --namespace-packages src tests || exit 1
+	uv run black --check --diff src tests || exit 1
 
 test:
-	coverage run -a -m pytest src tests
-	coverage report
-	coverage xml
+	uv run coverage run -a -m pytest src tests
+	uv run coverage report
+	uv run coverage xml
 
 ## Build
 build-package:
-	poetry build
+	uv build
 
 build-docs:
 	pip install -r docs/requirements.txt
@@ -39,7 +39,7 @@ build: build-package build-docs build-image
 
 ## Publish
 publish-package: build-package
-	poetry publish -u __token__ -p '${PYPI_PASSWORD}' --no-interaction
+	uv publish --token '${PYPI_PASSWORD}'
 
 publish-image: build-image
 	docker push schireson/databudgie:latest

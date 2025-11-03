@@ -272,5 +272,6 @@ def clean_sql(sql: bytes) -> bytes:
         if not line.startswith(b"--")
         and not line.startswith(b"SET")
         and not line.startswith(b"SELECT pg_catalog")
+        and not line.startswith(b"\\")
         and line
     )
