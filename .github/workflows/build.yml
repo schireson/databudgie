@@ -37,7 +37,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --extra psycopg2-binary --extra s3
+        run: uv sync --extra postgres --extra s3
 
       - name: Install specific sqlalchemy version
         run: uv pip install 'sqlalchemy~=${{ matrix.sqlalchemy-version }}'

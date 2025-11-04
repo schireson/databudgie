@@ -52,7 +52,6 @@ def create_customer(
     store: Optional[Store] = None,
     product: Optional[Product] = None,
 ):
-
     if not store:
         store = create_store()
 

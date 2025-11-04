@@ -55,7 +55,6 @@ def test_restore_all(pg, s3_resource):
 
 def test_restore_one(pg, mf, s3_resource):
     """Validate restore functionality for a single table."""
-
     store = mf.store.new(name=fake.name())
 
     mock_products = [
@@ -94,7 +93,6 @@ def test_restore_one(pg, mf, s3_resource):
 
 def test_restore_all_overwrite_cascade(pg, mf, s3_resource):
     """Validate behavior for the cascading truncate option."""
-
     store = mf.store.new(name=fake.name())
     mf.product.new(store=store)
     mf.product.new(store=store)
@@ -126,7 +124,6 @@ def test_restore_all_overwrite_cascade(pg, mf, s3_resource):
 
 def test_restore_all_local_files(pg, mf):
     """Validate behavior for the cascading truncate option."""
-
     store = mf.store.new(name=fake.name())
     mf.product.new(store=store)
     mf.product.new(store=store)
@@ -161,7 +158,6 @@ def test_restore_all_local_files(pg, mf):
 
 def test_restore_glob(pg, mf, s3_resource):
     """Validate restore composes with glob table specifications."""
-
     # Prove we truncate the rows
     store = mf.store.new(name=fake.name())
     mf.product.new(store=store)

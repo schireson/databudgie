@@ -49,8 +49,8 @@ default_console = Console()
 
 __all__ = [
     "Console",
-    "default_console",
     "Progress",
-    "Traceback",
     "Table",
+    "Traceback",
+    "default_console",
 ]

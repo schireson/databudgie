@@ -38,7 +38,6 @@ def test_backup_all(pg, s3_resource):
 
 
 def test_backup_all_glob(pg, s3_resource):
-
     config = RootConfig.from_dict(
         {
             "tables": {
@@ -157,7 +156,6 @@ def test_backup_s3(pg, mf, s3_resource):
 
 def test_backup_failure(pg):
     """Validate alternative behavior of the `strict` flag."""
-
     config = {
         "location": "s3://sample-bucket/databudgie/test/{table}",
         "tables": ["public.customer", "public.store"],
@@ -199,7 +197,6 @@ def test_backup_unnamed_table(pg, mf, s3_resource):
 
 def _validate_backup_contents(buffer, expected_contents: List[Customer]):
     """Validate the contents of a backup file. Columns from the file will be raw."""
-
     wrapper = io.TextIOWrapper(buffer, encoding="utf-8")
     reader = csv.DictReader(wrapper)
     contents: List[Dict[str, Any]] = list(reader)
