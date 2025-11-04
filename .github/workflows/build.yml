@@ -9,7 +9,7 @@ jobs:
   test:
     services:
       postgres:
-        image: postgres:11.12
+        image: postgres:16
         env:
           POSTGRES_DB: dev
           POSTGRES_USER: user
@@ -23,62 +23,48 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
-        poetry-version: ["1.2.2"]
         sqlalchemy-version: ["1.3.0", "1.4.0", "2.0.0"]
 
     steps:
       - uses: actions/checkout@v2
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install poetry
-        uses: abatilo/actions-poetry@v2.0.0
-        with:
-          poetry-version: ${{ matrix.poetry-version }}
-
-      - name: Set up cache
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pypoetry/virtualenvs
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-poetry-
 
       - name: Install dependencies
-        run: poetry run make install
+        run: uv sync --extra psycopg2-binary --extra s3
 
       - name: Install specific sqlalchemy version
-        run: poetry run pip install 'sqlalchemy~=${{ matrix.sqlalchemy-version }}'
+        run: uv pip install 'sqlalchemy~=${{ matrix.sqlalchemy-version }}'
 
       - name: Run linters
         if: ${{ matrix.sqlalchemy-version == '1.4.0' }}
-        run: poetry run make lint
+        run: make lint
 
       - name: Run tests
-        run: poetry run make test
+        run: make test
 
       - name: Store test result artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
+          name: python=${{ matrix.python-version }}-sqlalchemy=${{ matrix.sqlalchemy-version }}
           path: coverage.xml
 
-      - name: Coveralls
-        env:
-          COVERALLS_FLAG_NAME: run-${{ inputs.working-directory }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_PARALLEL: true
-        run: |
-          pip install tomli coveralls
-          coveralls --service=github
+      - uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          name: python=${{ matrix.python-version }}
+          files: coverage.xml
 
   finish:
     needs:
       - test
     runs-on: ubuntu-latest
     steps:
-      - name: Coveralls Finished
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          pip install tomli coveralls
-          coveralls --service=github --finish
+      - name: Join
+        run: echo Done

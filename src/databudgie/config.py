@@ -44,7 +44,7 @@ class ConfigStack:
 class Config(metaclass=abc.ABCMeta):
     def to_dict(self) -> dict:
         result = {}
-        for f in fields(self):
+        for f in fields(self):  # type: ignore
             v = getattr(self, f.name)
             if isinstance(v, Config):
                 value: Any = v.to_dict()

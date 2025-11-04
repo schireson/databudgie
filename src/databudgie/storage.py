@@ -35,13 +35,13 @@ class FileTypes(enum.Enum):
 
     @property
     def extension(self) -> str:
-        mapping = {
-            self.ddl: "sql",
-            self.sequences: "json",
-            self.data: "csv",
-            self.manifest: "json",
+        mapping: dict[str, str] = {
+            "ddl": "sql",
+            "sequences": "json",
+            "data": "csv",
+            "manifest": "json",
         }
-        return mapping[self]  # type: ignore
+        return mapping[self.value]
 
 
 @dataclass
