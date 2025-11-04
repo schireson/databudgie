@@ -3,7 +3,6 @@ from databudgie.config import ConfigStack, Connection, RootConfig
 
 def test_only_leaf_values():
     """These config values should ignore all inherited values and use the leaf-specified values"""
-
     config = RootConfig.from_dict(
         {
             "url": "root_url",
@@ -208,7 +207,6 @@ def test_no_tables():
 
 def test_configs_stack():
     """Assert a stack of configs gracefully fall back to settings further up the stack."""
-
     config_stack = ConfigStack(
         {"url": "root_url"},
         {"query": "foo", "restore": {"url": "restore url"}},
@@ -243,7 +241,6 @@ def test_config_url():
 
 def test_correct_():
     """These config values should ignore all inherited values and use the leaf-specified values"""
-
     config = RootConfig.from_dict(
         {
             "url": "root_url",
@@ -281,7 +278,6 @@ def test_parent_ddl_enabled():
 
     Namely, that it can be disabled by a parent, when omitted at the table level.
     """
-
     config = RootConfig.from_dict(
         {
             "ddl": {"enabled": False},
@@ -300,7 +296,6 @@ def test_parent_ddl_enabled():
 
 def test_connection_strings():
     """Assert connection strings are parsed correctly."""
-
     config = RootConfig.from_dict({"connection": None})
     assert config.backup.connection == "default"
 

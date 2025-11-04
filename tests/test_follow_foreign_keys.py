@@ -57,7 +57,6 @@ def test_backup_follow_foreign_keys(pg, s3_resource):
     It should recursively collect tables which are foreignkey referenced
     to tables in "tables" list.
     """
-
     config = RootConfig.from_dict(
         {
             "location": "{table}",

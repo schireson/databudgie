@@ -3,13 +3,14 @@ import io
 import os
 import shlex
 import shutil
-import subprocess  # nosec
+import subprocess
 from typing import cast, Dict, List
 
-from psycopg2._psycopg import cursor
+from psycopg import Cursor, sql
 from sqlalchemy import text
 from sqlalchemy.engine import create_engine, Engine
 from sqlalchemy.engine.url import URL
+from typing_extensions import LiteralString
 
 from databudgie.adapter.base import Adapter, QueryResult
 from databudgie.output import Console, default_console
@@ -46,11 +47,13 @@ class PostgresAdapter(Adapter):
         result = QueryResult()
         with result.binary_buffer() as buffer:
             with contextlib.closing(engine.raw_connection()) as conn:
-                with cast(cursor, conn.cursor()) as cursor_:
-                    copy = f"COPY ({query}) TO STDOUT CSV HEADER"
+                with cast(Cursor, conn.cursor()) as cursor:
+                    statement = sql.SQL(cast(LiteralString, f"COPY ({query}) TO STDOUT CSV HEADER"))
 
-                    cursor_.copy_expert(copy, buffer)
-                    result.row_count = cursor_.rowcount
+                    with cursor.copy(statement) as copy:
+                        while data := copy.read():
+                            buffer.write(data)
+                    result.row_count = cursor.rowcount
 
         return result
 
@@ -58,12 +61,15 @@ class PostgresAdapter(Adapter):
         engine: Engine = cast(Engine, self.session.get_bind())
 
         # Reading the header line from the buffer removes it for the ingest
-        columns: List[str] = [f'"{c}"' for c in csv_file.readline().strip().split(",")]
-        copy = "COPY {table} ({columns}) FROM STDIN CSV".format(table=table, columns=",".join(columns))
+        columns = [sql.Identifier(c) for c in csv_file.readline().strip().split(",")]
+        statement = sql.SQL("COPY {table} ({columns}) FROM STDIN CSV").format(
+            table=sql.Identifier(*table.split(".")), columns=sql.SQL(", ").join(columns)
+        )
 
         with contextlib.closing(engine.raw_connection()) as conn:
-            with cast(cursor, conn.cursor()) as cursor_:
-                cursor_.copy_expert(copy, csv_file)
+            with cast(Cursor, conn.cursor()) as cursor:
+                with cursor.copy(statement) as copy:
+                    copy.write(csv_file.read())
                 conn.commit()
 
     def export_schema_ddl(self, name: str, console: Console = default_console) -> bytes:
@@ -73,7 +79,10 @@ class PostgresAdapter(Adapter):
 
         url = self.session.connection().engine.url
         result = pg_dump(url, f"--schema-only --schema={name} --exclude-table={name}.*")
-        return result.replace(f"CREATE SCHEMA {name};".encode(), f"CREATE SCHEMA IF NOT EXISTS {name};".encode())
+        return result.replace(
+            f"CREATE SCHEMA {name};".encode(),
+            f"CREATE SCHEMA IF NOT EXISTS {name};".encode(),
+        )
 
     def export_table_ddl(self, table_name: str, console: Console = default_console):
         if not shutil.which("pg_dump"):
@@ -205,7 +214,8 @@ class PostgresAdapter(Adapter):
         )
 
         results = self.session.execute(
-            collect_tables, params={"schema": table_op.schema, "table_name": table_op.table_name}
+            collect_tables,
+            params={"schema": table_op.schema, "table_name": table_op.table_name},
         )
 
         return [row[0] for row in results]
@@ -235,10 +245,18 @@ class PostgresAdapter(Adapter):
         return result
 
     def collect_sequence_value(self, sequence_name: str) -> int:
-        return cast(int, self.session.execute(text(f"SELECT last_value from {sequence_name}")).scalar())  # noqa: S608
+        return cast(
+            int,
+            self.session.execute(
+                text(f"SELECT last_value from {sequence_name}")  # noqa: S608
+            ).scalar(),
+        )
 
     def restore_sequence_value(self, sequence_name: str, value: int) -> int:
-        return cast(int, self.session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar())
+        return cast(
+            int,
+            self.session.execute(text(f"SELECT setval('{sequence_name}', {value})")).scalar(),
+        )
 
 
 def pg_dump(url: URL, rest: str = "", no_comments=True, clean=True) -> bytes:
@@ -254,8 +272,11 @@ def pg_dump(url: URL, rest: str = "", no_comments=True, clean=True) -> bytes:
     command = shlex.split(raw_command)
 
     try:
-        result = subprocess.run(  # nosec
-            command, capture_output=True, env={**os.environ, "PGPASSWORD": str(url.password or "")}, check=True
+        result = subprocess.run(  # noqa: S603
+            command,
+            capture_output=True,
+            env={**os.environ, "PGPASSWORD": str(url.password or "")},
+            check=True,
         )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(e.stderr)

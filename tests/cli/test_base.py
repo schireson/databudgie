@@ -17,7 +17,7 @@ def test_create_postgres_session_str(pg_engine):
     except AttributeError:
         url_str = str(url)
 
-    assert url_str.startswith("postgresql+psycopg2://")
+    assert url_str.startswith("postgresql+psycopg")
     config = BackupConfig.from_stack(ConfigStack({"url": url_str}))
 
     session = _create_postgres_session(config)
@@ -41,7 +41,7 @@ def test_connection_selection(pg_engine):
     except AttributeError:
         url_str = str(url)
 
-    assert url_str.startswith("postgresql+psycopg2://")
+    assert url_str.startswith("postgresql+psycopg")
     config = BackupConfig.from_stack(ConfigStack({"connections": {"foo": url_str}, "connection": "foo"}))
 
     session = _create_postgres_session(config)

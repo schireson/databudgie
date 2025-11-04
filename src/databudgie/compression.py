@@ -1,13 +1,13 @@
 import gzip
 import io
-from typing import Dict, Optional, Type
+from typing import ClassVar, Dict, Optional, Type
 
 
 class Compressor:
     name: str = ""
     extension: str = ""
 
-    compressors: Dict[Optional[str], "Compressor"] = {}
+    compressors: ClassVar[Dict[Optional[str], "Compressor"]] = {}
 
     @classmethod
     def get_with_name(cls, name: Optional[str]) -> "Compressor":

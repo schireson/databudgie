@@ -17,14 +17,14 @@ class Manifest(metaclass=abc.ABCMeta):
 
         self._transaction_id: Optional[int] = None
 
-    @functools.lru_cache()
+    @functools.lru_cache
     def manifest_table(self):
         schema, table = parse_table(self.table_name)
         self.metadata = MetaData()
         self.metadata.reflect(bind=self.session.get_bind(), schema=schema, only=[table])
         return Table(table, self.metadata, autoload=True, schema=schema)
 
-    @functools.lru_cache()
+    @functools.lru_cache
     def transaction_id(self):
         if self._transaction_id is None:
             table = self.manifest_table()

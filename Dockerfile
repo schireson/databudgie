@@ -18,7 +18,7 @@ COPY src src
 
 RUN poetry build
 RUN (export version=$(find dist -name '*.whl'); \
-    pip install "${version}[s3,psycopg2]")
+    pip install "${version}[s3,postgres]")
 
 FROM python:3.9
 

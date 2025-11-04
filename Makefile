@@ -3,17 +3,16 @@
 VERSION=$(shell python -c 'from importlib import metadata; print(metadata.version("databudgie"))')
 
 install:
-	uv sync --extra psycopg2-binary --extra s3
+	uv sync --extra postgres --extra s3
 
 
 format:
 	uv run ruff check --fix src tests
-	uv run black src tests
+	uv run ruff format src tests
 
 lint:
 	uv run ruff check src tests || exit 1
 	uv run mypy --namespace-packages src tests || exit 1
-	uv run black --check --diff src tests || exit 1
 
 test:
 	uv run coverage run -a -m pytest src tests

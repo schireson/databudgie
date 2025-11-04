@@ -1,5 +1,9 @@
 # Changelog
 
+### v2.9.0
+
+* Swap to psycopg from psycopg2
+
 ### [v2.8.5](https://github.com/schireson/databudgie/compare/v2.8.4...v2.8.5) (2024-02-20)
 
 #### Features
