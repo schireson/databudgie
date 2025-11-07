@@ -195,6 +195,28 @@ def test_backup_unnamed_table(pg, mf, s3_resource):
     )
 
 
+def test_backup_with_idle_in_transaction_timeout(pg, s3_resource):
+    """Validate backup works with idle_in_transaction_timeout config option."""
+    config = RootConfig.from_dict(
+        {
+            "location": "s3://sample-bucket/databudgie/test/{table}",
+            "tables": ["public.customer", "public.store"],
+            "sequences": False,
+            "strict": True,
+            "idle_in_transaction_timeout": 5000,
+            **s3_config,
+        }
+    )
+
+    backup_all(pg, config.backup)
+
+    all_object_keys = [obj.key for obj in s3_resource.Bucket("sample-bucket").objects.all()]
+    assert all_object_keys == [
+        "databudgie/test/public.customer/2021-04-26T09:00:00.csv",
+        "databudgie/test/public.store/2021-04-26T09:00:00.csv",
+    ]
+
+
 def _validate_backup_contents(buffer, expected_contents: List[Customer]):
     """Validate the contents of a backup file. Columns from the file will be raw."""
     wrapper = io.TextIOWrapper(buffer, encoding="utf-8")

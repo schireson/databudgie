@@ -1,5 +1,9 @@
 # Changelog
 
+### v2.9.1
+
+* fix: Add ability to set session-local idle-in-transaction setting
+
 ### v2.9.0
 
 * Swap to psycopg from psycopg2
