@@ -141,6 +141,7 @@ class TableParentConfig(typing.Generic[T], Config):
     s3: S3Config | None = None
     root_location: str | None = None
     adapter: str | None = None
+    idle_in_transaction_timeout: int | None = None
 
     @classmethod
     @abc.abstractmethod
@@ -168,6 +169,8 @@ class TableParentConfig(typing.Generic[T], Config):
 
         connections = Connection.from_collection(stack.get("connections"))
 
+        idle_in_transaction_timeout = stack.get("idle_in_transaction_timeout")
+
         return cls(
             connection=connection,
             tables=tables,
@@ -177,6 +180,7 @@ class TableParentConfig(typing.Generic[T], Config):
             root_location=root_location,
             adapter=adapter,
             connections=connections,
+            idle_in_transaction_timeout=idle_in_transaction_timeout,
         )
 
 

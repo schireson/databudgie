@@ -43,7 +43,14 @@ def _create_postgres_session(config: BackupConfig | RestoreConfig):
         url_obj = sqlalchemy.engine.url.make_url(url)
 
     engine = sqlalchemy.create_engine(url_obj)
-    return sqlalchemy.orm.scoping.scoped_session(sqlalchemy.orm.session.sessionmaker(bind=engine))()
+    session = sqlalchemy.orm.scoping.scoped_session(sqlalchemy.orm.session.sessionmaker(bind=engine))()
+
+    if config.idle_in_transaction_timeout is not None:
+        session.execute(
+            sqlalchemy.text(f"SET idle_in_transaction_session_timeout = '{config.idle_in_transaction_timeout}s'")
+        )
+
+    return session
 
 
 def backup_config(root_config: RootConfig):
