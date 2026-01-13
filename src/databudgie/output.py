@@ -7,7 +7,7 @@ from rich.traceback import Traceback
 class Console(console.Console):
     theme = Theme({"trace": "white", "info": "blue", "warn": "yellow", "error": "bold red"})
 
-    def __init__(self, verbosity=0):
+    def __init__(self, verbosity=1):
         super().__init__(theme=self.theme, log_time=True)
         self.verbosity = verbosity
 

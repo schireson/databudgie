@@ -20,7 +20,10 @@ def test_manifest_backup(pg, mf, s3_resource):
     customer = mf.customer.new(external_id="cid_123")
 
     config = RootConfig.from_dict(
-        {"tables": {"public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer"}}, **s3_config}
+        {
+            "tables": {"public.customer": {"location": "s3://sample-bucket/databudgie/test/public.customer/"}},
+            **s3_config,
+        }
     )
 
     manifest = BackupManifest(pg, DatabudgieManifest.__table__.name)
@@ -60,9 +63,9 @@ def test_manifest_restore(pg, s3_resource):
             "strict": True,
             "restore": {
                 "tables": {
-                    "public.store": {"location": "s3://sample-bucket/public.store", "strategy": "use_latest_filename"},
+                    "public.store": {"location": "s3://sample-bucket/public.store/", "strategy": "use_latest_filename"},
                     "public.product": {
-                        "location": "s3://sample-bucket/public.product",
+                        "location": "s3://sample-bucket/public.product/",
                         "strategy": "use_latest_metadata",
                     },
                 },
