@@ -61,6 +61,9 @@ class LocalStorage:
         return any(dir_entry for dir_entry in os.scandir(path) if dir_entry.is_file())
 
     def get_file_content(self, path: str, selection_strategy: SelectionStrategy) -> FileObject | None:
+        # Pathlib normalizes away any leading `./` or other potential ambiguities that will prevent matching.
+        path_str = str(pathlib.PurePath(path))
+
         parent_path = pathlib.PurePath(path).parent
 
         try:
@@ -71,7 +74,7 @@ class LocalStorage:
         object_generator = (
             FileStat.from_stat(dir_entry.path, dir_entry.stat())
             for dir_entry in files
-            if dir_entry.is_file() and match_path(dir_entry.path, path)
+            if dir_entry.is_file() and match_path(dir_entry.path, path_str)
         )
 
         target_object = selection_strategy(object_generator)

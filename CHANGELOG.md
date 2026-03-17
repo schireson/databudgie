@@ -1,5 +1,9 @@
 # Changelog
 
+### v2.9.2
+
+* fix: File path matching on local storage where timestamp based file discovery wouldn't work.
+
 ### v2.9.1
 
 * fix: Add ability to set session-local idle-in-transaction setting
