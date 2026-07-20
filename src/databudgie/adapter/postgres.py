@@ -128,13 +128,13 @@ class PostgresAdapter(Adapter):
         collect_tables = text(
             """
             with recursive fk_tree as (
-                -- All tables not referencing anything else
-                select t.oid      as reloid,
-                    t.relname  as table_name,
-                    s.nspname  as schema_name,
+                select t.oid as reloid,
+                    t.relname as table_name,
+                    s.nspname as schema_name,
                     null::text COLLATE "C" as referenced_table_name,
                     null::text COLLATE "C" as referenced_schema_name,
-                    1          as level
+                    1 as level,
+                    ARRAY[t.oid] as visited
                 from pg_class t
                 join pg_namespace s on s.oid = t.relnamespace
                 where relkind = 'r'
@@ -148,12 +148,13 @@ class PostgresAdapter(Adapter):
                     rs.nspname,
                     p.table_name,
                     p.schema_name,
-                    p.level + 1
+                    p.level + 1,
+                    p.visited || ref.oid
                 from pg_class ref
                 join pg_namespace rs on rs.oid = ref.relnamespace
                 join pg_constraint c on c.contype = 'f' and c.conrelid = ref.oid
                 join fk_tree p on p.reloid = c.confrelid
-                where ref.oid != p.reloid -- do not enter to tables referencing theirselves.
+                where ref.oid != all(p.visited)  -- skip any already-visited table
             ),
             all_tables as (
                 -- this picks the highest level for each table
@@ -179,23 +180,27 @@ class PostgresAdapter(Adapter):
         collect_tables = text(
             """
             with recursive fk_tree as (
-                 select pg_class.oid      as table_oid,
-                     pg_namespace.nspname as schema_name,
-                     pg_class.relname     as table_name,
-                     1                    as level
-                 from pg_class
-                 join pg_namespace pg_namespace on pg_namespace.oid = pg_class.relnamespace
-                 where pg_namespace.nspname = :schema and pg_class.relname = :table_name
-                 union all
-                 select pg_class.oid      as table_oid,
-                     pg_namespace.nspname as schema_name,
-                     pg_class.relname     as table_name,
-                     fk_tree.level + 1          as level
-                 from fk_tree
-                 join pg_constraint on pg_constraint.contype = 'f' and pg_constraint.conrelid = fk_tree.table_oid
-                 join pg_class on pg_class.oid = pg_constraint.confrelid
-                 join pg_namespace on pg_namespace.oid = pg_class.relnamespace
-                 where fk_tree.table_oid != pg_class.oid -- do not enter to tables referencing theirselves.
+                select pg_class.oid      as table_oid,
+                    pg_namespace.nspname as schema_name,
+                    pg_class.relname     as table_name,
+                    1                    as level,
+                    ARRAY[pg_class.oid]  as visited
+                from pg_class
+                join pg_namespace on pg_namespace.oid = pg_class.relnamespace
+                where pg_namespace.nspname = :schema and pg_class.relname = :table_name
+
+                union all
+
+                select pg_class.oid,
+                    pg_namespace.nspname,
+                    pg_class.relname,
+                    fk_tree.level + 1,
+                    fk_tree.visited || pg_class.oid
+                from fk_tree
+                join pg_constraint on pg_constraint.contype = 'f' and pg_constraint.conrelid = fk_tree.table_oid
+                join pg_class on pg_class.oid = pg_constraint.confrelid
+                join pg_namespace on pg_namespace.oid = pg_class.relnamespace
+                where pg_class.oid != all(fk_tree.visited)
             ),
             all_tables as (
                 -- this picks the **highest** level for each table
