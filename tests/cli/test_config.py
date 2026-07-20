@@ -4,12 +4,14 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from unittest.mock import mock_open, patch
 
+import click
 import pytest
 
 from databudgie.cli.config import (
     CliConfig,
     collect_config,
     collect_env_config,
+    collect_raw_config,
     load_file_configs,
 )
 
@@ -130,6 +132,26 @@ class Test_load_file_configs:
 
         expected_result = {"backup": {"tables": [{"name": "foo", "query": "select * from table"}, {"name": "bar"}]}}
         assert configs[0] == expected_result
+
+
+class Test_collect_raw_config:
+    @pytest.mark.parametrize(
+        "format, content",
+        [
+            ("yml", "foo: bar\nfoo: baz\n"),
+            ("json", "{not valid json}"),
+            ("toml", "[invalid\n"),
+        ],
+    )
+    def test_broken_config_raises_usage_error(self, format, content):
+        with pytest.raises(click.UsageError, match="Failed to parse"):
+            collect_raw_config(format=format, content=content)
+
+    def test_broken_file_includes_filename(self, tmp_path):
+        bad_yaml = tmp_path / "bad.yml"
+        bad_yaml.write_text("foo: bar\nfoo: baz\n")
+        with pytest.raises(click.UsageError, match=r"bad\.yml"):
+            collect_raw_config(format="yml", file=str(bad_yaml))
 
 
 class Test_collect_env_config:
