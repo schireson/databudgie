@@ -1,6 +1,6 @@
 [project]
 name = "databudgie"
-version = "2.9.3"
+version = "2.9.4"
 description = "Ergonomic and flexible tool for database backup and restore"
 readme = "README.md"
 license = { text = "MIT" }

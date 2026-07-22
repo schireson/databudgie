@@ -150,7 +150,11 @@ def collect_raw_config(*, format: str, content: str | None = None, file: str | N
         formats = ", ".join(file_loaders.keys())
         raise click.UsageError(f"File format must be one of: {formats}")
 
-    config: Config = Config.from_loader(loader_cls(), file=file, content=content)
+    try:
+        config: Config = Config.from_loader(loader_cls(), file=file, content=content)
+    except Exception as e:
+        source = f"'{file}'" if file else "config input"
+        raise click.UsageError(f"Failed to parse {source}: {e}") from e
     return config.to_dict()
 
 
